@@ -66,6 +66,28 @@ export class GroupsController {
     return this.groupsService.searchGroups(query);
   }
 
+  @Get('my-groups')
+  @ApiOperation({ summary: 'Get current user\'s assigned groups with questions' })
+  @ApiResponse({ 
+    status: HttpStatus.OK, 
+    description: 'User groups retrieved successfully'
+  })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'User not found' })
+  async getMyGroups(@Request() req) {
+    return this.groupsService.getGroupsForUser(req.user.userId);
+  }
+
+  @Get('my-groups/:groupId')
+  @ApiOperation({ summary: 'Get specific group details for current user' })
+  @ApiResponse({ 
+    status: HttpStatus.OK, 
+    description: 'Group details retrieved successfully'
+  })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Group not found or user not assigned to this group' })
+  async getMyGroupById(@Request() req, @Param('groupId', ParseIntPipe) groupId: number) {
+    return this.groupsService.getGroupForUser(req.user.userId, groupId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get group by ID (Admin/SuperAdmin only)' })
   @ApiResponse({ 

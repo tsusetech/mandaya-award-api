@@ -549,6 +549,51 @@ export class GroupsService {
     };
   }
 
+  async getGroupForUser(userId: number, groupId: number) {
+    // Check if user exists
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Check if user is assigned to this group
+    const userGroup = await this.prisma.userGroup.findUnique({
+      where: { userId_groupId: { userId, groupId } },
+      include: {
+        group: {
+          include: {
+            groupQuestions: {
+              include: {
+                question: true,
+              },
+              orderBy: {
+                orderNumber: 'asc',
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!userGroup) {
+      throw new NotFoundException('Group not found or user not assigned to this group');
+    }
+
+    return {
+      message: 'Group details retrieved successfully',
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        username: user.username,
+      },
+      group: userGroup.group,
+    };
+  }
+
   // GroupQuestion Management Methods
   async bindQuestionToGroup(groupId: number, bindQuestionDto: BindQuestionToGroupDto) {
     // Check if group exists
