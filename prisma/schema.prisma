@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              Int               @id @default(autoincrement())
+  email           String            @unique
+  name            String?
+  createdAt       DateTime          @default(now())
+  password        String?
+  updatedAt       DateTime          @updatedAt
+  username        String            @unique
+  deletedAt       DateTime?
+  deletedBy       Int?
+  userRoles       UserRole[]
+  userGroups      UserGroup[]
+  responseSessions ResponseSession[]
+  deletedByUser   User?             @relation("UserDeletedBy", fields: [deletedBy], references: [id])
+  deletedUsers    User[]            @relation("UserDeletedBy")
+  deletedRoles    Role[]            @relation("RoleDeletedBy")
+  deletedQuestions Question[]        @relation("QuestionDeletedBy")
+  deletedGroups   Group[]           @relation("GroupDeletedBy")
+  deletedResponseSessions ResponseSession[] @relation("ResponseSessionDeletedBy")
+}
+
+model Role {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+  deletedBy   Int?
+  userRoles   UserRole[]
+  deletedByUser User?    @relation("RoleDeletedBy", fields: [deletedBy], references: [id])
+}
+
+model UserRole {
+  id     Int  @id @default(autoincrement())
+  userId Int
+  roleId Int
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+}
+
+model UserGroup {
+  id      Int   @id @default(autoincrement())
+  userId  Int
+  groupId Int
+  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user    User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+}
+
+model Question {
+  id                    Int                   @id @default(autoincrement())
+  questionText          String
+  inputType             String                // e.g. text-open, numeric, checkbox
+  isRequired            Boolean
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  deletedAt             DateTime?
+  deletedBy             Int?
+
+  groupQuestions        GroupQuestion[]
+  responses             QuestionResponse[]
+  currentInSessions     ResponseSession[]     @relation("CurrentQuestion")
+  deletedByUser         User?                 @relation("QuestionDeletedBy", fields: [deletedBy], references: [id])
+}
+
+model Group {
+  id               Int               @id @default(autoincrement())
+  groupName        String
+  description      String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  deletedAt        DateTime?
+  deletedBy        Int?
+
+  groupQuestions   GroupQuestion[]
+  userGroups       UserGroup[]
+  responseSessions ResponseSession[]
+  deletedByUser    User?             @relation("GroupDeletedBy", fields: [deletedBy], references: [id])
+}
+
+model GroupQuestion {
+  id            Int      @id @default(autoincrement())
+  groupId       Int
+  questionId    Int
+  orderNumber   Int
+  sectionTitle  String?
+  subsection    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  responses QuestionResponse[]
+
+  @@index([groupId])
+  @@index([questionId])
+}
+
+model ResponseSession {
+  id                    Int      @id @default(autoincrement())
+  userId                Int
+  groupId               Int
+  status                String   // 'draft', 'in_progress', 'paused', 'completed', 'submitted'
+  currentQuestionId     Int?
+  progressPercentage    Int      @default(0)
+  autoSaveEnabled       Boolean  @default(true)
+  
+  // Timestamps
+  startedAt             DateTime @default(now())
+  lastAutoSaveAt        DateTime?
+  lastActivityAt        DateTime @updatedAt
+  completedAt           DateTime?
+  submittedAt           DateTime?
+  deletedAt             DateTime?
+  deletedBy             Int?
+  
+  // Relations
+  user                  User @relation(fields: [userId], references: [id])
+  group                 Group @relation(fields: [groupId], references: [id])
+  currentQuestion       Question? @relation("CurrentQuestion", fields: [currentQuestionId], references: [id])
+  responses             QuestionResponse[]
+  deletedByUser         User? @relation("ResponseSessionDeletedBy", fields: [deletedBy], references: [id])
+  
+  @@unique([userId, groupId])
+  @@index([userId, status])
+  @@index([lastActivityAt])
+}
+
+model QuestionResponse {
+  id                    Int      @id @default(autoincrement())
+  sessionId             Int
+  questionId            Int
+  groupQuestionId       Int
+  
+  // Response Values (based on question input_type)
+  textValue             String?
+  numericValue          Decimal?
+  booleanValue          Boolean?
+  arrayValue            Json?    // for multiple choice, file uploads, etc.
+  
+  // Auto-save State Management
+  isDraft               Boolean  @default(true)
+  isComplete            Boolean  @default(false)
+  isSkipped             Boolean  @default(false)
+  
+  // Tracking
+  autoSaveVersion       Int      @default(1)
+  timeSpentSeconds      Int      @default(0)
+  lastModifiedAt        DateTime @updatedAt
+  firstAnsweredAt       DateTime?
+  finalizedAt           DateTime?
+  
+  // Validation & Metadata
+  validationErrors      Json?
+  metadata              Json?
+  
+  // Relations
+  session               ResponseSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question              Question @relation(fields: [questionId], references: [id])
+  groupQuestion         GroupQuestion @relation(fields: [groupQuestionId], references: [id])
+  
+  @@unique([sessionId, questionId])
+  @@index([sessionId, isDraft])
+  @@index([lastModifiedAt])
+}
