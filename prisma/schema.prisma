@@ -74,6 +74,7 @@ model Question {
   groupQuestions        GroupQuestion[]
   responses             QuestionResponse[]
   reviewComments        ReviewComment[]
+  juryScores            JuryScore[]
   currentInSessions     ResponseSession[]     @relation("CurrentQuestion")
   deletedByUser         User?                 @relation("QuestionDeletedBy", fields: [deletedBy], references: [id])
 }
@@ -194,10 +195,14 @@ model Review {
   id              Int           @id @default(autoincrement())
   sessionId       Int
   reviewerId      Int
-  status          String        // 'pending', 'approved', 'rejected', 'needs_revision'
-  decision        String        // 'approve', 'reject', 'request_revision'
+  stage           String        // 'admin_validation', 'jury_scoring', 'jury_deliberation', 'final_decision'
+  status          String        // 'pending', 'in_progress', 'approved', 'rejected', 'needs_revision', 'scored', 'deliberated'
+  decision        String        // 'approve', 'reject', 'request_revision', 'pass_to_jury', 'needs_deliberation'
   overallComments String?
+  totalScore      Decimal?      // Total jury score (0-100)
+  deliberationNotes String?     // Notes from jury deliberation
   internalNotes   String?
+  validationChecklist Json?     // Array of validation checklist items
   reviewedAt      DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
@@ -206,9 +211,11 @@ model Review {
   session         ResponseSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   reviewer        User @relation("Reviewer", fields: [reviewerId], references: [id])
   comments        ReviewComment[]
+  juryScores      JuryScore[]
 
   @@unique([sessionId])
   @@index([reviewerId])
+  @@index([stage])
   @@index([status])
   @@index([reviewedAt])
 }
@@ -219,12 +226,31 @@ model ReviewComment {
   questionId  Int
   comment     String
   isCritical  Boolean  @default(false)
+  stage       String?  // Which review stage the comment was made
   createdAt   DateTime @default(now())
 
   // Relations
   review      Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
   question    Question @relation(fields: [questionId], references: [id])
 
+  @@index([reviewId])
+  @@index([questionId])
+  @@index([stage])
+}
+
+model JuryScore {
+  id          Int      @id @default(autoincrement())
+  reviewId    Int
+  questionId  Int
+  score       Decimal  // Score from 0-10
+  comments    String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  review      Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  question    Question @relation(fields: [questionId], references: [id])
+
+  @@unique([reviewId, questionId])
   @@index([reviewId])
   @@index([questionId])
 }

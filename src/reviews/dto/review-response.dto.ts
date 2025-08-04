@@ -1,5 +1,22 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+export class JuryScoreResponseDto {
+  @ApiProperty()
+  id: number;
+
+  @ApiProperty()
+  questionId: number;
+
+  @ApiProperty()
+  score: number;
+
+  @ApiProperty()
+  comments?: string;
+
+  @ApiProperty()
+  createdAt: Date;
+}
+
 export class ReviewCommentResponseDto {
   @ApiProperty()
   id: number;
@@ -12,6 +29,9 @@ export class ReviewCommentResponseDto {
 
   @ApiProperty()
   isCritical: boolean;
+
+  @ApiProperty()
+  stage?: string;
 
   @ApiProperty()
   createdAt: Date;
@@ -31,6 +51,9 @@ export class ReviewResponseDto {
   reviewerName: string;
 
   @ApiProperty()
+  stage: string;
+
+  @ApiProperty()
   status: string;
 
   @ApiProperty()
@@ -40,10 +63,25 @@ export class ReviewResponseDto {
   overallComments?: string;
 
   @ApiProperty()
+  totalScore?: number;
+
+  @ApiProperty()
+  deliberationNotes?: string;
+
+  @ApiProperty()
   internalNotes?: string;
 
   @ApiProperty({ type: [ReviewCommentResponseDto] })
   questionComments: ReviewCommentResponseDto[];
+
+  @ApiProperty({ type: [JuryScoreResponseDto] })
+  juryScores: JuryScoreResponseDto[];
+
+  @ApiProperty({ type: [String] })
+  validationChecklist?: string[];
+
+  @ApiProperty()
+  reviewedAt?: Date;
 
   @ApiProperty()
   createdAt: Date;

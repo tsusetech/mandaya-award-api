@@ -10,7 +10,18 @@ export class ReviewsService {
   constructor(private prisma: PrismaService) {}
 
   async createReview(reviewerId: number, createReviewDto: CreateReviewDto): Promise<ReviewResponseDto> {
-    const { sessionId, decision, overallComments, questionComments, internalNotes } = createReviewDto;
+    const { 
+      sessionId, 
+      stage, 
+      decision, 
+      overallComments, 
+      questionComments, 
+      juryScores, 
+      totalScore, 
+      deliberationNotes, 
+      internalNotes, 
+      validationChecklist 
+    } = createReviewDto;
 
     // Check if session exists and is submitted
     const session = await this.prisma.responseSession.findUnique({
@@ -43,7 +54,7 @@ export class ReviewsService {
       throw new BadRequestException('Review already exists for this session');
     }
 
-    // Determine review status based on decision
+    // Determine review status based on decision and stage
     let status: ReviewStatus;
     switch (decision) {
       case ReviewDecision.APPROVE:
@@ -54,6 +65,12 @@ export class ReviewsService {
         break;
       case ReviewDecision.REQUEST_REVISION:
         status = ReviewStatus.NEEDS_REVISION;
+        break;
+      case ReviewDecision.PASS_TO_JURY:
+        status = ReviewStatus.IN_PROGRESS;
+        break;
+      case ReviewDecision.NEEDS_DELIBERATION:
+        status = ReviewStatus.DELIBERATED;
         break;
       default:
         throw new BadRequestException('Invalid review decision');
@@ -66,11 +83,34 @@ export class ReviewsService {
         data: {
           sessionId,
           reviewerId,
+          stage,
           status,
           decision,
           overallComments,
+          totalScore,
+          deliberationNotes,
           internalNotes,
+          validationChecklist,
           reviewedAt: new Date()
+        },
+        include: {
+          reviewer: true,
+          session: {
+            include: {
+              user: true,
+              group: true
+            }
+          },
+          comments: {
+            include: {
+              question: true
+            }
+          },
+          juryScores: {
+            include: {
+              question: true
+            }
+          }
         }
       });
 
@@ -81,7 +121,20 @@ export class ReviewsService {
             reviewId: newReview.id,
             questionId: comment.questionId,
             comment: comment.comment,
-            isCritical: comment.isCritical || false
+            isCritical: comment.isCritical || false,
+            stage: comment.stage || stage
+          }))
+        });
+      }
+
+      // Create jury scores if provided
+      if (juryScores && juryScores.length > 0) {
+        await prisma.juryScore.createMany({
+          data: juryScores.map(score => ({
+            reviewId: newReview.id,
+            questionId: score.questionId,
+            score: score.score,
+            comments: score.comments
           }))
         });
       }
@@ -116,6 +169,11 @@ export class ReviewsService {
           include: {
             question: true
           }
+        },
+        juryScores: {
+          include: {
+            question: true
+          }
         }
       }
     });
@@ -141,9 +199,19 @@ export class ReviewsService {
       throw new BadRequestException('Cannot update finalized review');
     }
 
-    const { decision, overallComments, questionComments, internalNotes } = updateReviewDto;
+    const { 
+      stage, 
+      decision, 
+      overallComments, 
+      questionComments, 
+      juryScores, 
+      totalScore, 
+      deliberationNotes, 
+      internalNotes, 
+      validationChecklist 
+    } = updateReviewDto;
 
-    // Determine new status based on decision
+    // Determine new status based on decision and stage
     let status: ReviewStatus;
     if (decision) {
       switch (decision) {
@@ -156,6 +224,12 @@ export class ReviewsService {
         case ReviewDecision.REQUEST_REVISION:
           status = ReviewStatus.NEEDS_REVISION;
           break;
+        case ReviewDecision.PASS_TO_JURY:
+          status = ReviewStatus.IN_PROGRESS;
+          break;
+        case ReviewDecision.NEEDS_DELIBERATION:
+          status = ReviewStatus.DELIBERATED;
+          break;
         default:
           throw new BadRequestException('Invalid review decision');
       }
@@ -167,10 +241,14 @@ export class ReviewsService {
       const updated = await prisma.review.update({
         where: { id: reviewId },
         data: {
+          stage: stage || review.stage,
           status: status || review.status,
           decision: decision || review.decision,
           overallComments,
+          totalScore,
+          deliberationNotes,
           internalNotes,
+          validationChecklist,
           reviewedAt: new Date()
         },
         include: {
@@ -182,6 +260,11 @@ export class ReviewsService {
             }
           },
           comments: {
+            include: {
+              question: true
+            }
+          },
+          juryScores: {
             include: {
               question: true
             }
@@ -203,20 +286,32 @@ export class ReviewsService {
               reviewId,
               questionId: comment.questionId,
               comment: comment.comment,
-              isCritical: comment.isCritical || false
+              isCritical: comment.isCritical || false,
+              stage: comment.stage || stage || review.stage
             }))
           });
         }
       }
 
-      // Update session status
-      await prisma.responseSession.update({
-        where: { id: review.sessionId },
-        data: {
-          reviewStatus: status || review.status,
-          reviewedAt: new Date()
+      // Update jury scores if provided
+      if (juryScores) {
+        // Delete existing scores
+        await prisma.juryScore.deleteMany({
+          where: { reviewId }
+        });
+
+        // Create new scores
+        if (juryScores.length > 0) {
+          await prisma.juryScore.createMany({
+            data: juryScores.map(score => ({
+              reviewId,
+              questionId: score.questionId,
+              score: score.score,
+              comments: score.comments
+            }))
+          });
         }
-      });
+      }
 
       return updated;
     });
@@ -361,17 +456,30 @@ export class ReviewsService {
       sessionId: review.sessionId,
       reviewerId: review.reviewerId,
       reviewerName: review.reviewer.name,
+      stage: review.stage,
       status: review.status,
       decision: review.decision,
       overallComments: review.overallComments,
+      totalScore: review.totalScore,
+      deliberationNotes: review.deliberationNotes,
       internalNotes: review.internalNotes,
+      validationChecklist: review.validationChecklist,
       questionComments: review.comments.map(comment => ({
         id: comment.id,
         questionId: comment.questionId,
         comment: comment.comment,
         isCritical: comment.isCritical,
+        stage: comment.stage,
         createdAt: comment.createdAt
       })),
+      juryScores: review.juryScores.map(score => ({
+        id: score.id,
+        questionId: score.questionId,
+        score: score.score,
+        comments: score.comments,
+        createdAt: score.createdAt
+      })),
+      reviewedAt: review.reviewedAt,
       createdAt: review.createdAt,
       updatedAt: review.updatedAt
     };
