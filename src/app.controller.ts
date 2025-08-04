@@ -18,16 +18,4 @@ export class AppController {
       timestamp: new Date().toISOString(),
     };
   }
-
-  @Get('users')
-  @ApiOperation({ summary: 'Get all users' })
-  @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
-  async getUsers() {
-    const users = await this.appService.getUsers();
-    return {
-      message: 'Users retrieved successfully',
-      data: users,
-      count: users.length,
-    };
-  }
 }
