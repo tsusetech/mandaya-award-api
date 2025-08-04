@@ -10,6 +10,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { GroupsModule } from './groups/groups.module';
 import { QuestionsModule } from './questions/questions.module';
 import { ResponsesModule } from './responses/responses.module';
+import { ReviewsModule } from './reviews/reviews.module';
 
 @Module({
   imports: [
@@ -24,7 +25,8 @@ import { ResponsesModule } from './responses/responses.module';
     NotificationsModule,
     GroupsModule,
     QuestionsModule,
-    ResponsesModule
+    ResponsesModule,
+    ReviewsModule
   ],
   controllers: [AppController],
   providers: [AppService],

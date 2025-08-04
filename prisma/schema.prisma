@@ -20,6 +20,7 @@ model User {
   userRoles       UserRole[]
   userGroups      UserGroup[]
   responseSessions ResponseSession[]
+  reviews         Review[]          @relation("Reviewer")
   deletedByUser   User?             @relation("UserDeletedBy", fields: [deletedBy], references: [id])
   deletedUsers    User[]            @relation("UserDeletedBy")
   deletedRoles    Role[]            @relation("RoleDeletedBy")
@@ -72,6 +73,7 @@ model Question {
 
   groupQuestions        GroupQuestion[]
   responses             QuestionResponse[]
+  reviewComments        ReviewComment[]
   currentInSessions     ResponseSession[]     @relation("CurrentQuestion")
   deletedByUser         User?                 @relation("QuestionDeletedBy", fields: [deletedBy], references: [id])
 }
@@ -114,6 +116,7 @@ model ResponseSession {
   userId                Int
   groupId               Int
   status                String   // 'draft', 'in_progress', 'paused', 'completed', 'submitted'
+  reviewStatus          String?  // 'pending', 'approved', 'rejected', 'needs_revision'
   currentQuestionId     Int?
   progressPercentage    Int      @default(0)
   autoSaveEnabled       Boolean  @default(true)
@@ -124,6 +127,7 @@ model ResponseSession {
   lastActivityAt        DateTime @updatedAt
   completedAt           DateTime?
   submittedAt           DateTime?
+  reviewedAt            DateTime?
   deletedAt             DateTime?
   deletedBy             Int?
   
@@ -132,11 +136,13 @@ model ResponseSession {
   group                 Group @relation(fields: [groupId], references: [id])
   currentQuestion       Question? @relation("CurrentQuestion", fields: [currentQuestionId], references: [id])
   responses             QuestionResponse[]
+  review                Review?
   deletedByUser         User? @relation("ResponseSessionDeletedBy", fields: [deletedBy], references: [id])
   
   @@unique([userId, groupId])
   @@index([userId, status])
   @@index([lastActivityAt])
+  @@index([reviewStatus])
 }
 
 model QuestionResponse {
@@ -175,4 +181,43 @@ model QuestionResponse {
   @@unique([sessionId, questionId])
   @@index([sessionId, isDraft])
   @@index([lastModifiedAt])
+}
+
+model Review {
+  id              Int           @id @default(autoincrement())
+  sessionId       Int
+  reviewerId      Int
+  status          String        // 'pending', 'approved', 'rejected', 'needs_revision'
+  decision        String        // 'approve', 'reject', 'request_revision'
+  overallComments String?
+  internalNotes   String?
+  reviewedAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  session         ResponseSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  reviewer        User @relation("Reviewer", fields: [reviewerId], references: [id])
+  comments        ReviewComment[]
+
+  @@unique([sessionId])
+  @@index([reviewerId])
+  @@index([status])
+  @@index([reviewedAt])
+}
+
+model ReviewComment {
+  id          Int      @id @default(autoincrement())
+  reviewId    Int
+  questionId  Int
+  comment     String
+  isCritical  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  // Relations
+  review      Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  question    Question @relation(fields: [questionId], references: [id])
+
+  @@index([reviewId])
+  @@index([questionId])
 }
