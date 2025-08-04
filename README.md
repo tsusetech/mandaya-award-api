@@ -96,3 +96,273 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+# Mandaya Award API
+
+A comprehensive API for managing award applications with advanced grouping and calculation capabilities.
+
+## Features
+
+- **User Management**: Authentication, authorization, and role-based access control
+- **Group Management**: Create and manage groups for organizing questions
+- **Question Management**: Create and manage questions with various input types
+- **Response Management**: Handle user responses with auto-save functionality
+- **Review System**: Comprehensive review workflow for submissions
+- **Tahap-based Grouping**: Advanced grouping system for cross-subsection calculations
+
+## Tahap-based Grouping System
+
+The API includes an advanced grouping system that allows you to create calculation groups that can span across multiple subsections. This is particularly useful for implementing multi-stage calculations like "Tahap 1 Delta" and "Tahap 2" as shown in the Google Sheet.
+
+### Key Concepts
+
+1. **Tahap Groups**: Calculation stages (e.g., "Tahap 1 Delta", "Tahap 2")
+2. **Group Identifiers**: Unique identifiers for grouping related questions
+3. **Calculation Types**: Types of calculations (delta, average, sum, custom)
+4. **Cross-subsection Support**: Questions can be grouped across different subsections
+
+### Database Schema
+
+The `GroupQuestion` model has been enhanced with new fields:
+
+```prisma
+model GroupQuestion {
+  id            Int      @id @default(autoincrement())
+  groupId       Int
+  questionId    Int
+  orderNumber   Int
+  sectionTitle  String?
+  subsection    String?
+  // New fields for tahap-based grouping
+  tahapGroup    String?  // e.g., "Tahap 1 Delta", "Tahap 2"
+  calculationType String? // e.g., "delta", "average", "sum"
+  groupIdentifier String? // e.g., "poverty_metrics", "expenditure_metrics"
+  isGrouped     Boolean  @default(false) // indicates if this question is part of a calculation group
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  responses QuestionResponse[]
+
+  @@index([groupId])
+  @@index([questionId])
+  @@index([tahapGroup])
+  @@index([groupIdentifier])
+}
+```
+
+### API Endpoints
+
+#### Create Tahap Group
+```http
+POST /groups/{groupId}/tahap-groups
+```
+
+**Request Body:**
+```json
+{
+  "tahapGroup": "Tahap 1 Delta",
+  "groupIdentifier": "poverty_metrics",
+  "calculationType": "delta",
+  "description": "Poverty reduction metrics for delta calculation",
+  "questionIds": [1, 2, 3]
+}
+```
+
+#### Update Tahap Group
+```http
+PUT /groups/{groupId}/tahap-groups/{groupIdentifier}
+```
+
+#### Delete Tahap Group
+```http
+DELETE /groups/{groupId}/tahap-groups/{groupIdentifier}
+```
+
+#### Get All Tahap Groups
+```http
+GET /groups/{groupId}/tahap-groups
+```
+
+**Query Parameters:**
+- `tahapGroup`: Filter by tahap group
+- `groupIdentifier`: Filter by group identifier
+
+#### Get Tahap Group Details
+```http
+GET /groups/{groupId}/tahap-groups/{groupIdentifier}
+```
+
+#### Get Cross-subsection Groups
+```http
+GET /groups/{groupId}/cross-subsection-groups
+```
+
+### Usage Examples
+
+#### Example 1: Creating a Tahap 1 Delta Group
+
+Based on the Google Sheet, you can create a group for poverty metrics that spans across subsections:
+
+```javascript
+// Create a tahap group for poverty metrics (questions 1-3)
+const tahapGroup = {
+  tahapGroup: "Tahap 1 Delta",
+  groupIdentifier: "poverty_metrics",
+  calculationType: "delta",
+  description: "Poverty reduction metrics for delta calculation",
+  questionIds: [1, 2, 3] // Questions about poor population for 2022, 2023, 2024
+};
+
+// POST to /groups/1/tahap-groups
+```
+
+#### Example 2: Creating a Tahap 2 Group
+
+For the average calculation of P0-P2 metrics:
+
+```javascript
+// Create a tahap group for P0-P2 average calculation
+const tahapGroup = {
+  tahapGroup: "Tahap 2",
+  groupIdentifier: "p0_p2_average",
+  calculationType: "average",
+  description: "Average calculation from P0-P2 poverty indices",
+  questionIds: [7, 8, 9, 10, 11, 12, 13, 14, 15] // P0, P1, P2 questions for 2022-2024
+};
+
+// POST to /groups/1/tahap-groups
+```
+
+#### Example 3: Cross-subsection Grouping
+
+You can group questions from different subsections:
+
+```javascript
+// Group questions from "Poverty Metrics" and "Expenditure Metrics" subsections
+const crossSubsectionGroup = {
+  tahapGroup: "Tahap 1 Delta",
+  groupIdentifier: "comprehensive_metrics",
+  calculationType: "delta",
+  description: "Comprehensive metrics across multiple subsections",
+  questionIds: [1, 2, 3, 16, 17, 18] // Questions from different subsections
+};
+```
+
+### Response Structure
+
+#### Tahap Group Response
+```json
+{
+  "message": "Tahap group created successfully",
+  "tahapGroup": {
+    "tahapGroup": "Tahap 1 Delta",
+    "groupIdentifier": "poverty_metrics",
+    "calculationType": "delta",
+    "description": "Poverty reduction metrics for delta calculation",
+    "questionCount": 3,
+    "questions": [
+      {
+        "id": 1,
+        "orderNumber": 1,
+        "sectionTitle": "Dimensi Hasil - 1. Penurunan Kantong-Kantong Kemiskinan",
+        "subsection": "Poverty Metrics",
+        "tahapGroup": "Tahap 1 Delta",
+        "calculationType": "delta",
+        "groupIdentifier": "poverty_metrics",
+        "isGrouped": true,
+        "question": {
+          "id": 1,
+          "questionText": "Berapakah jumlah penduduk miskin pada tahun 2022?",
+          "inputType": "numeric"
+        }
+      }
+    ]
+  }
+}
+```
+
+#### Cross-subsection Groups Response
+```json
+{
+  "message": "Cross-subsection groups retrieved successfully",
+  "group": {
+    "id": 1,
+    "groupName": "Kabupaten Assessment",
+    "description": "Assessment for kabupaten level"
+  },
+  "tahapGroups": [
+    {
+      "tahapGroup": "Tahap 1 Delta",
+      "groupIdentifier": "poverty_metrics",
+      "calculationType": "delta",
+      "subsections": ["Poverty Metrics", "Expenditure Metrics"],
+      "questionCount": 6,
+      "isCrossSubsection": true
+    }
+  ],
+  "crossSubsectionGroups": [
+    {
+      "tahapGroup": "Tahap 1 Delta",
+      "groupIdentifier": "poverty_metrics",
+      "calculationType": "delta",
+      "subsections": ["Poverty Metrics", "Expenditure Metrics"],
+      "questionCount": 6,
+      "isCrossSubsection": true
+    }
+  ],
+  "count": 1
+}
+```
+
+### Benefits
+
+1. **Flexible Grouping**: Group questions across different subsections
+2. **Calculation Support**: Define calculation types for each group
+3. **Multi-stage Processing**: Support for multiple calculation stages (Tahap 1, Tahap 2, etc.)
+4. **Easy Management**: Simple API endpoints for creating and managing groups
+5. **Cross-subsection Analysis**: Identify and manage groups that span multiple subsections
+
+### Migration
+
+To apply the database changes:
+
+```bash
+# Generate Prisma client with new schema
+npx prisma generate
+
+# Run database migration
+npx prisma migrate dev --name add-tahap-grouping
+```
+
+## Installation
+
+```bash
+npm install
+```
+
+## Environment Variables
+
+Create a `.env` file with the following variables:
+
+```env
+DATABASE_URL="postgresql://username:password@localhost:5432/mandaya_award"
+JWT_SECRET="your-jwt-secret"
+GOOGLE_CLIENT_ID="your-google-client-id"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+```
+
+## Running the Application
+
+```bash
+# Development
+npm run start:dev
+
+# Production
+npm run start:prod
+```
+
+## API Documentation
+
+Once the application is running, visit `http://localhost:3000/api` for the Swagger documentation.

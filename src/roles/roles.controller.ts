@@ -34,36 +34,6 @@ export class RolesController {
     return this.rolesService.createRole(createRoleDto);
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get role by ID' })
-  @ApiResponse({ status: 200, description: 'Role retrieved successfully', type: RoleResponseDto })
-  @ApiResponse({ status: 404, description: 'Role not found' })
-  getRoleById(@Param('id', ParseIntPipe) id: number) {
-    return this.rolesService.getRoleById(id);
-  }
-
-  @Put(':id')
-  @ApiOperation({ summary: 'Update role (Admin/SuperAdmin only)' })
-  @ApiResponse({ status: 200, description: 'Role updated successfully', type: RoleResponseDto })
-  @ApiResponse({ status: 404, description: 'Role not found' })
-  @ApiResponse({ status: 400, description: 'Role with this name already exists' })
-  @Roles('ADMIN', 'SUPERADMIN')
-  @UseGuards(RolesGuard)
-  updateRole(@Param('id', ParseIntPipe) id: number, @Body() updateRoleDto: UpdateRoleDto) {
-    return this.rolesService.updateRole(id, updateRoleDto);
-  }
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'Delete role (Admin/SuperAdmin only)' })
-  @ApiResponse({ status: 200, description: 'Role deleted successfully' })
-  @ApiResponse({ status: 404, description: 'Role not found' })
-  @ApiResponse({ status: 400, description: 'Cannot delete role that is assigned to users' })
-  @Roles('ADMIN', 'SUPERADMIN')
-  @UseGuards(RolesGuard)
-  deleteRole(@Param('id', ParseIntPipe) id: number) {
-    return this.rolesService.deleteRole(id);
-  }
-
   @Post('assign')
   @ApiOperation({ summary: 'Assign role to user by role name (Admin/SuperAdmin only)' })
   @ApiResponse({ status: 200, description: 'Role assigned successfully', type: UserRoleResponseDto })
@@ -104,6 +74,36 @@ export class RolesController {
   @UseGuards(RolesGuard)
   removeRoleById(@Body() assignRoleByIdDto: AssignRoleByIdDto) {
     return this.rolesService.removeRoleFromUserById(assignRoleByIdDto.userId, assignRoleByIdDto.roleId);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get role by ID' })
+  @ApiResponse({ status: 200, description: 'Role retrieved successfully', type: RoleResponseDto })
+  @ApiResponse({ status: 404, description: 'Role not found' })
+  getRoleById(@Param('id', ParseIntPipe) id: number) {
+    return this.rolesService.getRoleById(id);
+  }
+
+  @Put(':id')
+  @ApiOperation({ summary: 'Update role (Admin/SuperAdmin only)' })
+  @ApiResponse({ status: 200, description: 'Role updated successfully', type: RoleResponseDto })
+  @ApiResponse({ status: 404, description: 'Role not found' })
+  @ApiResponse({ status: 400, description: 'Role with this name already exists' })
+  @Roles('ADMIN', 'SUPERADMIN')
+  @UseGuards(RolesGuard)
+  updateRole(@Param('id', ParseIntPipe) id: number, @Body() updateRoleDto: UpdateRoleDto) {
+    return this.rolesService.updateRole(id, updateRoleDto);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete role (Admin/SuperAdmin only)' })
+  @ApiResponse({ status: 200, description: 'Role deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Role not found' })
+  @ApiResponse({ status: 400, description: 'Cannot delete role that is assigned to users' })
+  @Roles('ADMIN', 'SUPERADMIN')
+  @UseGuards(RolesGuard)
+  deleteRole(@Param('id', ParseIntPipe) id: number) {
+    return this.rolesService.deleteRole(id);
   }
 
   @Get('user/:userId')

@@ -100,6 +100,11 @@ model GroupQuestion {
   orderNumber   Int
   sectionTitle  String?
   subsection    String?
+  // New fields for tahap-based grouping
+  tahapGroup    String?  // e.g., "Tahap 1 Delta", "Tahap 2"
+  calculationType String? // e.g., "delta", "average", "sum"
+  groupIdentifier String? // e.g., "poverty_metrics", "expenditure_metrics"
+  isGrouped     Boolean  @default(false) // indicates if this question is part of a calculation group
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -109,6 +114,8 @@ model GroupQuestion {
 
   @@index([groupId])
   @@index([questionId])
+  @@index([tahapGroup])
+  @@index([groupIdentifier])
 }
 
 model ResponseSession {

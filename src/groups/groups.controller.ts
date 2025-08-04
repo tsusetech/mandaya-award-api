@@ -19,7 +19,14 @@ import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
 import { GroupsListResponseDto, SingleGroupResponseDto } from './dto/group-response.dto';
 import { AssignUserToGroupDto, AssignUsersToGroupDto, RemoveUserFromGroupDto } from './dto/assign-user-to-group.dto';
-import { BindQuestionToGroupDto, UpdateGroupQuestionDto, ReorderQuestionsDto } from './dto/group-question.dto';
+import { 
+  BindQuestionToGroupDto, 
+  UpdateGroupQuestionDto, 
+  ReorderQuestionsDto,
+  CreateTahapGroupDto,
+  UpdateTahapGroupDto,
+  GetTahapGroupsDto
+} from './dto/group-question.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 
@@ -300,5 +307,84 @@ export class GroupsController {
   @UseGuards(RolesGuard)
   permanentlyDeleteGroup(@Param('id', ParseIntPipe) id: number) {
     return this.groupsService.permanentlyDeleteGroup(id);
+  }
+
+  // Tahap-based Grouping Endpoints
+  @Post(':id/tahap-groups')
+  @ApiOperation({ summary: 'Create tahap group for cross-subsection calculations (Admin/SuperAdmin only)' })
+  @ApiResponse({ status: HttpStatus.CREATED, description: 'Tahap group created successfully' })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Group not found' })
+  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'One or more questions not bound to group or tahap group already exists' })
+  @Roles('ADMIN', 'SUPERADMIN')
+  @UseGuards(RolesGuard)
+  createTahapGroup(
+    @Param('id', ParseIntPipe) groupId: number,
+    @Body() createTahapGroupDto: CreateTahapGroupDto
+  ) {
+    return this.groupsService.createTahapGroup(groupId, createTahapGroupDto);
+  }
+
+  @Put(':id/tahap-groups/:groupIdentifier')
+  @ApiOperation({ summary: 'Update tahap group (Admin/SuperAdmin only)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Tahap group updated successfully' })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Group or tahap group not found' })
+  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Tahap group already exists or questions not bound to group' })
+  @Roles('ADMIN', 'SUPERADMIN')
+  @UseGuards(RolesGuard)
+  updateTahapGroup(
+    @Param('id', ParseIntPipe) groupId: number,
+    @Param('groupIdentifier') groupIdentifier: string,
+    @Body() updateTahapGroupDto: UpdateTahapGroupDto
+  ) {
+    return this.groupsService.updateTahapGroup(groupId, groupIdentifier, updateTahapGroupDto);
+  }
+
+  @Delete(':id/tahap-groups/:groupIdentifier')
+  @ApiOperation({ summary: 'Delete tahap group (Admin/SuperAdmin only)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Tahap group deleted successfully' })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Group or tahap group not found' })
+  @Roles('ADMIN', 'SUPERADMIN')
+  @UseGuards(RolesGuard)
+  deleteTahapGroup(
+    @Param('id', ParseIntPipe) groupId: number,
+    @Param('groupIdentifier') groupIdentifier: string
+  ) {
+    return this.groupsService.deleteTahapGroup(groupId, groupIdentifier);
+  }
+
+  @Get(':id/tahap-groups')
+  @ApiOperation({ summary: 'Get all tahap groups in a group (Admin/SuperAdmin only)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Tahap groups retrieved successfully' })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Group not found' })
+  @Roles('ADMIN', 'SUPERADMIN')
+  @UseGuards(RolesGuard)
+  getTahapGroups(
+    @Param('id', ParseIntPipe) groupId: number,
+    @Query() filters: GetTahapGroupsDto
+  ) {
+    return this.groupsService.getTahapGroups(groupId, filters);
+  }
+
+  @Get(':id/tahap-groups/:groupIdentifier')
+  @ApiOperation({ summary: 'Get tahap group details (Admin/SuperAdmin only)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Tahap group details retrieved successfully' })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Group or tahap group not found' })
+  @Roles('ADMIN', 'SUPERADMIN')
+  @UseGuards(RolesGuard)
+  getTahapGroupDetails(
+    @Param('id', ParseIntPipe) groupId: number,
+    @Param('groupIdentifier') groupIdentifier: string
+  ) {
+    return this.groupsService.getTahapGroupDetails(groupId, groupIdentifier);
+  }
+
+  @Get(':id/cross-subsection-groups')
+  @ApiOperation({ summary: 'Get cross-subsection tahap groups (Admin/SuperAdmin only)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Cross-subsection groups retrieved successfully' })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Group not found' })
+  @Roles('ADMIN', 'SUPERADMIN')
+  @UseGuards(RolesGuard)
+  getCrossSubsectionGroups(@Param('id', ParseIntPipe) groupId: number) {
+    return this.groupsService.getCrossSubsectionGroups(groupId);
   }
 }
