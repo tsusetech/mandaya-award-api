@@ -31,6 +31,12 @@ export class QuestionResponseDto {
   @ApiProperty({ example: 'Berapakah jumlah penduduk miskin pada tahun 2022?' })
   questionText: string;
 
+  @ApiProperty({ 
+    example: 'Masukkan data jumlah penduduk miskin berdasarkan data BPS terbaru',
+    required: false 
+  })
+  description?: string;
+
   @ApiProperty({ example: 'numeric-open' })
   inputType: string;
 

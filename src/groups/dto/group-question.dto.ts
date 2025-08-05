@@ -72,6 +72,85 @@ export class BindQuestionToGroupDto {
   isGrouped?: boolean;
 }
 
+export class BindMultipleQuestionsToGroupDto {
+  @ApiProperty({ 
+    example: [
+      {
+        questionId: 1,
+        orderNumber: 1,
+        sectionTitle: 'Section 1: Basic Information',
+        subsection: 'Personal Details'
+      },
+      {
+        questionId: 2,
+        orderNumber: 2,
+        sectionTitle: 'Section 1: Basic Information',
+        subsection: 'Personal Details'
+      }
+    ], 
+    description: 'Array of questions to bind to the group' 
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  questions: BindQuestionToGroupDto[];
+
+  @ApiProperty({ 
+    example: 'Section 1: Basic Information', 
+    description: 'Default section title for all questions (optional)', 
+    required: false 
+  })
+  @IsString()
+  @IsOptional()
+  defaultSectionTitle?: string;
+
+  @ApiProperty({ 
+    example: 'Personal Details', 
+    description: 'Default subsection for all questions (optional)', 
+    required: false 
+  })
+  @IsString()
+  @IsOptional()
+  defaultSubsection?: string;
+
+  @ApiProperty({ 
+    example: 'Tahap 1 Delta', 
+    description: 'Default tahap group for all questions (optional)', 
+    required: false,
+    enum: TahapGroup
+  })
+  @IsEnum(TahapGroup)
+  @IsOptional()
+  defaultTahapGroup?: TahapGroup;
+
+  @ApiProperty({ 
+    example: 'delta', 
+    description: 'Default calculation type for all questions (optional)', 
+    required: false,
+    enum: CalculationType
+  })
+  @IsEnum(CalculationType)
+  @IsOptional()
+  defaultCalculationType?: CalculationType;
+
+  @ApiProperty({ 
+    example: 'poverty_metrics', 
+    description: 'Default group identifier for all questions (optional)', 
+    required: false 
+  })
+  @IsString()
+  @IsOptional()
+  defaultGroupIdentifier?: string;
+
+  @ApiProperty({ 
+    example: true, 
+    description: 'Default grouped status for all questions (optional)', 
+    required: false 
+  })
+  @IsBoolean()
+  @IsOptional()
+  defaultIsGrouped?: boolean;
+}
+
 export class UpdateGroupQuestionDto {
   @ApiProperty({ example: 2, description: 'New order number for the question', required: false })
   @IsInt()
@@ -206,6 +285,49 @@ export class CreateTahapGroupDto {
   @IsArray()
   @ArrayMinSize(1)
   questionIds: number[];
+
+  @ApiProperty({ 
+    example: 1, 
+    description: 'Parent tahap group ID (for hierarchical relationships)',
+    required: false 
+  })
+  @IsOptional()
+  @IsInt()
+  parentGroupId?: number;
+
+  @ApiProperty({ 
+    example: 1, 
+    description: 'Hierarchy level (1, 2, 3, etc.)',
+    required: false 
+  })
+  @IsOptional()
+  @IsInt()
+  level?: number;
+}
+
+export class CreateHierarchicalTahapGroupDto {
+  @ApiProperty({ 
+    example: [
+      {
+        tahapGroup: 'Tahap 1 Delta',
+        groupIdentifier: 'poverty_metrics',
+        calculationType: 'delta',
+        description: 'Poverty metrics delta calculation',
+        questionIds: [1, 2, 3]
+      },
+      {
+        tahapGroup: 'Tahap 2',
+        groupIdentifier: 'p0_p2_average',
+        calculationType: 'average',
+        description: 'Average from P0-P2 poverty indices',
+        questionIds: [13, 14, 15, 16, 17, 18],
+        parentGroupId: 1
+      }
+    ]
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  tahapGroups: CreateTahapGroupDto[];
 }
 
 export class UpdateTahapGroupDto {
@@ -237,6 +359,17 @@ export class UpdateTahapGroupDto {
   @IsArray()
   @IsOptional()
   questionIds?: number[];
+
+  // Add these two fields:
+  @ApiProperty({ example: 1, required: false, description: 'Parent tahap group ID (for hierarchical relationships)' })
+  @IsOptional()
+  @IsInt()
+  parentGroupId?: number;
+
+  @ApiProperty({ example: 2, required: false, description: 'Hierarchy level (1, 2, 3, etc.)' })
+  @IsOptional()
+  @IsInt()
+  level?: number;
 }
 
 export class GetTahapGroupsDto {

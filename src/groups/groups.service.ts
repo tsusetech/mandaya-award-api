@@ -6,6 +6,7 @@ import { UpdateGroupDto } from './dto/update-group.dto';
 import { AssignUserToGroupDto, AssignUsersToGroupDto, RemoveUserFromGroupDto } from './dto/assign-user-to-group.dto';
 import { 
   BindQuestionToGroupDto, 
+  BindMultipleQuestionsToGroupDto,
   UpdateGroupQuestionDto, 
   ReorderQuestionsDto,
   CreateTahapGroupDto,
@@ -674,6 +675,94 @@ export class GroupsService {
     };
   }
 
+  async bindMultipleQuestionsToGroup(groupId: number, bindMultipleQuestionsDto: BindMultipleQuestionsToGroupDto) {
+    // Check if group exists
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
+    });
+
+    if (!group) {
+      throw new NotFoundException('Group not found');
+    }
+
+    // Validate all questions exist
+    const questionIds = bindMultipleQuestionsDto.questions.map(q => q.questionId);
+    const questions = await this.prisma.question.findMany({
+      where: { id: { in: questionIds } },
+    });
+
+    if (questions.length !== questionIds.length) {
+      const foundIds = questions.map(q => q.id);
+      const missingIds = questionIds.filter(id => !foundIds.includes(id));
+      throw new BadRequestException(`Questions with IDs ${missingIds.join(', ')} not found`);
+    }
+
+    // Check for existing bindings
+    const existingBindings = await this.prisma.groupQuestion.findMany({
+      where: {
+        questionId: { in: questionIds },
+        groupId: groupId,
+      },
+    });
+
+    if (existingBindings.length > 0) {
+      const existingIds = existingBindings.map(b => b.questionId);
+      throw new BadRequestException(`Questions with IDs ${existingIds.join(', ')} are already bound to this group`);
+    }
+
+    // Check for order number conflicts
+    const orderNumbers = bindMultipleQuestionsDto.questions.map(q => q.orderNumber);
+    const existingOrderNumbers = await this.prisma.groupQuestion.findMany({
+      where: {
+        groupId: groupId,
+        orderNumber: { in: orderNumbers },
+      },
+    });
+
+    if (existingOrderNumbers.length > 0) {
+      const conflictingOrders = existingOrderNumbers.map(e => e.orderNumber);
+      throw new BadRequestException(`Order numbers ${conflictingOrders.join(', ')} are already taken in this group`);
+    }
+
+    // Prepare data for bulk creation
+    const groupQuestionsData = bindMultipleQuestionsDto.questions.map(questionDto => ({
+      questionId: questionDto.questionId,
+      groupId: groupId,
+      orderNumber: questionDto.orderNumber,
+      sectionTitle: questionDto.sectionTitle || bindMultipleQuestionsDto.defaultSectionTitle,
+      subsection: questionDto.subsection || bindMultipleQuestionsDto.defaultSubsection,
+      tahapGroup: questionDto.tahapGroup || bindMultipleQuestionsDto.defaultTahapGroup,
+      calculationType: questionDto.calculationType || bindMultipleQuestionsDto.defaultCalculationType,
+      groupIdentifier: questionDto.groupIdentifier || bindMultipleQuestionsDto.defaultGroupIdentifier,
+      isGrouped: questionDto.isGrouped ?? bindMultipleQuestionsDto.defaultIsGrouped,
+    }));
+
+    // Create all group questions in a transaction
+    const createdGroupQuestions = await this.prisma.$transaction(
+      groupQuestionsData.map(data =>
+        this.prisma.groupQuestion.create({
+          data,
+          include: {
+            question: true,
+            group: {
+              select: {
+                id: true,
+                groupName: true,
+                description: true,
+              },
+            },
+          },
+        })
+      )
+    );
+
+    return {
+      message: 'Multiple questions bound to group successfully',
+      groupQuestions: createdGroupQuestions,
+      count: createdGroupQuestions.length,
+    };
+  }
+
   async updateGroupQuestion(groupQuestionId: number, updateGroupQuestionDto: UpdateGroupQuestionDto) {
     // Check if group question exists
     const existingGroupQuestion = await this.prisma.groupQuestion.findUnique({
@@ -916,7 +1005,7 @@ export class GroupsService {
     }
 
     // Check if tahap group already exists
-    const existingTahapGroup = await this.prisma.groupQuestion.findFirst({
+    const existingTahapGroup = await this.prisma.tahapGroupHierarchy.findFirst({
       where: {
         groupId: groupId,
         tahapGroup: createTahapGroupDto.tahapGroup,
@@ -930,49 +1019,54 @@ export class GroupsService {
       );
     }
 
-    // Update group questions with tahap group information using transaction
-    await this.prisma.$transaction(async (prisma) => {
-      for (const questionId of createTahapGroupDto.questionIds) {
-        const groupQuestion = existingGroupQuestions.find(gq => gq.questionId === questionId);
-        if (groupQuestion) {
-          await prisma.groupQuestion.update({
-            where: { id: groupQuestion.id },
-            data: {
-              tahapGroup: createTahapGroupDto.tahapGroup,
-              calculationType: createTahapGroupDto.calculationType,
-              groupIdentifier: createTahapGroupDto.groupIdentifier,
-              isGrouped: true,
-              updatedAt: new Date(),
-            },
-          });
-        }
-      }
-    });
-
-    // Fetch updated group questions
-    const updatedGroupQuestions = await this.prisma.groupQuestion.findMany({
-      where: {
+    // Create tahap group hierarchy
+    const tahapGroup = await this.prisma.tahapGroupHierarchy.create({
+      data: {
         groupId: groupId,
         tahapGroup: createTahapGroupDto.tahapGroup,
         groupIdentifier: createTahapGroupDto.groupIdentifier,
+        calculationType: createTahapGroupDto.calculationType,
+        description: createTahapGroupDto.description,
+        parentGroupId: createTahapGroupDto.parentGroupId,
+        level: createTahapGroupDto.level || 1,
       },
-      include: {
-        question: true,
+    });
+
+    // Create question-tahap group relationships
+    const questionTahapGroups = await Promise.all(
+      createTahapGroupDto.questionIds.map(questionId => {
+        const groupQuestion = existingGroupQuestions.find(gq => gq.questionId === questionId);
+        if (groupQuestion) {
+          return this.prisma.questionTahapGroup.create({
+            data: {
+              groupQuestionId: groupQuestion.id,
+              tahapGroupId: tahapGroup.id,
+            },
+          });
+        }
+      })
+    );
+
+    // Update isGrouped flag for group questions
+    await this.prisma.groupQuestion.updateMany({
+      where: {
+        id: { in: existingGroupQuestions.map(gq => gq.id) },
       },
-      orderBy: {
-        orderNumber: 'asc',
+      data: {
+        isGrouped: true,
       },
     });
 
     return {
       message: 'Tahap group created successfully',
       tahapGroup: {
-        tahapGroup: createTahapGroupDto.tahapGroup,
-        groupIdentifier: createTahapGroupDto.groupIdentifier,
-        calculationType: createTahapGroupDto.calculationType,
-        description: createTahapGroupDto.description,
-        questionCount: updatedGroupQuestions.length,
-        questions: updatedGroupQuestions,
+        id: tahapGroup.id,
+        tahapGroup: tahapGroup.tahapGroup,
+        groupIdentifier: tahapGroup.groupIdentifier,
+        calculationType: tahapGroup.calculationType,
+        description: tahapGroup.description,
+        level: tahapGroup.level,
+        questionCount: questionTahapGroups.length,
       },
     };
   }
@@ -988,29 +1082,29 @@ export class GroupsService {
     }
 
     // Check if tahap group exists
-    const existingGroupQuestions = await this.prisma.groupQuestion.findMany({
+    const existingTahapGroup = await this.prisma.tahapGroupHierarchy.findFirst({
       where: {
         groupId: groupId,
         groupIdentifier: groupIdentifier,
       },
     });
 
-    if (existingGroupQuestions.length === 0) {
+    if (!existingTahapGroup) {
       throw new NotFoundException('Tahap group not found');
     }
 
     // Check for conflicts if updating tahap group or group identifier
     if (updateTahapGroupDto.tahapGroup || updateTahapGroupDto.groupIdentifier) {
-      const newTahapGroup = updateTahapGroupDto.tahapGroup || existingGroupQuestions[0].tahapGroup;
+      const newTahapGroup = updateTahapGroupDto.tahapGroup || existingTahapGroup.tahapGroup;
       const newGroupIdentifier = updateTahapGroupDto.groupIdentifier || groupIdentifier;
 
-      if (newTahapGroup !== existingGroupQuestions[0].tahapGroup || newGroupIdentifier !== groupIdentifier) {
-        const conflict = await this.prisma.groupQuestion.findFirst({
+      if (newTahapGroup !== existingTahapGroup.tahapGroup || newGroupIdentifier !== groupIdentifier) {
+        const conflict = await this.prisma.tahapGroupHierarchy.findFirst({
           where: {
             groupId: groupId,
             tahapGroup: newTahapGroup,
             groupIdentifier: newGroupIdentifier,
-            id: { notIn: existingGroupQuestions.map(gq => gq.id) },
+            id: { not: existingTahapGroup.id },
           },
         });
 
@@ -1022,42 +1116,30 @@ export class GroupsService {
       }
     }
 
-    // Update group questions
-    const updateData: any = {
-      updatedAt: new Date(),
-    };
-
-    if (updateTahapGroupDto.tahapGroup) updateData.tahapGroup = updateTahapGroupDto.tahapGroup;
-    if (updateTahapGroupDto.calculationType) updateData.calculationType = updateTahapGroupDto.calculationType;
-    if (updateTahapGroupDto.groupIdentifier) updateData.groupIdentifier = updateTahapGroupDto.groupIdentifier;
-
-    const updatePromises = existingGroupQuestions.map(groupQuestion =>
-      this.prisma.groupQuestion.update({
-        where: { id: groupQuestion.id },
-        data: updateData,
-      })
-    );
-
-    await this.prisma.$transaction(updatePromises);
+    // Update tahap group
+    const updatedTahapGroup = await this.prisma.tahapGroupHierarchy.update({
+      where: { id: existingTahapGroup.id },
+      data: {
+        tahapGroup: updateTahapGroupDto.tahapGroup,
+        groupIdentifier: updateTahapGroupDto.groupIdentifier,
+        calculationType: updateTahapGroupDto.calculationType,
+        description: updateTahapGroupDto.description,
+        parentGroupId: updateTahapGroupDto.parentGroupId,
+        level: updateTahapGroupDto.level,
+        updatedAt: new Date(),
+      },
+    });
 
     // Handle question IDs update if provided
     if (updateTahapGroupDto.questionIds) {
-      // Remove current questions from tahap group
-      await this.prisma.groupQuestion.updateMany({
+      // Remove current question-tahap group relationships
+      await this.prisma.questionTahapGroup.deleteMany({
         where: {
-          groupId: groupId,
-          groupIdentifier: updateTahapGroupDto.groupIdentifier || groupIdentifier,
-        },
-        data: {
-          tahapGroup: null,
-          calculationType: null,
-          groupIdentifier: null,
-          isGrouped: false,
-          updatedAt: new Date(),
+          tahapGroupId: existingTahapGroup.id,
         },
       });
 
-      // Add new questions to tahap group
+      // Add new question-tahap group relationships
       const newGroupQuestions = await this.prisma.groupQuestion.findMany({
         where: {
           groupId: groupId,
@@ -1069,44 +1151,37 @@ export class GroupsService {
         throw new BadRequestException('One or more questions are not bound to this group');
       }
 
-      const addPromises = newGroupQuestions.map(groupQuestion =>
-        this.prisma.groupQuestion.update({
-          where: { id: groupQuestion.id },
-          data: {
-            tahapGroup: updateTahapGroupDto.tahapGroup || existingGroupQuestions[0].tahapGroup,
-            calculationType: updateTahapGroupDto.calculationType || existingGroupQuestions[0].calculationType,
-            groupIdentifier: updateTahapGroupDto.groupIdentifier || groupIdentifier,
-            isGrouped: true,
-            updatedAt: new Date(),
-          },
-        })
+      await Promise.all(
+        newGroupQuestions.map(groupQuestion =>
+          this.prisma.questionTahapGroup.create({
+            data: {
+              groupQuestionId: groupQuestion.id,
+              tahapGroupId: updatedTahapGroup.id,
+            },
+          })
+        )
       );
 
-      await this.prisma.$transaction(addPromises);
+      // Update isGrouped flag for group questions
+      await this.prisma.groupQuestion.updateMany({
+        where: {
+          id: { in: newGroupQuestions.map(gq => gq.id) },
+        },
+        data: {
+          isGrouped: true,
+        },
+      });
     }
-
-    // Fetch updated group questions
-    const updatedGroupQuestions = await this.prisma.groupQuestion.findMany({
-      where: {
-        groupId: groupId,
-        groupIdentifier: updateTahapGroupDto.groupIdentifier || groupIdentifier,
-      },
-      include: {
-        question: true,
-      },
-      orderBy: {
-        orderNumber: 'asc',
-      },
-    });
 
     return {
       message: 'Tahap group updated successfully',
       tahapGroup: {
-        tahapGroup: updateTahapGroupDto.tahapGroup || existingGroupQuestions[0].tahapGroup,
-        groupIdentifier: updateTahapGroupDto.groupIdentifier || groupIdentifier,
-        calculationType: updateTahapGroupDto.calculationType || existingGroupQuestions[0].calculationType,
-        questionCount: updatedGroupQuestions.length,
-        questions: updatedGroupQuestions,
+        id: updatedTahapGroup.id,
+        tahapGroup: updatedTahapGroup.tahapGroup,
+        groupIdentifier: updatedTahapGroup.groupIdentifier,
+        calculationType: updatedTahapGroup.calculationType,
+        description: updatedTahapGroup.description,
+        level: updatedTahapGroup.level,
       },
     };
   }
@@ -1122,233 +1197,175 @@ export class GroupsService {
     }
 
     // Check if tahap group exists
-    const existingGroupQuestions = await this.prisma.groupQuestion.findMany({
+    const existingTahapGroup = await this.prisma.tahapGroupHierarchy.findFirst({
       where: {
         groupId: groupId,
         groupIdentifier: groupIdentifier,
       },
     });
 
-    if (existingGroupQuestions.length === 0) {
+    if (!existingTahapGroup) {
       throw new NotFoundException('Tahap group not found');
     }
 
-    // Remove tahap group from all questions
-    await this.prisma.groupQuestion.updateMany({
+    // Delete question-tahap group relationships
+    await this.prisma.questionTahapGroup.deleteMany({
       where: {
-        groupId: groupId,
-        groupIdentifier: groupIdentifier,
+        tahapGroupId: existingTahapGroup.id,
       },
-      data: {
-        tahapGroup: null,
-        calculationType: null,
-        groupIdentifier: null,
-        isGrouped: false,
-        updatedAt: new Date(),
-      },
+    });
+
+    // Delete tahap group
+    await this.prisma.tahapGroupHierarchy.delete({
+      where: { id: existingTahapGroup.id },
     });
 
     return {
       message: 'Tahap group deleted successfully',
-      deletedQuestions: existingGroupQuestions.length,
     };
   }
 
   async getTahapGroups(groupId: number, filters?: GetTahapGroupsDto) {
-    // Check if group exists
-    const group = await this.prisma.group.findUnique({
-      where: { id: groupId },
-    });
+    const where: any = { groupId };
 
-    if (!group) {
-      throw new NotFoundException('Group not found');
+    if (filters?.tahapGroup) {
+      where.tahapGroup = filters.tahapGroup;
     }
 
-    // Build where clause
-    const whereClause: any = {
-      groupId: groupId,
-      isGrouped: true,
-    };
+    if (filters?.groupIdentifier) {
+      where.groupIdentifier = filters.groupIdentifier;
+    }
 
-    if (filters?.tahapGroup) whereClause.tahapGroup = filters.tahapGroup;
-    if (filters?.groupIdentifier) whereClause.groupIdentifier = filters.groupIdentifier;
-
-    // Get grouped questions
-    const groupQuestions = await this.prisma.groupQuestion.findMany({
-      where: whereClause,
+    const tahapGroups = await this.prisma.tahapGroupHierarchy.findMany({
+      where,
       include: {
-        question: true,
+        questionTahapGroups: {
+          include: {
+            groupQuestion: {
+              include: {
+                question: true,
+              },
+            },
+          },
+        },
+        parentGroup: true,
+        childGroups: true,
       },
       orderBy: [
+        { level: 'asc' },
         { tahapGroup: 'asc' },
         { groupIdentifier: 'asc' },
-        { orderNumber: 'asc' },
       ],
     });
 
-    // Group by tahap group and group identifier
-    const tahapGroups = groupQuestions.reduce((acc, groupQuestion) => {
-      const key = `${groupQuestion.tahapGroup}_${groupQuestion.groupIdentifier}`;
-      
-      if (!acc[key]) {
-        acc[key] = {
-          tahapGroup: groupQuestion.tahapGroup,
-          groupIdentifier: groupQuestion.groupIdentifier,
-          calculationType: groupQuestion.calculationType,
-          questionCount: 0,
-          questions: [],
-        };
-      }
-
-      acc[key].questions.push(groupQuestion);
-      acc[key].questionCount++;
-
-      return acc;
-    }, {} as Record<string, any>);
-
-    const result = Object.values(tahapGroups);
-
     return {
       message: 'Tahap groups retrieved successfully',
-      group: {
-        id: group.id,
-        groupName: group.groupName,
-        description: group.description,
-      },
-      tahapGroups: result,
-      count: result.length,
+      tahapGroups: tahapGroups.map(tg => ({
+        id: tg.id,
+        tahapGroup: tg.tahapGroup,
+        groupIdentifier: tg.groupIdentifier,
+        calculationType: tg.calculationType,
+        description: tg.description,
+        level: tg.level,
+        parentGroupId: tg.parentGroupId,
+        questionCount: tg.questionTahapGroups.length,
+        questions: tg.questionTahapGroups.map(qtg => qtg.groupQuestion.question),
+        parentGroup: tg.parentGroup,
+        childGroups: tg.childGroups,
+      })),
+      count: tahapGroups.length,
     };
   }
 
   async getTahapGroupDetails(groupId: number, groupIdentifier: string) {
-    // Check if group exists
-    const group = await this.prisma.group.findUnique({
-      where: { id: groupId },
-    });
-
-    if (!group) {
-      throw new NotFoundException('Group not found');
-    }
-
-    // Get tahap group questions
-    const groupQuestions = await this.prisma.groupQuestion.findMany({
+    const tahapGroup = await this.prisma.tahapGroupHierarchy.findFirst({
       where: {
         groupId: groupId,
         groupIdentifier: groupIdentifier,
-        isGrouped: true,
       },
       include: {
-        question: true,
-      },
-      orderBy: {
-        orderNumber: 'asc',
+        questionTahapGroups: {
+          include: {
+            groupQuestion: {
+              include: {
+                question: true,
+              },
+            },
+          },
+        },
+        parentGroup: true,
+        childGroups: true,
       },
     });
 
-    if (groupQuestions.length === 0) {
+    if (!tahapGroup) {
       throw new NotFoundException('Tahap group not found');
     }
 
-    // Group questions by subsection for better organization
-    const questionsBySubsection = groupQuestions.reduce((acc, groupQuestion) => {
-      const subsection = groupQuestion.subsection || 'General';
-      
-      if (!acc[subsection]) {
-        acc[subsection] = [];
-      }
-
-      acc[subsection].push(groupQuestion);
-      return acc;
-    }, {} as Record<string, any[]>);
-
     return {
       message: 'Tahap group details retrieved successfully',
-      group: {
-        id: group.id,
-        groupName: group.groupName,
-        description: group.description,
-      },
       tahapGroup: {
-        tahapGroup: groupQuestions[0].tahapGroup,
-        groupIdentifier: groupQuestions[0].groupIdentifier,
-        calculationType: groupQuestions[0].calculationType,
-        questionCount: groupQuestions.length,
-        questionsBySubsection,
-        allQuestions: groupQuestions,
+        id: tahapGroup.id,
+        tahapGroup: tahapGroup.tahapGroup,
+        groupIdentifier: tahapGroup.groupIdentifier,
+        calculationType: tahapGroup.calculationType,
+        description: tahapGroup.description,
+        level: tahapGroup.level,
+        parentGroupId: tahapGroup.parentGroupId,
+        questionCount: tahapGroup.questionTahapGroups.length,
+        questions: tahapGroup.questionTahapGroups.map(qtg => qtg.groupQuestion.question),
+        parentGroup: tahapGroup.parentGroup,
+        childGroups: tahapGroup.childGroups,
       },
     };
   }
 
   async getCrossSubsectionGroups(groupId: number) {
-    // Check if group exists
-    const group = await this.prisma.group.findUnique({
-      where: { id: groupId },
-    });
-
-    if (!group) {
-      throw new NotFoundException('Group not found');
-    }
-
-    // Get all grouped questions
-    const groupQuestions = await this.prisma.groupQuestion.findMany({
-      where: {
-        groupId: groupId,
-        isGrouped: true,
-      },
+    // Get all tahap groups with their questions and subsections
+    const tahapGroups = await this.prisma.tahapGroupHierarchy.findMany({
+      where: { groupId },
       include: {
-        question: true,
+        questionTahapGroups: {
+          include: {
+            groupQuestion: {
+              include: {
+                question: true,
+              },
+            },
+          },
+        },
       },
-      orderBy: [
-        { tahapGroup: 'asc' },
-        { groupIdentifier: 'asc' },
-        { orderNumber: 'asc' },
-      ],
     });
 
-    // Group by tahap group and identify cross-subsection groups
-    const tahapGroups = groupQuestions.reduce((acc, groupQuestion) => {
-      const key = `${groupQuestion.tahapGroup}_${groupQuestion.groupIdentifier}`;
-      
-      if (!acc[key]) {
-        acc[key] = {
-          tahapGroup: groupQuestion.tahapGroup,
-          groupIdentifier: groupQuestion.groupIdentifier,
-          calculationType: groupQuestion.calculationType,
-          subsections: new Set<string>(),
-          questionCount: 0,
-          questions: [],
-          isCrossSubsection: false,
+    // Find groups that span multiple subsections
+    const crossSubsectionGroups = tahapGroups
+      .map(tg => {
+        const subsections = [
+          ...new Set(
+            tg.questionTahapGroups
+              .map(qtg => qtg.groupQuestion.sectionTitle)
+              .filter(Boolean)
+          ),
+        ];
+        return {
+          id: tg.id,
+          tahapGroup: tg.tahapGroup,
+          groupIdentifier: tg.groupIdentifier,
+          calculationType: tg.calculationType,
+          description: tg.description,
+          level: tg.level,
+          parentGroupId: tg.parentGroupId,
+          questionCount: tg.questionTahapGroups.length,
+          subsections,
+          isCrossSubsection: subsections.length > 1,
         };
-      }
-
-      acc[key].questions.push(groupQuestion);
-      acc[key].questionCount++;
-      
-      if (groupQuestion.subsection) {
-        acc[key].subsections.add(groupQuestion.subsection);
-      }
-
-      return acc;
-    }, {} as Record<string, any>);
-
-    // Mark groups as cross-subsection if they span multiple subsections
-    Object.values(tahapGroups).forEach((tahapGroup: any) => {
-      tahapGroup.isCrossSubsection = tahapGroup.subsections.size > 1;
-      tahapGroup.subsections = Array.from(tahapGroup.subsections);
-    });
-
-    const result = Object.values(tahapGroups);
+      })
+      .filter(g => g.isCrossSubsection);
 
     return {
       message: 'Cross-subsection groups retrieved successfully',
-      group: {
-        id: group.id,
-        groupName: group.groupName,
-        description: group.description,
-      },
-      tahapGroups: result,
-      crossSubsectionGroups: result.filter((tg: any) => tg.isCrossSubsection),
-      count: result.length,
+      crossSubsectionGroups,
+      count: crossSubsectionGroups.length,
     };
   }
 }

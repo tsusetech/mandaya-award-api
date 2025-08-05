@@ -21,6 +21,7 @@ import { GroupsListResponseDto, SingleGroupResponseDto } from './dto/group-respo
 import { AssignUserToGroupDto, AssignUsersToGroupDto, RemoveUserFromGroupDto } from './dto/assign-user-to-group.dto';
 import { 
   BindQuestionToGroupDto, 
+  BindMultipleQuestionsToGroupDto,
   UpdateGroupQuestionDto, 
   ReorderQuestionsDto,
   CreateTahapGroupDto,
@@ -217,6 +218,20 @@ export class GroupsController {
     @Body() bindQuestionDto: BindQuestionToGroupDto
   ) {
     return this.groupsService.bindQuestionToGroup(groupId, bindQuestionDto);
+  }
+
+  @Post(':id/questions/bulk')
+  @ApiOperation({ summary: 'Bind multiple questions to group (Admin/SuperAdmin only)' })
+  @ApiResponse({ status: HttpStatus.CREATED, description: 'Multiple questions bound to group successfully' })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Group or one or more questions not found' })
+  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'One or more questions already bound to group or order number conflicts' })
+  @Roles('ADMIN', 'SUPERADMIN')
+  @UseGuards(RolesGuard)
+  bindMultipleQuestionsToGroup(
+    @Param('id', ParseIntPipe) groupId: number,
+    @Body() bindMultipleQuestionsDto: BindMultipleQuestionsToGroupDto
+  ) {
+    return this.groupsService.bindMultipleQuestionsToGroup(groupId, bindMultipleQuestionsDto);
   }
 
   @Put(':id/questions/:groupQuestionId')

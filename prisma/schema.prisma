@@ -64,6 +64,7 @@ model UserGroup {
 model Question {
   id                    Int                   @id @default(autoincrement())
   questionText          String
+  description           String?               // Add this field
   inputType             String                // e.g. text-open, numeric, checkbox, multiple-choice
   isRequired            Boolean
   createdAt             DateTime              @default(now())
@@ -92,6 +93,7 @@ model Group {
   groupQuestions   GroupQuestion[]
   userGroups       UserGroup[]
   responseSessions ResponseSession[]
+  tahapGroupHierarchies TahapGroupHierarchy[] // Add this relation field
   deletedByUser    User?             @relation("GroupDeletedBy", fields: [deletedBy], references: [id])
 }
 
@@ -102,22 +104,56 @@ model GroupQuestion {
   orderNumber   Int
   sectionTitle  String?
   subsection    String?
-  // New fields for tahap-based grouping
-  tahapGroup    String?  // e.g., "Tahap 1 Delta", "Tahap 2"
-  calculationType String? // e.g., "delta", "average", "sum"
-  groupIdentifier String? // e.g., "poverty_metrics", "expenditure_metrics"
-  isGrouped     Boolean  @default(false) // indicates if this question is part of a calculation group
+  isGrouped     Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
   question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
   responses QuestionResponse[]
+  questionTahapGroups QuestionTahapGroup[]
 
   @@index([groupId])
   @@index([questionId])
-  @@index([tahapGroup])
-  @@index([groupIdentifier])
+}
+
+// New model for managing tahap group hierarchies
+model TahapGroupHierarchy {
+  id              Int      @id @default(autoincrement())
+  groupId         Int
+  tahapGroup      String   // e.g., "Tahap 1 Delta", "Tahap 2"
+  groupIdentifier String   // e.g., "poverty_metrics", "p0_p2_average"
+  calculationType String   // e.g., "delta", "average"
+  description     String?
+  parentGroupId   Int?     // Reference to parent tahap group (for hierarchical relationships)
+  level           Int      @default(1) // Hierarchy level (1, 2, 3, etc.)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  group           Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  parentGroup     TahapGroupHierarchy? @relation("TahapGroupParent", fields: [parentGroupId], references: [id])
+  childGroups     TahapGroupHierarchy[] @relation("TahapGroupParent")
+  questionTahapGroups QuestionTahapGroup[] // Add this relation field
+
+  @@unique([groupId, tahapGroup, groupIdentifier])
+  @@index([groupId, level])
+  @@index([parentGroupId])
+}
+
+// Junction table for many-to-many relationship between questions and tahap groups
+model QuestionTahapGroup {
+  id              Int      @id @default(autoincrement())
+  groupQuestionId Int
+  tahapGroupId    Int
+  createdAt       DateTime @default(now())
+
+  groupQuestion   GroupQuestion @relation(fields: [groupQuestionId], references: [id], onDelete: Cascade)
+  tahapGroup      TahapGroupHierarchy @relation(fields: [tahapGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupQuestionId, tahapGroupId])
+  @@index([groupQuestionId])
+  @@index([tahapGroupId])
 }
 
 model ResponseSession {

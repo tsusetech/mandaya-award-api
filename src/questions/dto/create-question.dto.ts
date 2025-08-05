@@ -13,6 +13,15 @@ export class CreateQuestionDto {
   questionText: string;
 
   @ApiProperty({ 
+    example: 'Masukkan data jumlah penduduk miskin berdasarkan data BPS terbaru', 
+    description: 'Additional description or instructions for the question',
+    required: false
+  })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiProperty({ 
     example: 'numeric-open', 
     description: 'Input type (e.g., text-open, numeric-open, checkbox, multiple-choice)' 
   })
