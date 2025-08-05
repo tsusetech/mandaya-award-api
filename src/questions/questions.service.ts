@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SoftDeleteService } from '../common/services/soft-delete.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
+import { CreateQuestionOptionDto, UpdateQuestionOptionDto } from './dto/question-option.dto';
 
 @Injectable()
 export class QuestionsService {
@@ -139,6 +140,14 @@ export class QuestionsService {
 
     const { options, ...questionData } = updateQuestionDto;
 
+    // If options are provided, first deactivate existing options
+    if (options) {
+      await this.prisma.questionOption.updateMany({
+        where: { questionId: id },
+        data: { isActive: false },
+      });
+    }
+
     const updatedQuestion = await this.prisma.question.update({
       where: { 
         id,
@@ -147,18 +156,16 @@ export class QuestionsService {
       data: {
         ...questionData,
         updatedAt: new Date(),
-        options: options ? {
-          updateMany: {
-            where: { questionId: id },
-            data: { isActive: false },
+        ...(options && {
+          options: {
+            create: options.map(option => ({
+              optionText: option.optionText!,
+              optionValue: option.optionValue!,
+              orderNumber: option.orderNumber!,
+              isCorrect: option.isCorrect,
+            })),
           },
-          create: options.map(option => ({
-            optionText: option.optionText,
-            optionValue: option.optionValue,
-            orderNumber: option.orderNumber,
-            isCorrect: option.isCorrect,
-          })),
-        } : undefined,
+        }),
       },
       include: {
         groupQuestions: {
@@ -364,5 +371,89 @@ export class QuestionsService {
     } catch (error) {
       throw new NotFoundException('Soft deleted question not found');
     }
+  }
+
+  // Individual Question Option Management Methods
+  async createQuestionOption(createQuestionOptionDto: CreateQuestionOptionDto) {
+    // Check if the question exists
+    const question = await this.prisma.question.findFirst({
+      where: { 
+        id: createQuestionOptionDto.questionId,
+        ...this.softDeleteService.getActiveRecordsWhere()
+      },
+    });
+
+    if (!question) {
+      throw new NotFoundException('Question not found');
+    }
+
+    const questionOption = await this.prisma.questionOption.create({
+      data: {
+        questionId: createQuestionOptionDto.questionId,
+        optionText: createQuestionOptionDto.optionText,
+        optionValue: createQuestionOptionDto.optionValue,
+        orderNumber: createQuestionOptionDto.orderNumber,
+        isCorrect: createQuestionOptionDto.isCorrect,
+      },
+    });
+
+    return {
+      message: 'Question option created successfully',
+      questionOption,
+    };
+  }
+
+  async updateQuestionOption(id: number, updateQuestionOptionDto: UpdateQuestionOptionDto) {
+    // Check if question option exists
+    const existingOption = await this.prisma.questionOption.findFirst({
+      where: { 
+        id,
+        isActive: true
+      },
+    });
+
+    if (!existingOption) {
+      throw new NotFoundException('Question option not found');
+    }
+
+    const updatedOption = await this.prisma.questionOption.update({
+      where: { id },
+      data: {
+        ...updateQuestionOptionDto,
+        updatedAt: new Date(),
+      },
+    });
+
+    return {
+      message: 'Question option updated successfully',
+      questionOption: updatedOption,
+    };
+  }
+
+  async deleteQuestionOption(id: number) {
+    // Check if question option exists
+    const existingOption = await this.prisma.questionOption.findFirst({
+      where: { 
+        id,
+        isActive: true
+      },
+    });
+
+    if (!existingOption) {
+      throw new NotFoundException('Question option not found');
+    }
+
+    // Soft delete by setting isActive to false
+    await this.prisma.questionOption.update({
+      where: { id },
+      data: { 
+        isActive: false,
+        updatedAt: new Date(),
+      },
+    });
+
+    return {
+      message: 'Question option deleted successfully',
+    };
   }
 }

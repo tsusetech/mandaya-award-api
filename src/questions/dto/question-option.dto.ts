@@ -3,6 +3,14 @@ import { IsString, IsNumber, IsBoolean, IsOptional, IsNotEmpty } from 'class-val
 
 export class CreateQuestionOptionDto {
   @ApiProperty({ 
+    example: 1, 
+    description: 'The ID of the question this option belongs to' 
+  })
+  @IsNumber()
+  @IsNotEmpty()
+  questionId: number;
+
+  @ApiProperty({ 
     example: 'Sangat Setuju', 
     description: 'The display text for the option' 
   })
