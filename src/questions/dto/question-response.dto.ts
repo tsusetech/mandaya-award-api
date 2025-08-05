@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { QuestionOptionResponseDto } from './question-option.dto';
 
 export class GroupQuestionDetailDto {
   @ApiProperty({ example: 1 })
@@ -44,6 +45,9 @@ export class QuestionResponseDto {
 
   @ApiProperty({ type: [GroupQuestionDetailDto], required: false })
   groupQuestions?: GroupQuestionDetailDto[];
+
+  @ApiProperty({ type: [QuestionOptionResponseDto], required: false })
+  options?: QuestionOptionResponseDto[];
 }
 
 export class QuestionsListResponseDto {

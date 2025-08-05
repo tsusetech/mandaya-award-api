@@ -9,7 +9,8 @@ import {
   Query, 
   UseGuards, 
   ParseIntPipe,
-  HttpStatus
+  HttpStatus,
+  Request
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
@@ -19,6 +20,8 @@ import { UpdateQuestionDto } from './dto/update-question.dto';
 import { QuestionsListResponseDto, SingleQuestionResponseDto } from './dto/question-response.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { CreateQuestionOptionDto, UpdateQuestionOptionDto, QuestionOptionResponseDto } from './dto/question-option.dto';
+import { GroupQuestionDetailDto, QuestionResponseDto } from './dto/question-response.dto';
 
 @ApiTags('Questions')
 @Controller('questions')
@@ -128,5 +131,45 @@ export class QuestionsController {
   @UseGuards(RolesGuard)
   deleteQuestion(@Param('id', ParseIntPipe) id: number) {
     return this.questionsService.deleteQuestion(id);
+  }
+
+  @Post('options')
+  @ApiOperation({ summary: 'Create a new question option' })
+  @ApiResponse({ 
+    status: HttpStatus.CREATED, 
+    description: 'Question option created successfully',
+    type: QuestionOptionResponseDto 
+  })
+  @Roles('ADMIN', 'SUPERADMIN')
+  @UseGuards(RolesGuard)
+  createQuestionOption(@Body() createQuestionOptionDto: CreateQuestionOptionDto) {
+    return this.questionsService.createQuestionOption(createQuestionOptionDto);
+  }
+
+  @Put('options/:id')
+  @ApiOperation({ summary: 'Update a question option' })
+  @ApiResponse({ 
+    status: HttpStatus.OK, 
+    description: 'Question option updated successfully',
+    type: QuestionOptionResponseDto 
+  })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Question option not found' })
+  @Roles('ADMIN', 'SUPERADMIN')
+  @UseGuards(RolesGuard)
+  updateQuestionOption(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateQuestionOptionDto: UpdateQuestionOptionDto
+  ) {
+    return this.questionsService.updateQuestionOption(id, updateQuestionOptionDto);
+  }
+
+  @Delete('options/:id')
+  @ApiOperation({ summary: 'Delete a question option (SuperAdmin only)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Question option deleted successfully' })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Question option not found' })
+  @Roles('SUPERADMIN')
+  @UseGuards(RolesGuard)
+  deleteQuestionOption(@Param('id', ParseIntPipe) id: number) {
+    return this.questionsService.deleteQuestionOption(id);
   }
 }

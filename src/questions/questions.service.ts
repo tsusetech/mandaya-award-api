@@ -29,6 +29,10 @@ export class QuestionsService {
             orderNumber: 'asc',
           },
         },
+        options: {
+          where: { isActive: true },
+          orderBy: { orderNumber: 'asc' },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -63,6 +67,10 @@ export class QuestionsService {
             orderNumber: 'asc',
           },
         },
+        options: {
+          where: { isActive: true },
+          orderBy: { orderNumber: 'asc' },
+        },
       },
     });
 
@@ -77,8 +85,20 @@ export class QuestionsService {
   }
 
   async createQuestion(createQuestionDto: CreateQuestionDto) {
+    const { options, ...questionData } = createQuestionDto;
+
     const question = await this.prisma.question.create({
-      data: createQuestionDto,
+      data: {
+        ...questionData,
+        options: options ? {
+          create: options.map(option => ({
+            optionText: option.optionText,
+            optionValue: option.optionValue,
+            orderNumber: option.orderNumber,
+            isCorrect: option.isCorrect,
+          })),
+        } : undefined,
+      },
       include: {
         groupQuestions: {
           include: {
@@ -90,6 +110,10 @@ export class QuestionsService {
               },
             },
           },
+        },
+        options: {
+          where: { isActive: true },
+          orderBy: { orderNumber: 'asc' },
         },
       },
     });
@@ -113,14 +137,28 @@ export class QuestionsService {
       throw new NotFoundException('Question not found');
     }
 
+    const { options, ...questionData } = updateQuestionDto;
+
     const updatedQuestion = await this.prisma.question.update({
       where: { 
         id,
         ...this.softDeleteService.getActiveRecordsWhere()
       },
       data: {
-        ...updateQuestionDto,
+        ...questionData,
         updatedAt: new Date(),
+        options: options ? {
+          updateMany: {
+            where: { questionId: id },
+            data: { isActive: false },
+          },
+          create: options.map(option => ({
+            optionText: option.optionText,
+            optionValue: option.optionValue,
+            orderNumber: option.orderNumber,
+            isCorrect: option.isCorrect,
+          })),
+        } : undefined,
       },
       include: {
         groupQuestions: {
@@ -136,6 +174,10 @@ export class QuestionsService {
           orderBy: {
             orderNumber: 'asc',
           },
+        },
+        options: {
+          where: { isActive: true },
+          orderBy: { orderNumber: 'asc' },
         },
       },
     });
@@ -192,6 +234,10 @@ export class QuestionsService {
             orderNumber: 'asc',
           },
         },
+        options: {
+          where: { isActive: true },
+          orderBy: { orderNumber: 'asc' },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -225,6 +271,10 @@ export class QuestionsService {
           orderBy: {
             orderNumber: 'asc',
           },
+        },
+        options: {
+          where: { isActive: true },
+          orderBy: { orderNumber: 'asc' },
         },
       },
       orderBy: {

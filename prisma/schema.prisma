@@ -64,7 +64,7 @@ model UserGroup {
 model Question {
   id                    Int                   @id @default(autoincrement())
   questionText          String
-  inputType             String                // e.g. text-open, numeric, checkbox
+  inputType             String                // e.g. text-open, numeric, checkbox, multiple-choice
   isRequired            Boolean
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
@@ -76,6 +76,7 @@ model Question {
   reviewComments        ReviewComment[]
   juryScores            JuryScore[]
   currentInSessions     ResponseSession[]     @relation("CurrentQuestion")
+  options               QuestionOption[]      // New relation to options
   deletedByUser         User?                 @relation("QuestionDeletedBy", fields: [deletedBy], references: [id])
 }
 
@@ -253,4 +254,22 @@ model JuryScore {
   @@unique([reviewId, questionId])
   @@index([reviewId])
   @@index([questionId])
+}
+
+model QuestionOption {
+  id          Int      @id @default(autoincrement())
+  questionId  Int
+  optionText  String
+  optionValue String   // The value that will be stored when this option is selected
+  orderNumber Int      // For maintaining the order of options
+  isCorrect   Boolean? // For multiple-choice questions, indicates if this is the correct answer
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@index([orderNumber])
 }

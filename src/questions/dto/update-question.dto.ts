@@ -1,27 +1,44 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsBoolean, IsOptional } from 'class-validator';
+import { IsString, IsBoolean, IsOptional, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { UpdateQuestionOptionDto } from './question-option.dto';
 
 export class UpdateQuestionDto {
   @ApiProperty({ 
-    example: 'Berapa total anggaran pendidikan pada tahun 2023?', 
-    description: 'Question text', 
+    example: 'Berapakah jumlah penduduk miskin pada tahun 2022?', 
+    description: 'Question text',
     required: false 
   })
-  @IsString()
   @IsOptional()
+  @IsString()
   questionText?: string;
 
   @ApiProperty({ 
     example: 'numeric-open', 
-    description: 'Input type (e.g., text-open, numeric-open, checkbox, multiple-choice)', 
+    description: 'Input type (e.g., text-open, numeric-open, checkbox, multiple-choice)',
     required: false 
   })
-  @IsString()
   @IsOptional()
+  @IsString()
   inputType?: string;
 
-  @ApiProperty({ example: false, description: 'Whether the question is required', required: false })
-  @IsBoolean()
+  @ApiProperty({ 
+    example: true, 
+    description: 'Whether the question is required',
+    required: false 
+  })
   @IsOptional()
+  @IsBoolean()
   isRequired?: boolean;
+
+  @ApiProperty({ 
+    type: [UpdateQuestionOptionDto], 
+    description: 'Options for checkbox and multiple-choice questions',
+    required: false 
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UpdateQuestionOptionDto)
+  options?: UpdateQuestionOptionDto[];
 }
