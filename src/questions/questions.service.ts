@@ -26,9 +26,10 @@ export class QuestionsService {
               },
             },
           },
-          orderBy: {
-            orderNumber: 'asc',
-          },
+          orderBy: [
+            { groupId: 'asc' },
+            { orderNumber: 'asc' },
+          ],
         },
         options: {
           where: { isActive: true },
@@ -64,9 +65,10 @@ export class QuestionsService {
               },
             },
           },
-          orderBy: {
-            orderNumber: 'asc',
-          },
+          orderBy: [
+            { groupId: 'asc' },
+            { orderNumber: 'asc' },
+          ],
         },
         options: {
           where: { isActive: true },
@@ -178,9 +180,10 @@ export class QuestionsService {
               },
             },
           },
-          orderBy: {
-            orderNumber: 'asc',
-          },
+          orderBy: [
+            { groupId: 'asc' },
+            { orderNumber: 'asc' },
+          ],
         },
         options: {
           where: { isActive: true },
@@ -237,9 +240,10 @@ export class QuestionsService {
               },
             },
           },
-          orderBy: {
-            orderNumber: 'asc',
-          },
+          orderBy: [
+            { groupId: 'asc' },
+            { orderNumber: 'asc' },
+          ],
         },
         options: {
           where: { isActive: true },
@@ -275,9 +279,10 @@ export class QuestionsService {
               },
             },
           },
-          orderBy: {
-            orderNumber: 'asc',
-          },
+          orderBy: [
+            { groupId: 'asc' },
+            { orderNumber: 'asc' },
+          ],
         },
         options: {
           where: { isActive: true },

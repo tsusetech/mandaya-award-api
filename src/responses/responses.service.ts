@@ -309,7 +309,12 @@ export class ResponsesService {
         include: {
           group: {
             include: {
-              groupQuestions: true
+              groupQuestions: {
+                orderBy: [
+                  { groupId: 'asc' },
+                  { orderNumber: 'asc' },
+                ],
+              }
             }
           },
           responses: true
@@ -369,7 +374,12 @@ export class ResponsesService {
       include: {
         group: {
           include: {
-            groupQuestions: true
+            groupQuestions: {
+              orderBy: [
+                { groupId: 'asc' },
+                { orderNumber: 'asc' },
+              ],
+            }
           }
         },
         responses: {

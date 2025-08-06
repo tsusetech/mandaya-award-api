@@ -31,9 +31,10 @@ export class GroupsService {
           include: {
             question: true,
           },
-          orderBy: {
-            orderNumber: 'asc',
-          },
+          orderBy: [
+            { groupId: 'asc' },
+            { orderNumber: 'asc' },
+          ],
         },
         userGroups: {
           include: {
@@ -71,9 +72,10 @@ export class GroupsService {
           include: {
             question: true,
           },
-          orderBy: {
-            orderNumber: 'asc',
-          },
+          orderBy: [
+            { groupId: 'asc' },
+            { orderNumber: 'asc' },
+          ],
         },
         userGroups: {
           include: {
@@ -182,9 +184,10 @@ export class GroupsService {
           include: {
             question: true,
           },
-          orderBy: {
-            orderNumber: 'asc',
-          },
+          orderBy: [
+            { groupId: 'asc' },
+            { orderNumber: 'asc' },
+          ],
         },
         userGroups: {
           include: {
@@ -246,9 +249,10 @@ export class GroupsService {
           include: {
             question: true,
           },
-          orderBy: {
-            orderNumber: 'asc',
-          },
+          orderBy: [
+            { groupId: 'asc' },
+            { orderNumber: 'asc' },
+          ],
         },
         userGroups: {
           include: {

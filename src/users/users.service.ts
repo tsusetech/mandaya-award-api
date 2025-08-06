@@ -254,9 +254,10 @@ export class UsersService {
               include: {
                 question: true,
               },
-              orderBy: {
-                orderNumber: 'asc',
-              },
+              orderBy: [
+                { groupId: 'asc' },
+                { orderNumber: 'asc' },
+              ],
             },
           },
         },
