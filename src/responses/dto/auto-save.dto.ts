@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsBoolean, IsOptional, IsPositive } from 'class-validator';
+import { IsNumber, IsBoolean, IsOptional, IsPositive, IsEnum } from 'class-validator';
+import { QuestionInputType } from '../../assessments/dto/assessment-question.dto';
 
 export class AutoSaveDto {
   @ApiProperty({ example: 1, description: 'Question ID' })
@@ -12,6 +13,14 @@ export class AutoSaveDto {
     description: 'Response value (can be string, number, boolean, or array)' 
   })
   value: any;
+
+  @ApiProperty({ 
+    enum: QuestionInputType, 
+    example: QuestionInputType.NUMERIC_OPEN,
+    description: 'Type of input for this question' 
+  })
+  @IsEnum(QuestionInputType)
+  inputType: QuestionInputType;
 
   @ApiProperty({ example: true, description: 'Whether this is a draft save' })
   @IsBoolean()
