@@ -102,7 +102,7 @@ export class AssessmentsService {
       orderBy: { orderNumber: 'asc' }
     });
 
-    // Apply filtering if provided (but no pagination)
+    // Apply filtering if provided (but no pagination) 
     if (paginationQuery?.sectionTitle) {
       groupQuestions = groupQuestions.filter(gq => 
         gq.sectionTitle?.toLowerCase().includes(paginationQuery.sectionTitle!.toLowerCase())
