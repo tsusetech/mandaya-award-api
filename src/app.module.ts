@@ -11,6 +11,7 @@ import { GroupsModule } from './groups/groups.module';
 import { QuestionsModule } from './questions/questions.module';
 import { ResponsesModule } from './responses/responses.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { AssessmentsModule } from './assessments/assessments.module';
 
 @Module({
   imports: [
@@ -26,7 +27,8 @@ import { ReviewsModule } from './reviews/reviews.module';
     GroupsModule,
     QuestionsModule,
     ResponsesModule,
-    ReviewsModule
+    ReviewsModule,
+    AssessmentsModule
   ],
   controllers: [AppController],
   providers: [AppService],
