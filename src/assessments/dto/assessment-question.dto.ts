@@ -3,7 +3,7 @@ import { IsNumber, IsString, IsBoolean, IsOptional, IsArray, IsEnum } from 'clas
 
 export enum QuestionInputType {
   TEXT_OPEN = 'text-open',
-  NUMERIC = 'numeric',
+  NUMERIC_OPEN = 'numeric-open',
   CHECKBOX = 'checkbox',
   MULTIPLE_CHOICE = 'multiple-choice',
   FILE_UPLOAD = 'file-upload'

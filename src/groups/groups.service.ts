@@ -29,7 +29,11 @@ export class GroupsService {
       include: {
         groupQuestions: {
           include: {
-            question: true,
+            question: {
+              include: {
+                options: true,
+              },
+            },
           },
           orderBy: [
             { groupId: 'asc' },
@@ -70,7 +74,11 @@ export class GroupsService {
       include: {
         groupQuestions: {
           include: {
-            question: true,
+            question: {
+              include: {
+                options: true,
+              },
+            },
           },
           orderBy: [
             { groupId: 'asc' },
@@ -182,7 +190,11 @@ export class GroupsService {
       include: {
         groupQuestions: {
           include: {
-            question: true,
+            question: {
+              include: {
+                options: true,
+              },
+            },
           },
           orderBy: [
             { groupId: 'asc' },
@@ -247,7 +259,11 @@ export class GroupsService {
       include: {
         groupQuestions: {
           include: {
-            question: true,
+            question: {
+              include: {
+                options: true,
+              },
+            },
           },
           orderBy: [
             { groupId: 'asc' },
@@ -534,7 +550,11 @@ export class GroupsService {
           include: {
             groupQuestions: {
               include: {
-                question: true,
+                question: {
+                  include: {
+                    options: true,
+                  },
+                },
               },
               orderBy: {
                 orderNumber: 'asc',
@@ -581,7 +601,11 @@ export class GroupsService {
           include: {
             groupQuestions: {
               include: {
-                question: true,
+                question: {
+                  include: {
+                    options: true,
+                  },
+                },
               },
               orderBy: {
                 orderNumber: 'asc',
@@ -662,7 +686,11 @@ export class GroupsService {
         subsection: bindQuestionDto.subsection,
       },
       include: {
-        question: true,
+        question: {
+          include: {
+            options: true,
+          },
+        },
         group: {
           select: {
             id: true,
@@ -747,7 +775,11 @@ export class GroupsService {
         this.prisma.groupQuestion.create({
           data,
           include: {
-            question: true,
+            question: {
+              include: {
+                options: true,
+              },
+            },
             group: {
               select: {
                 id: true,
@@ -772,7 +804,11 @@ export class GroupsService {
     const existingGroupQuestion = await this.prisma.groupQuestion.findUnique({
       where: { id: groupQuestionId },
       include: {
-        question: true,
+        question: {
+          include: {
+            options: true,
+          },
+        },
         group: {
           select: {
             id: true,
@@ -810,7 +846,11 @@ export class GroupsService {
         updatedAt: new Date(),
       },
       include: {
-        question: true,
+        question: {
+          include: {
+            options: true,
+          },
+        },
         group: {
           select: {
             id: true,
@@ -835,7 +875,11 @@ export class GroupsService {
         groupId: groupId,
       },
       include: {
-        question: true,
+        question: {
+          include: {
+            options: true,
+          },
+        },
       },
     });
 
@@ -903,7 +947,11 @@ export class GroupsService {
         groupId: groupId,
       },
       include: {
-        question: true,
+        question: {
+          include: {
+            options: true,
+          },
+        },
       },
       orderBy: {
         orderNumber: 'asc',
@@ -930,7 +978,11 @@ export class GroupsService {
     const groupQuestions = await this.prisma.groupQuestion.findMany({
       where: { groupId },
       include: {
-        question: true,
+        question: {
+          include: {
+            options: true,
+          },
+        },
       },
       orderBy: {
         orderNumber: 'asc',
@@ -1247,7 +1299,11 @@ export class GroupsService {
           include: {
             groupQuestion: {
               include: {
-                question: true,
+                question: {
+                  include: {
+                    options: true,
+                  },
+                },
               },
             },
           },
@@ -1292,7 +1348,11 @@ export class GroupsService {
           include: {
             groupQuestion: {
               include: {
-                question: true,
+                question: {
+                  include: {
+                    options: true,
+                  },
+                },
               },
             },
           },
@@ -1333,7 +1393,11 @@ export class GroupsService {
           include: {
             groupQuestion: {
               include: {
-                question: true,
+                question: {
+                  include: {
+                    options: true,
+                  },
+                },
               },
             },
           },
