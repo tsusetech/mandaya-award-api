@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsEmail, IsOptional, IsString, MinLength, ValidateNested } from 'class-validator';
+import { IsArray, IsEmail, IsOptional, IsString, MinLength, ValidateNested, IsInt } from 'class-validator';
 
 export class BulkUserDto {
   @ApiProperty({ example: 'john.doe@example.com', description: 'User email address' })
@@ -26,6 +26,15 @@ export class BulkUserDto {
   @IsOptional()
   @IsString()
   role?: string;
+
+  @ApiProperty({ 
+    example: 1, 
+    description: 'Group ID to assign the user to',
+    required: false
+  })
+  @IsOptional()
+  @IsInt()
+  groupId?: number;
 }
 
 export class BulkSignupDto {
@@ -38,13 +47,15 @@ export class BulkSignupDto {
         username: 'user1',
         name: 'User One',
         password: 'password123',
-        role: 'PESERTA'
+        role: 'PESERTA',
+        groupId: 1
       },
       {
         email: 'user2@example.com',
         username: 'user2',
         name: 'User Two',
-        password: 'password123'
+        password: 'password123',
+        groupId: 2
       }
     ]
   })

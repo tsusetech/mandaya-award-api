@@ -69,38 +69,67 @@ export class AuthService {
         throw new ConflictException('User with this email or username already exists');
       }
 
+      // Validate group if provided
+      if (signupDto.groupId) {
+        const group = await this.prisma.group.findFirst({
+          where: {
+            id: signupDto.groupId,
+            deletedAt: null,
+          },
+        });
+
+        if (!group) {
+          throw new BadRequestException(`Group with ID ${signupDto.groupId} not found`);
+        }
+      }
+
       const salt = await bcrypt.genSalt();
       const hashedPassword = await bcrypt.hash(signupDto.password, salt);
       
-      // Create user
-      const user = await this.prisma.user.create({
-        data: {
-          email: signupDto.email,
-          username: signupDto.username,
-          name: signupDto.name,
-          password: hashedPassword,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      });
-
-      // Assign default PESERTA role
-      const pesertaRole = await this.prisma.role.findUnique({
-        where: { name: 'PESERTA' },
-      });
-
-      if (pesertaRole) {
-        await this.prisma.userRole.create({
+      // Create user with group assignment in a transaction
+      const result = await this.prisma.$transaction(async (prisma) => {
+        // Create user
+        const user = await prisma.user.create({
           data: {
-            userId: user.id,
-            roleId: pesertaRole.id,
+            email: signupDto.email,
+            username: signupDto.username,
+            name: signupDto.name,
+            password: hashedPassword,
+            createdAt: new Date(),
+            updatedAt: new Date(),
           },
         });
-      }
 
-      // Fetch user with roles (excluding password)
+        // Assign default PESERTA role
+        const pesertaRole = await prisma.role.findUnique({
+          where: { name: 'PESERTA' },
+        });
+
+        if (pesertaRole) {
+          await prisma.userRole.create({
+            data: {
+              userId: user.id,
+              roleId: pesertaRole.id,
+            },
+          });
+        }
+
+        // Assign user to group if provided
+        if (signupDto.groupId) {
+          await prisma.userGroup.create({
+            data: {
+              userId: user.id,
+              groupId: signupDto.groupId,
+            },
+          });
+        }
+
+        return user;
+      });
+
+      // Fetch user with roles and groups (excluding password)
       const userWithRoles = await this.prisma.user.findUnique({
-        where: { id: user.id },
+        where: { id: result.id },
         select: {
           id: true,
           email: true,
@@ -111,6 +140,17 @@ export class AuthService {
           userRoles: {
             include: {
               role: true,
+            },
+          },
+          userGroups: {
+            include: {
+              group: {
+                select: {
+                  id: true,
+                  groupName: true,
+                  description: true,
+                },
+              },
             },
           },
         },
@@ -140,7 +180,7 @@ export class AuthService {
         user: userResponse,
       };
     } catch (error) {
-      if (error instanceof ConflictException) {
+      if (error instanceof ConflictException || error instanceof BadRequestException) {
         throw error;
       }
       throw new BadRequestException('Failed to create user');
@@ -190,37 +230,88 @@ export class AuthService {
             role: true,
           },
         },
+        userGroups: {
+          include: {
+            group: {
+              select: {
+                id: true,
+                groupName: true,
+                description: true,
+              },
+            },
+          },
+        },
       },
     });
 
     if (!user) {
-      // Create new user
-      const newUser = await this.prisma.user.create({
-        data: {
-          email: googleUser.email,
-          name: googleUser.name,
-          username: googleUser.email.split('@')[0],
-          password: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      });
-
-      // Assign default PESERTA role
-      const pesertaRole = await this.prisma.role.findUnique({
-        where: { name: 'PESERTA' },
-      });
-
-      if (pesertaRole) {
-        await this.prisma.userRole.create({
-          data: {
-            userId: newUser.id,
-            roleId: pesertaRole.id,
+      // Create new user with default group assignment if configured
+      const defaultGroupId = process.env.DEFAULT_GROUP_ID ? parseInt(process.env.DEFAULT_GROUP_ID) : null;
+      
+      // Validate default group if configured
+      if (defaultGroupId) {
+        const group = await this.prisma.group.findFirst({
+          where: {
+            id: defaultGroupId,
+            deletedAt: null,
           },
         });
+
+        if (!group) {
+          console.warn(`Default group with ID ${defaultGroupId} not found, creating user without group assignment`);
+        }
       }
 
-      // Fetch user with roles (excluding password)
+      const newUser = await this.prisma.$transaction(async (prisma) => {
+        // Create user
+        const createdUser = await prisma.user.create({
+          data: {
+            email: googleUser.email,
+            name: googleUser.name,
+            username: googleUser.email.split('@')[0],
+            password: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+
+        // Assign default PESERTA role
+        const pesertaRole = await prisma.role.findUnique({
+          where: { name: 'PESERTA' },
+        });
+
+        if (pesertaRole) {
+          await prisma.userRole.create({
+            data: {
+              userId: createdUser.id,
+              roleId: pesertaRole.id,
+            },
+          });
+        }
+
+        // Assign user to default group if configured and valid
+        if (defaultGroupId) {
+          const group = await prisma.group.findFirst({
+            where: {
+              id: defaultGroupId,
+              deletedAt: null,
+            },
+          });
+
+          if (group) {
+            await prisma.userGroup.create({
+              data: {
+                userId: createdUser.id,
+                groupId: defaultGroupId,
+              },
+            });
+          }
+        }
+
+        return createdUser;
+      });
+
+      // Fetch user with roles and groups (excluding password)
       user = await this.prisma.user.findUnique({
         where: { id: newUser.id },
         select: {
@@ -233,6 +324,17 @@ export class AuthService {
           userRoles: {
             include: {
               role: true,
+            },
+          },
+          userGroups: {
+            include: {
+              group: {
+                select: {
+                  id: true,
+                  groupName: true,
+                  description: true,
+                },
+              },
             },
           },
         },
@@ -331,35 +433,69 @@ export class AuthService {
         };
       }
 
+      // Validate group if provided
+      if (userData.groupId) {
+        const group = await this.prisma.group.findFirst({
+          where: {
+            id: userData.groupId,
+            deletedAt: null,
+          },
+        });
+
+        if (!group) {
+          return {
+            email: userData.email,
+            username: userData.username,
+            success: false,
+            error: `Group with ID ${userData.groupId} not found`,
+          };
+        }
+      }
+
       const salt = await bcrypt.genSalt();
       const hashedPassword = await bcrypt.hash(userData.password, salt);
       
-      // Create user
-      const user = await this.prisma.user.create({
-        data: {
-          email: userData.email,
-          username: userData.username,
-          name: userData.name,
-          password: hashedPassword,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      });
-
-      // Assign role (default to PESERTA if not specified)
-      const roleName = userData.role || 'PESERTA';
-      const role = await this.prisma.role.findUnique({
-        where: { name: roleName },
-      });
-
-      if (role) {
-        await this.prisma.userRole.create({
+      // Create user with role and group assignment in a transaction
+      const user = await this.prisma.$transaction(async (prisma) => {
+        // Create user
+        const newUser = await prisma.user.create({
           data: {
-            userId: user.id,
-            roleId: role.id,
+            email: userData.email,
+            username: userData.username,
+            name: userData.name,
+            password: hashedPassword,
+            createdAt: new Date(),
+            updatedAt: new Date(),
           },
         });
-      }
+
+        // Assign role (default to PESERTA if not specified)
+        const roleName = userData.role || 'PESERTA';
+        const role = await prisma.role.findUnique({
+          where: { name: roleName },
+        });
+
+        if (role) {
+          await prisma.userRole.create({
+            data: {
+              userId: newUser.id,
+              roleId: role.id,
+            },
+          });
+        }
+
+        // Assign user to group if provided
+        if (userData.groupId) {
+          await prisma.userGroup.create({
+            data: {
+              userId: newUser.id,
+              groupId: userData.groupId,
+            },
+          });
+        }
+
+        return newUser;
+      });
 
       // Send welcome email with credentials for bulk signup
       try {
@@ -445,6 +581,12 @@ export class AuthService {
             userData.password = value;
           } else if (header.includes('role')) {
             userData.role = value;
+          } else if (header.includes('group') || header.includes('groupid')) {
+            // Handle groupId - convert to number if it's a valid number
+            const groupId = parseInt(value);
+            if (!isNaN(groupId)) {
+              userData.groupId = groupId;
+            }
           }
         });
 

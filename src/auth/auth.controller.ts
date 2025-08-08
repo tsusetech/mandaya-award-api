@@ -15,7 +15,10 @@ export class AuthController {
 
   // --- Local Auth ---
   @Post('signup')
-  @ApiOperation({ summary: 'Register a new user' })
+  @ApiOperation({ 
+    summary: 'Register a new user',
+    description: 'Register a new user with optional group assignment. If groupId is provided, the user will be automatically assigned to that group.'
+  })
   @ApiResponse({ 
     status: HttpStatus.CREATED, 
     description: 'User successfully created',
@@ -23,7 +26,7 @@ export class AuthController {
   })
   @ApiResponse({ 
     status: HttpStatus.BAD_REQUEST, 
-    description: 'Invalid input data' 
+    description: 'Invalid input data or group not found' 
   })
   @ApiResponse({ 
     status: HttpStatus.CONFLICT, 
@@ -119,14 +122,14 @@ export class AuthController {
   @Post('bulk-register')
   @ApiOperation({ 
     summary: 'Bulk user registration',
-    description: 'Register multiple users at once by providing an array of user data'
+    description: 'Register multiple users at once by providing an array of user data. Each user can be assigned to a specific group using the groupId field.'
   })
   @ApiResponse({ 
     status: 201, 
     description: 'Bulk registration completed', 
     type: BulkSignupResponseDto 
   })
-  @ApiResponse({ status: 400, description: 'Invalid user data' })
+  @ApiResponse({ status: 400, description: 'Invalid user data or group not found' })
   @ApiBody({ type: BulkSignupDto })
   async bulkRegister(@Body() bulkSignupDto: BulkSignupDto) {
     return this.authService.bulkSignup(bulkSignupDto.users);
@@ -136,7 +139,7 @@ export class AuthController {
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ 
     summary: 'Bulk user registration from Excel file',
-    description: 'Register multiple users by uploading an Excel file. Required columns: email, username, password. Optional columns: name, role'
+    description: 'Register multiple users by uploading an Excel file. Required columns: email, username, password. Optional columns: name, role, groupId. If groupId column is present, users will be assigned to the specified groups.'
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -147,7 +150,7 @@ export class AuthController {
         file: {
           type: 'string',
           format: 'binary',
-          description: 'Excel file (.xlsx or .xls)'
+          description: 'Excel file (.xlsx or .xls) with columns: email, username, password, name (optional), role (optional), groupId (optional)'
         }
       }
     }
@@ -157,7 +160,7 @@ export class AuthController {
     description: 'Bulk registration from Excel completed', 
     type: BulkSignupResponseDto 
   })
-  @ApiResponse({ status: 400, description: 'Invalid file or file format' })
+  @ApiResponse({ status: 400, description: 'Invalid file, file format, or group not found' })
   async bulkRegisterFromExcel(@UploadedFile() file: any) {
     if (!file) {
       throw new BadRequestException('No file uploaded');
