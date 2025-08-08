@@ -7,11 +7,11 @@ export class GroupCategoryResponseDto {
   group?: {
     id: number;
     groupName: string;
-    description?: string;
+    description: string | null;
   };
   category?: {
     id: number;
     name: string;
-    description?: string;
+    description: string | null;
   };
 }
