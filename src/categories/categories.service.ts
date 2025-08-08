@@ -2,20 +2,23 @@ import { Injectable, NotFoundException, ConflictException } from '@nestjs/common
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
-import { AssignCategoryToGroupDto } from './dto/assign-category-to-group.dto';
+import { AssignGroupToCategoryDto } from './dto/assign-group-to-category.dto';
 import { CategoryResponseDto } from './dto/category-response.dto';
-import { GroupCategoryResponseDto } from './dto/group-category-response.dto';
+import { CategoryGroupResponseDto } from './dto/category-group-response.dto';
 
 @Injectable()
 export class CategoriesService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createCategoryDto: CreateCategoryDto): Promise<CategoryResponseDto> {
+  async create(createCategoryDto: CreateCategoryDto): Promise<{ message: string; category: CategoryResponseDto }> {
     try {
       const category = await this.prisma.category.create({
         data: createCategoryDto,
       });
-      return category;
+      return {
+        message: 'Category created successfully',
+        category
+      };
     } catch (error) {
       if (error.code === 'P2002') {
         throw new ConflictException('Category name already exists');
@@ -24,8 +27,8 @@ export class CategoriesService {
     }
   }
 
-  async findAll(): Promise<CategoryResponseDto[]> {
-    return this.prisma.category.findMany({
+  async findAll(): Promise<{ message: string; categories: CategoryResponseDto[] }> {
+    const categories = await this.prisma.category.findMany({
       where: {
         deletedAt: null,
       },
@@ -33,9 +36,13 @@ export class CategoriesService {
         createdAt: 'desc',
       },
     });
+    return {
+      message: 'Categories retrieved successfully',
+      categories
+    };
   }
 
-  async findOne(id: number): Promise<CategoryResponseDto> {
+  async findOne(id: number): Promise<{ message: string; category: CategoryResponseDto }> {
     const category = await this.prisma.category.findFirst({
       where: {
         id,
@@ -47,16 +54,22 @@ export class CategoriesService {
       throw new NotFoundException(`Category with ID ${id} not found`);
     }
 
-    return category;
+    return {
+      message: 'Category retrieved successfully',
+      category
+    };
   }
 
-  async update(id: number, updateCategoryDto: UpdateCategoryDto): Promise<CategoryResponseDto> {
+  async update(id: number, updateCategoryDto: UpdateCategoryDto): Promise<{ message: string; category: CategoryResponseDto }> {
     try {
       const category = await this.prisma.category.update({
         where: { id },
         data: updateCategoryDto,
       });
-      return category;
+      return {
+        message: 'Category updated successfully',
+        category
+      };
     } catch (error) {
       if (error.code === 'P2025') {
         throw new NotFoundException(`Category with ID ${id} not found`);
@@ -68,7 +81,7 @@ export class CategoriesService {
     }
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number): Promise<{ message: string }> {
     try {
       await this.prisma.category.update({
         where: { id },
@@ -76,6 +89,9 @@ export class CategoriesService {
           deletedAt: new Date(),
         },
       });
+      return {
+        message: 'Category deleted successfully'
+      };
     } catch (error) {
       if (error.code === 'P2025') {
         throw new NotFoundException(`Category with ID ${id} not found`);
@@ -84,18 +100,11 @@ export class CategoriesService {
     }
   }
 
-  async assignCategoryToGroup(assignDto: AssignCategoryToGroupDto): Promise<GroupCategoryResponseDto> {
+  async assignGroupToCategory(assignDto: AssignGroupToCategoryDto): Promise<{ message: string; categoryGroup: CategoryGroupResponseDto }> {
     try {
-      const groupCategory = await this.prisma.groupCategory.create({
+      const categoryGroup = await this.prisma.categoryGroup.create({
         data: assignDto,
         include: {
-          group: {
-            select: {
-              id: true,
-              groupName: true,
-              description: true,
-            },
-          },
           category: {
             select: {
               id: true,
@@ -103,57 +112,36 @@ export class CategoriesService {
               description: true,
             },
           },
+          group: {
+            select: {
+              id: true,
+              groupName: true,
+              description: true,
+            },
+          },
         },
       });
-      return groupCategory;
+      return {
+        message: 'Group assigned to category successfully',
+        categoryGroup
+      };
     } catch (error) {
       if (error.code === 'P2002') {
         throw new ConflictException('Group is already assigned to this category');
       }
       if (error.code === 'P2003') {
-        throw new NotFoundException('Group or Category not found');
+        throw new NotFoundException('Category or Group not found');
       }
       throw error;
     }
   }
 
-  async getGroupCategories(groupId: number): Promise<GroupCategoryResponseDto[]> {
-    return this.prisma.groupCategory.findMany({
-      where: {
-        groupId,
-      },
-      include: {
-        group: {
-          select: {
-            id: true,
-            groupName: true,
-            description: true,
-          },
-        },
-        category: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-          },
-        },
-      },
-    });
-  }
-
-  async getCategoryGroups(categoryId: number): Promise<GroupCategoryResponseDto[]> {
-    return this.prisma.groupCategory.findMany({
+  async getCategoryGroups(categoryId: number): Promise<{ message: string; categoryGroups: CategoryGroupResponseDto[] }> {
+    const categoryGroups = await this.prisma.categoryGroup.findMany({
       where: {
         categoryId,
       },
       include: {
-        group: {
-          select: {
-            id: true,
-            groupName: true,
-            description: true,
-          },
-        },
         category: {
           select: {
             id: true,
@@ -161,23 +149,65 @@ export class CategoriesService {
             description: true,
           },
         },
+        group: {
+          select: {
+            id: true,
+            groupName: true,
+            description: true,
+          },
+        },
       },
     });
+    return {
+      message: 'Category groups retrieved successfully',
+      categoryGroups
+    };
   }
 
-  async removeCategoryFromGroup(groupId: number, categoryId: number): Promise<void> {
+  async getGroupCategories(groupId: number): Promise<{ message: string; categoryGroups: CategoryGroupResponseDto[] }> {
+    const categoryGroups = await this.prisma.categoryGroup.findMany({
+      where: {
+        groupId,
+      },
+      include: {
+        category: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+          },
+        },
+        group: {
+          select: {
+            id: true,
+            groupName: true,
+            description: true,
+          },
+        },
+      },
+    });
+    return {
+      message: 'Group categories retrieved successfully',
+      categoryGroups
+    };
+  }
+
+  async removeGroupFromCategory(categoryId: number, groupId: number): Promise<{ message: string }> {
     try {
-      await this.prisma.groupCategory.delete({
+      await this.prisma.categoryGroup.delete({
         where: {
-          groupId_categoryId: {
-            groupId,
+          categoryId_groupId: {
             categoryId,
+            groupId,
           },
         },
       });
+      return {
+        message: 'Group removed from category successfully'
+      };
     } catch (error) {
       if (error.code === 'P2025') {
-        throw new NotFoundException('Group-Category assignment not found');
+        throw new NotFoundException('Category-Group assignment not found');
       }
       throw error;
     }
