@@ -12,8 +12,13 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // Enable validation globally
-  app.useGlobalPipes(new ValidationPipe());
+  // Enable validation globally with transformation
+  app.useGlobalPipes(new ValidationPipe({
+    transform: true,
+    transformOptions: {
+      enableImplicitConversion: true,
+    },
+  }));
 
   // Swagger configuration
   const config = new DocumentBuilder()

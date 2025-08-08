@@ -12,7 +12,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
-import { SendEmailDto, BulkEmailDto } from './dto/send-email.dto';
+import { SendEmailDto, BulkEmailDto, WelcomeEmailDto } from './dto/send-email.dto';
 import { NotificationResponseDto, BulkEmailResponseDto } from './dto/notification-response.dto';
 import { ResponseService } from '../common/services/response.service';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -92,6 +92,28 @@ export class NotificationsController {
     return this.responseService.success(
       result,
       'Welcome email sent successfully',
+      request.url
+    );
+  }
+
+  @Post('email/welcome-with-credentials')
+  @ApiOperation({ summary: 'Send welcome email with account credentials to new user' })
+  @ApiResponse({ 
+    status: HttpStatus.OK, 
+    description: 'Welcome email with credentials sent successfully',
+    type: NotificationResponseDto
+  })
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPERADMIN')
+  async sendWelcomeEmailWithCredentials(
+    @Body() welcomeEmailDto: WelcomeEmailDto,
+    @Req() request: any
+  ) {
+    const result = await this.notificationsService.sendWelcomeEmailWithCredentials(welcomeEmailDto);
+    
+    return this.responseService.success(
+      result,
+      'Welcome email with credentials sent successfully',
       request.url
     );
   }

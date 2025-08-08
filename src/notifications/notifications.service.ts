@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EmailService } from './services/email.service';
-import { SendEmailDto } from './dto/send-email.dto';
+import { SendEmailDto, WelcomeEmailDto } from './dto/send-email.dto';
 import { NotificationResponseDto, BulkEmailResponseDto } from './dto/notification-response.dto';
 
 @Injectable()
@@ -70,6 +70,86 @@ export class NotificationsService {
         </div>
       `,
       text: `Welcome to Mandaya Awards! Hello ${userName || 'there'}, thank you for joining our platform. You can now access all the features and participate in awards and competitions. Best regards, The Mandaya Awards Team`
+    };
+
+    return this.sendEmailNotification(emailDto);
+  }
+
+  /**
+   * Send welcome email with credentials to new user
+   */
+  async sendWelcomeEmailWithCredentials(welcomeEmailDto: WelcomeEmailDto): Promise<NotificationResponseDto> {
+    const loginUrl = welcomeEmailDto.loginUrl || process.env.FRONTEND_URL || 'http://localhost:3000';
+    
+    const emailDto: SendEmailDto = {
+      to: welcomeEmailDto.to,
+      subject: 'Welcome to Mandaya Awards Platform - Your Account Details',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #2c3e50; margin-bottom: 10px;">Welcome to Mandaya Awards!</h1>
+          </div>
+          
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <p style="font-size: 16px; line-height: 1.6; margin-bottom: 15px;">
+              Hello ${welcomeEmailDto.username},
+            </p>
+            <p style="font-size: 16px; line-height: 1.6; margin-bottom: 15px;">
+              Thank you for joining the Mandaya Awards platform! We're excited to have you on board.
+            </p>
+            <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+              Here are your account details:
+            </p>
+            
+            <div style="background: #ffffff; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+              <div style="margin-bottom: 10px;">
+                <strong style="color: #495057;">Username:</strong> 
+                <span style="color: #6c757d; margin-left: 10px;">${welcomeEmailDto.username}</span>
+              </div>
+              <div style="margin-bottom: 10px;">
+                <strong style="color: #495057;">Email:</strong> 
+                <span style="color: #6c757d; margin-left: 10px;">${welcomeEmailDto.email}</span>
+              </div>
+              <div>
+                <strong style="color: #495057;">Password:</strong> 
+                <span style="color: #6c757d; margin-left: 10px;">${welcomeEmailDto.password}</span>
+              </div>
+            </div>
+            
+            <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+              Click the button below to access your account:
+            </p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${loginUrl}/login" 
+                 style="background: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: 600; display: inline-block;">
+                Login to Your Account
+              </a>
+            </div>
+            
+            <p style="font-size: 14px; color: #666; margin-bottom: 10px;">
+              Or copy and paste this link into your browser:
+            </p>
+            <p style="font-size: 14px; color: #007bff; word-break: break-all;">
+              ${loginUrl}/login
+            </p>
+          </div>
+          
+          <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <p style="font-size: 14px; color: #856404; margin: 0;">
+              <strong>Security Notice:</strong> Please keep your login credentials secure and consider changing your password after your first login.
+            </p>
+          </div>
+          
+          <div style="text-align: center; margin-top: 30px;">
+            <p style="color: #666; font-size: 14px;">
+              Best regards,<br>
+              <strong>The Mandaya Awards Team</strong>
+            </p>
+          </div>
+        </div>
+      `,
+      text: `Welcome to Mandaya Awards! Hello ${welcomeEmailDto.username}, thank you for joining our platform. Your account details: Username: ${welcomeEmailDto.username}, Email: ${welcomeEmailDto.email}, Password: ${welcomeEmailDto.password}. Login at: ${loginUrl}/login. Please keep your credentials secure and consider changing your password after first login. Best regards, The Mandaya Awards Team`
     };
 
     return this.sendEmailNotification(emailDto);

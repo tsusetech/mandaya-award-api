@@ -4,12 +4,14 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { SignupDto } from './dto/signup.dto';
 import { BulkUserDto, UserCreationResult } from './dto/bulk-signup.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private notificationsService: NotificationsService,
   ) {}
 
   async validateUser(email: string, pass: string): Promise<any> {
@@ -118,6 +120,20 @@ export class AuthService {
         ...userWithRoles!, 
         name: userWithRoles!.name ?? undefined 
       };
+
+      // Send welcome email with credentials
+      try {
+        await this.notificationsService.sendWelcomeEmailWithCredentials({
+          to: signupDto.email,
+          username: signupDto.username,
+          email: signupDto.email,
+          password: signupDto.password, // Send the plain text password
+          loginUrl: process.env.FRONTEND_URL || 'http://localhost:3000'
+        });
+      } catch (emailError) {
+        // Log the error but don't fail the signup process
+        console.error('Failed to send welcome email:', emailError);
+      }
 
       return {
         message: 'User created successfully',
@@ -343,6 +359,20 @@ export class AuthService {
             roleId: role.id,
           },
         });
+      }
+
+      // Send welcome email with credentials for bulk signup
+      try {
+        await this.notificationsService.sendWelcomeEmailWithCredentials({
+          to: userData.email,
+          username: userData.username,
+          email: userData.email,
+          password: userData.password, // Send the plain text password
+          loginUrl: process.env.FRONTEND_URL || 'http://localhost:3000'
+        });
+      } catch (emailError) {
+        // Log the error but don't fail the user creation process
+        console.error(`Failed to send welcome email for ${userData.email}:`, emailError);
       }
 
       return {

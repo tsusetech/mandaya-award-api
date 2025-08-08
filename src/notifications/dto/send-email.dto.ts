@@ -60,4 +60,43 @@ export class BulkEmailDto {
   })
   @IsArray()
   emails: SendEmailDto[];
+}
+
+export class WelcomeEmailDto {
+  @ApiProperty({ 
+    example: 'user@example.com',
+    description: 'Recipient email address'
+  })
+  @IsEmail()
+  to: string;
+
+  @ApiProperty({ 
+    example: 'john_doe',
+    description: 'Username of the new user'
+  })
+  @IsString()
+  username: string;
+
+  @ApiProperty({ 
+    example: 'user@example.com',
+    description: 'Email address of the new user'
+  })
+  @IsEmail()
+  email: string;
+
+  @ApiProperty({ 
+    example: 'mypassword123',
+    description: 'Plain text password for the new user'
+  })
+  @IsString()
+  password: string;
+
+  @ApiProperty({ 
+    example: 'https://myproject.com/login',
+    description: 'Login URL for the application',
+    required: false
+  })
+  @IsOptional()
+  @IsString()
+  loginUrl?: string;
 } 

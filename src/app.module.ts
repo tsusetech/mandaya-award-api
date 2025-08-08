@@ -12,6 +12,7 @@ import { QuestionsModule } from './questions/questions.module';
 import { ResponsesModule } from './responses/responses.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { AssessmentsModule } from './assessments/assessments.module';
+import { CategoriesModule } from './categories/categories.module';
 
 @Module({
   imports: [
@@ -28,7 +29,8 @@ import { AssessmentsModule } from './assessments/assessments.module';
     QuestionsModule,
     ResponsesModule,
     ReviewsModule,
-    AssessmentsModule
+    AssessmentsModule,
+    CategoriesModule
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -27,6 +27,7 @@ model User {
   deletedQuestions Question[]        @relation("QuestionDeletedBy")
   deletedGroups   Group[]           @relation("GroupDeletedBy")
   deletedResponseSessions ResponseSession[] @relation("ResponseSessionDeletedBy")
+  deletedCategories Category[]       @relation("CategoryDeletedBy")
 }
 
 model Role {
@@ -94,6 +95,7 @@ model Group {
   userGroups       UserGroup[]
   responseSessions ResponseSession[]
   tahapGroupHierarchies TahapGroupHierarchy[] // Add this relation field
+  groupCategories  GroupCategory[]
   deletedByUser    User?             @relation("GroupDeletedBy", fields: [deletedBy], references: [id])
 }
 
@@ -308,4 +310,36 @@ model QuestionOption {
 
   @@index([questionId])
   @@index([orderNumber])
+}
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+  deletedBy   Int?
+
+  // Relations
+  groupCategories GroupCategory[]
+  deletedByUser   User? @relation("CategoryDeletedBy", fields: [deletedBy], references: [id])
+
+  @@index([deletedAt])
+}
+
+model GroupCategory {
+  id         Int      @id @default(autoincrement())
+  groupId    Int
+  categoryId Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, categoryId])
+  @@index([groupId])
+  @@index([categoryId])
 }

@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsInt, IsString, IsOptional, IsArray, ArrayMinSize, IsBoolean, IsEnum } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export enum CalculationType {
   DELTA = 'delta',
@@ -382,9 +383,4 @@ export class GetTahapGroupsDto {
   @IsString()
   @IsOptional()
   groupIdentifier?: string;
-
-  @ApiProperty({ example: 1, required: false })
-  @IsInt()
-  @IsOptional()
-  groupId?: number;
 }
