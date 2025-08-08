@@ -8,7 +8,11 @@ async function bootstrap() {
 
   // Enable CORS
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:3001'], // Add your frontend URLs
+    origin: [
+      'http://localhost:3000', 
+      'http://localhost:3001',
+      'https://mandaya-award.vercel.app' // Add your production frontend URL
+    ],
     credentials: true,
   });
 
