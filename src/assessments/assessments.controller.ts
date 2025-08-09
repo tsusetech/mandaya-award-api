@@ -20,18 +20,83 @@ import {
   ApiQuery
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { AssessmentsService } from './assessments.service';
 import { AssessmentSessionDto } from './dto/assessment-session.dto';
 import { AssessmentAnswerDto } from './dto/assessment-answer.dto';
 import { BatchAnswerDto } from './dto/batch-answer.dto';
 import { PaginationQueryDto } from './dto/pagination.dto';
+import { UserAssessmentSessionsQueryDto, UserAssessmentSessionDto } from './dto/user-assessment-sessions.dto';
+import { PaginatedResponseDto } from './dto/pagination.dto';
 
 @ApiTags('Assessments API')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('assessments')
 export class AssessmentsController {
   constructor(private readonly assessmentsService: AssessmentsService) {}
+
+  @Get('user-sessions')
+  @Roles('ADMIN', 'SUPERADMIN', 'JURI')
+  @ApiOperation({ 
+    summary: 'Get all user assessment sessions',
+    description: 'Retrieves all assessment sessions from users with pagination and filtering. Only accessible by admin, superadmin, and juri roles.'
+  })
+  @ApiQuery({ 
+    name: 'page', 
+    required: false, 
+    type: 'number', 
+    description: 'Page number (starts from 1)',
+    example: 1
+  })
+  @ApiQuery({ 
+    name: 'limit', 
+    required: false, 
+    type: 'number', 
+    description: 'Number of items per page',
+    example: 10
+  })
+  @ApiQuery({ 
+    name: 'status', 
+    required: false, 
+    type: 'string', 
+    description: 'Filter by assessment status',
+    example: 'submitted'
+  })
+  @ApiQuery({ 
+    name: 'reviewStatus', 
+    required: false, 
+    type: 'string', 
+    description: 'Filter by review status',
+    example: 'pending'
+  })
+  @ApiQuery({ 
+    name: 'reviewStage', 
+    required: false, 
+    type: 'string', 
+    description: 'Filter by review stage (admin_validation, jury_scoring, jury_deliberation, final_decision)',
+    example: 'admin_validation'
+  })
+  @ApiQuery({ 
+    name: 'groupId', 
+    required: false, 
+    type: 'number', 
+    description: 'Filter by group ID',
+    example: 1
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'User assessment sessions retrieved successfully',
+    type: PaginatedResponseDto<UserAssessmentSessionDto>
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  async getUserAssessmentSessions(
+    @Query() query: UserAssessmentSessionsQueryDto
+  ): Promise<PaginatedResponseDto<UserAssessmentSessionDto>> {
+    return this.assessmentsService.getUserAssessmentSessions(query);
+  }
 
   @Get('session/:groupId')
   @ApiOperation({ 

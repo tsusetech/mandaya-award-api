@@ -6,6 +6,9 @@ import { AssessmentAnswerDto } from './dto/assessment-answer.dto';
 import { BatchAnswerDto } from './dto/batch-answer.dto';
 import { PaginationQueryDto, PaginatedResponseDto } from './dto/pagination.dto';
 import { QuestionInputType } from './dto/assessment-question.dto';
+import { UserAssessmentSessionsQueryDto, UserAssessmentSessionDto } from './dto/user-assessment-sessions.dto';
+import { AssessmentStatus } from './dto/assessment-session.dto';
+import { ReviewCommentDto } from './dto/review-comment.dto';
 
 @Injectable()
 export class AssessmentsService {
@@ -115,9 +118,46 @@ export class AssessmentsService {
       );
     }
 
-    // Map questions WITH responses (if they exist)
+    // Get review comments for all questions in this session
+    const reviewComments = await this.prisma.reviewComment.findMany({
+      where: {
+        review: {
+          sessionId: session.id
+        }
+      },
+      include: {
+        review: {
+          include: {
+            reviewer: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Group review comments by question ID for easy lookup
+    const reviewCommentsByQuestion = reviewComments.reduce((acc, comment) => {
+      if (!acc[comment.questionId]) {
+        acc[comment.questionId] = [];
+      }
+      acc[comment.questionId].push({
+        id: comment.id,
+        comment: comment.comment,
+        isCritical: comment.isCritical,
+        stage: comment.stage || undefined,
+        createdAt: comment.createdAt.toISOString(),
+        reviewerName: comment.review.reviewer.name || undefined
+      });
+      return acc;
+    }, {} as Record<number, ReviewCommentDto[]>);
+
+    // Map questions WITH responses (if they exist) and review comments
     const questions: AssessmentQuestionDto[] = groupQuestions.map(gq => {
       const response = session.responses.find(r => r.questionId === gq.question.id);
+      const questionReviewComments = reviewCommentsByQuestion[gq.question.id] || [];
       
       return {
         id: gq.question.id,
@@ -137,7 +177,8 @@ export class AssessmentsService {
         })),
         response: response ? this.mapResponseToValue(response) : undefined,
         isAnswered: response ? response.isComplete : false,
-        isSkipped: response ? response.isSkipped : false
+        isSkipped: response ? response.isSkipped : false,
+        reviewComments: questionReviewComments // Always include, will be empty array if no comments
       };
     });
 
@@ -361,6 +402,106 @@ export class AssessmentsService {
     }));
 
     return { sections };
+  }
+
+  async getUserAssessmentSessions(
+    query: UserAssessmentSessionsQueryDto
+  ): Promise<PaginatedResponseDto<UserAssessmentSessionDto>> {
+    const { page = 1, limit = 10, status, reviewStatus, reviewStage, groupId } = query;
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const where: any = {};
+    
+    if (status) {
+      where.status = status;
+    }
+    
+    if (reviewStatus) {
+      where.reviewStatus = reviewStatus;
+    }
+    
+    if (groupId) {
+      where.groupId = groupId;
+    }
+
+    // Add review stage filter if provided
+    if (reviewStage) {
+      where.review = {
+        stage: reviewStage
+      };
+    }
+
+    // Get total count
+    const total = await this.prisma.responseSession.count({ where });
+
+    // Get sessions with user, group, and review information
+    const sessions = await this.prisma.responseSession.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            email: true,
+            name: true
+          }
+        },
+        group: {
+          select: {
+            groupName: true
+          }
+        },
+        review: {
+          include: {
+            reviewer: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        lastActivityAt: 'desc'
+      },
+      skip,
+      take: limit
+    });
+
+    // Map to DTO with explicit null handling
+    const data: UserAssessmentSessionDto[] = sessions.map(session => ({
+      id: session.id,
+      userId: session.userId,
+      userEmail: session.user.email,
+      userName: session.user.name || 'Unknown User',
+      groupId: session.groupId,
+      groupName: session.group.groupName,
+      status: session.status as AssessmentStatus,
+      progressPercentage: session.progressPercentage,
+      startedAt: session.startedAt.toISOString(),
+      lastActivityAt: session.lastActivityAt.toISOString(),
+      completedAt: session.completedAt?.toISOString(),
+      submittedAt: session.submittedAt?.toISOString(),
+      reviewStatus: session.reviewStatus || null,
+      // Review-related fields - explicitly handle null values
+      reviewStage: session.review?.stage || null,
+      reviewDecision: session.review?.decision || null,
+      reviewScore: session.review?.totalScore ? Number(session.review.totalScore) : null,
+      reviewedAt: session.review?.reviewedAt?.toISOString() || null,
+      reviewerName: session.review?.reviewer?.name || null,
+      reviewComments: session.review?.overallComments || null
+    }));
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      page,
+      limit,
+      total,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1,
+      data
+    };
   }
 
   private mapValueByQuestionType(value: any, inputType: string) {

@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNumber, IsString, IsBoolean, IsOptional, IsArray, IsEnum } from 'class-validator';
+import { ReviewCommentDto } from './review-comment.dto';
 
 export enum QuestionInputType {
   TEXT_OPEN = 'text-open',
@@ -86,4 +87,10 @@ export class AssessmentQuestionDto {
   @IsOptional()
   @IsBoolean()
   isSkipped?: boolean;
+
+  // Review comments for this question
+  @ApiProperty({ type: [ReviewCommentDto], required: false })
+  @IsOptional()
+  @IsArray()
+  reviewComments?: ReviewCommentDto[];
 }
