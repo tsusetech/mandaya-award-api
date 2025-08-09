@@ -703,13 +703,16 @@ export class AssessmentsService {
       throw new BadRequestException('Session must be submitted before it can be reviewed');
     }
 
-    // Check if review already exists
+    // Check if this specific reviewer already has a review for this session
     const existingReview = await this.prisma.review.findFirst({
-      where: { sessionId }
+      where: { 
+        sessionId,
+        reviewerId 
+      }
     });
 
     if (existingReview) {
-      throw new BadRequestException('Review already exists for this session');
+      throw new BadRequestException('You have already reviewed this session. Use update endpoint to modify your review.');
     }
 
     // Determine review status based on decision and stage
@@ -785,7 +788,7 @@ export class AssessmentsService {
         });
       }
 
-      // Update session status based on review decision
+      // Update session status based on the most recent review decision
       await prisma.responseSession.update({
         where: { id: sessionId },
         data: {
@@ -849,9 +852,12 @@ export class AssessmentsService {
       throw new BadRequestException('Session must be submitted before it can be reviewed');
     }
 
-    // Check if review already exists
+    // Check if this specific reviewer already has a review for this session
     const existingReview = await this.prisma.review.findFirst({
-      where: { sessionId }
+      where: { 
+        sessionId,
+        reviewerId 
+      }
     });
 
     let review;
@@ -860,7 +866,7 @@ export class AssessmentsService {
     let totalScoresAdded = 0;
 
     if (existingReview && updateExisting) {
-      // Update existing review
+      // Update existing review by this reviewer
       review = await this.updateExistingReview(
         existingReview.id,
         reviewerId,
@@ -868,7 +874,7 @@ export class AssessmentsService {
         batchReviewDto
       );
     } else if (existingReview && !updateExisting) {
-      // Create new review (incremental mode)
+      // Create new review (incremental mode) - allow multiple reviews per session
       review = await this.createIncrementalReview(
         reviewerId,
         sessionId,
@@ -877,7 +883,7 @@ export class AssessmentsService {
       );
       isNewReview = true;
     } else {
-      // Create first review
+      // Create first review by this reviewer
       review = await this.createFirstReview(
         reviewerId,
         sessionId,
@@ -1216,5 +1222,52 @@ export class AssessmentsService {
     if (response.booleanValue !== null) return response.booleanValue;
     if (response.arrayValue !== null) return response.arrayValue;
     return null;
+  }
+
+  async getAssessmentReviews(sessionId: number): Promise<AssessmentReviewResponseDto[]> {
+    const session = await this.prisma.responseSession.findUnique({
+      where: { id: sessionId }
+    });
+
+    if (!session) {
+      throw new NotFoundException('Assessment session not found');
+    }
+
+    const reviews = await this.prisma.review.findMany({
+      where: { sessionId },
+      include: {
+        reviewer: {
+          select: {
+            name: true
+          }
+        },
+        comments: {
+          include: {
+            question: true
+          }
+        },
+        juryScores: {
+          include: {
+            question: true
+          }
+        }
+      },
+      orderBy: {
+        reviewedAt: 'desc'
+      }
+    });
+
+    return reviews.map(review => ({
+      id: review.id,
+      sessionId: review.sessionId,
+      reviewerId: review.reviewerId,
+      stage: review.stage,
+      decision: review.decision,
+      overallComments: review.overallComments || undefined,
+      totalScore: review.totalScore ? Number(review.totalScore) : undefined,
+      reviewedAt: review.reviewedAt?.toISOString() || '',
+      reviewerName: review.reviewer?.name || 'Unknown Reviewer',
+      message: 'Review retrieved successfully'
+    }));
   }
 }

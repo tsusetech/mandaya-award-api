@@ -289,4 +289,25 @@ export class AssessmentsController {
   ): Promise<BatchAssessmentReviewResponseDto> {
     return this.assessmentsService.createBatchAssessmentReview(req.user.userId, sessionId, batchReviewDto);
   }
+
+  @Get('session/:sessionId/reviews')
+  @Roles('ADMIN', 'SUPERADMIN', 'JURI')
+  @ApiOperation({ 
+    summary: 'Get all reviews for an assessment session',
+    description: 'Retrieves all reviews created by different reviewers for a specific assessment session.'
+  })
+  @ApiParam({ name: 'sessionId', description: 'Assessment Session ID', type: 'number' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'All reviews retrieved successfully',
+    type: [AssessmentReviewResponseDto]
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Assessment session not found' })
+  async getAssessmentReviews(
+    @Param('sessionId', ParseIntPipe) sessionId: number
+  ): Promise<AssessmentReviewResponseDto[]> {
+    return this.assessmentsService.getAssessmentReviews(sessionId);
+  }
 }
