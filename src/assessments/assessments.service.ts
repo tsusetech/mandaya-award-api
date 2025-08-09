@@ -10,8 +10,14 @@ import { UserAssessmentSessionsQueryDto, UserAssessmentSessionDto } from './dto/
 import { AssessmentStatus } from './dto/assessment-session.dto';
 import { ReviewCommentDto } from './dto/review-comment.dto';
 import { AssessmentSessionDetailDto } from './dto/assessment-session.dto';
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsString, IsBoolean, IsOptional, IsDateString, IsArray } from 'class-validator';
+import { 
+  CreateAssessmentReviewDto, 
+  AssessmentReviewResponseDto,
+  BatchAssessmentReviewDto, 
+  BatchAssessmentReviewResponseDto,
+  ReviewStage,
+  ReviewDecision
+} from './dto/user-assessment-sessions.dto';
 
 @Injectable()
 export class AssessmentsService {
@@ -658,6 +664,534 @@ export class AssessmentsService {
       reviewerName: session.review?.reviewer?.name || null,
       reviewComments: session.review?.overallComments || null
     };
+  }
+
+  async createAssessmentReview(
+    reviewerId: number, 
+    sessionId: number, 
+    createReviewDto: CreateAssessmentReviewDto
+  ): Promise<AssessmentReviewResponseDto> {
+    const { 
+      stage, 
+      decision, 
+      overallComments, 
+      questionComments, 
+      juryScores, 
+      totalScore, 
+      deliberationNotes, 
+      internalNotes, 
+      validationChecklist 
+    } = createReviewDto;
+
+    // Check if session exists and is submitted
+    const session = await this.prisma.responseSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        user: {
+          select: {
+            name: true
+          }
+        }
+      }
+    });
+
+    if (!session) {
+      throw new NotFoundException('Assessment session not found');
+    }
+
+    if (session.status !== 'submitted') {
+      throw new BadRequestException('Session must be submitted before it can be reviewed');
+    }
+
+    // Check if review already exists
+    const existingReview = await this.prisma.review.findFirst({
+      where: { sessionId }
+    });
+
+    if (existingReview) {
+      throw new BadRequestException('Review already exists for this session');
+    }
+
+    // Determine review status based on decision and stage
+    let status: string;
+    switch (decision) {
+      case ReviewDecision.APPROVE:
+        status = 'approved';
+        break;
+      case ReviewDecision.REJECT:
+        status = 'rejected';
+        break;
+      case ReviewDecision.REQUEST_REVISION:
+        status = 'needs_revision';
+        break;
+      case ReviewDecision.PASS_TO_JURY:
+        status = 'in_progress';
+        break;
+      case ReviewDecision.NEEDS_DELIBERATION:
+        status = 'deliberated';
+        break;
+      default:
+        throw new BadRequestException('Invalid review decision');
+    }
+
+    // Create review with transaction
+    const review = await this.prisma.$transaction(async (prisma) => {
+      // Create the main review
+      const newReview = await prisma.review.create({
+        data: {
+          sessionId,
+          reviewerId,
+          stage,
+          status,
+          decision,
+          overallComments,
+          totalScore,
+          deliberationNotes,
+          internalNotes,
+          validationChecklist,
+          reviewedAt: new Date()
+        },
+        include: {
+          reviewer: {
+            select: {
+              name: true
+            }
+          }
+        }
+      });
+
+      // Create question comments if provided
+      if (questionComments && questionComments.length > 0) {
+        await prisma.reviewComment.createMany({
+          data: questionComments.map(comment => ({
+            reviewId: newReview.id,
+            questionId: comment.questionId,
+            comment: comment.comment,
+            isCritical: comment.isCritical || false,
+            stage: comment.stage || stage
+          }))
+        });
+      }
+
+      // Create jury scores if provided
+      if (juryScores && juryScores.length > 0) {
+        await prisma.juryScore.createMany({
+          data: juryScores.map(score => ({
+            reviewId: newReview.id,
+            questionId: score.questionId,
+            score: score.score,
+            comments: score.comments
+          }))
+        });
+      }
+
+      // Update session status based on review decision
+      await prisma.responseSession.update({
+        where: { id: sessionId },
+        data: {
+          reviewStatus: status,
+          reviewedAt: new Date()
+        }
+      });
+
+      return newReview;
+    });
+
+    return {
+      id: review.id,
+      sessionId: review.sessionId,
+      reviewerId: review.reviewerId,
+      stage: review.stage,
+      decision: review.decision,
+      overallComments: review.overallComments || undefined,
+      totalScore: review.totalScore ? Number(review.totalScore) : undefined,
+      reviewedAt: review.reviewedAt?.toISOString() || new Date().toISOString(),
+      reviewerName: review.reviewer?.name || 'Unknown Reviewer',
+      message: 'Assessment review created successfully'
+    };
+  }
+
+  async createBatchAssessmentReview(
+    reviewerId: number, 
+    sessionId: number, 
+    batchReviewDto: BatchAssessmentReviewDto
+  ): Promise<BatchAssessmentReviewResponseDto> {
+    const { 
+      stage, 
+      decision, 
+      overallComments, 
+      questionComments, 
+      juryScores, 
+      totalScore, 
+      deliberationNotes, 
+      internalNotes, 
+      validationChecklist,
+      updateExisting = false
+    } = batchReviewDto;
+
+    // Check if session exists and is submitted
+    const session = await this.prisma.responseSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        user: {
+          select: {
+            name: true
+          }
+        }
+      }
+    });
+
+    if (!session) {
+      throw new NotFoundException('Assessment session not found');
+    }
+
+    if (session.status !== 'submitted') {
+      throw new BadRequestException('Session must be submitted before it can be reviewed');
+    }
+
+    // Check if review already exists
+    const existingReview = await this.prisma.review.findFirst({
+      where: { sessionId }
+    });
+
+    let review;
+    let isNewReview = false;
+    let totalCommentsAdded = 0;
+    let totalScoresAdded = 0;
+
+    if (existingReview && updateExisting) {
+      // Update existing review
+      review = await this.updateExistingReview(
+        existingReview.id,
+        reviewerId,
+        sessionId,
+        batchReviewDto
+      );
+    } else if (existingReview && !updateExisting) {
+      // Create new review (incremental mode)
+      review = await this.createIncrementalReview(
+        reviewerId,
+        sessionId,
+        existingReview,
+        batchReviewDto
+      );
+      isNewReview = true;
+    } else {
+      // Create first review
+      review = await this.createFirstReview(
+        reviewerId,
+        sessionId,
+        batchReviewDto
+      );
+      isNewReview = true;
+    }
+
+    // Count added comments and scores
+    if (questionComments) {
+      totalCommentsAdded = questionComments.length;
+    }
+    if (juryScores) {
+      totalScoresAdded = juryScores.length;
+    }
+
+    return {
+      reviewId: review.id,
+      sessionId: review.sessionId,
+      reviewerId: review.reviewerId,
+      stage: review.stage,
+      decision: review.decision,
+      overallComments: review.overallComments || undefined,
+      totalScore: review.totalScore ? Number(review.totalScore) : undefined,
+      reviewedAt: review.reviewedAt?.toISOString() || new Date().toISOString(),
+      reviewerName: review.reviewer?.name || 'Unknown Reviewer',
+      message: isNewReview ? 'Assessment review created successfully' : 'Assessment review updated successfully',
+      isNewReview,
+      totalCommentsAdded,
+      totalScoresAdded
+    };
+  }
+
+  private async createFirstReview(
+    reviewerId: number,
+    sessionId: number,
+    batchReviewDto: BatchAssessmentReviewDto
+  ) {
+    const { 
+      stage, 
+      decision, 
+      overallComments, 
+      questionComments, 
+      juryScores, 
+      totalScore, 
+      deliberationNotes, 
+      internalNotes, 
+      validationChecklist 
+    } = batchReviewDto;
+
+    // Determine review status based on decision and stage
+    const status = this.determineReviewStatus(decision);
+
+    return await this.prisma.$transaction(async (prisma) => {
+      // Create the main review
+      const newReview = await prisma.review.create({
+        data: {
+          sessionId,
+          reviewerId,
+          stage,
+          status,
+          decision,
+          overallComments,
+          totalScore,
+          deliberationNotes,
+          internalNotes,
+          validationChecklist,
+          reviewedAt: new Date()
+        },
+        include: {
+          reviewer: {
+            select: {
+              name: true
+            }
+          }
+        }
+      });
+
+      // Create question comments if provided
+      if (questionComments && questionComments.length > 0) {
+        await prisma.reviewComment.createMany({
+          data: questionComments.map(comment => ({
+            reviewId: newReview.id,
+            questionId: comment.questionId,
+            comment: comment.comment,
+            isCritical: comment.isCritical || false,
+            stage: comment.stage || stage
+          }))
+        });
+      }
+
+      // Create jury scores if provided
+      if (juryScores && juryScores.length > 0) {
+        await prisma.juryScore.createMany({
+          data: juryScores.map(score => ({
+            reviewId: newReview.id,
+            questionId: score.questionId,
+            score: score.score,
+            comments: score.comments
+          }))
+        });
+      }
+
+      // Update session status
+      await prisma.responseSession.update({
+        where: { id: sessionId },
+        data: {
+          reviewStatus: status,
+          reviewedAt: new Date()
+        }
+      });
+
+      return newReview;
+    });
+  }
+
+  private async createIncrementalReview(
+    reviewerId: number,
+    sessionId: number,
+    existingReview: any,
+    batchReviewDto: BatchAssessmentReviewDto
+  ) {
+    const { 
+      stage, 
+      decision, 
+      overallComments, 
+      questionComments, 
+      juryScores, 
+      totalScore, 
+      deliberationNotes, 
+      internalNotes, 
+      validationChecklist 
+    } = batchReviewDto;
+
+    // Determine review status based on decision and stage
+    const status = this.determineReviewStatus(decision);
+
+    return await this.prisma.$transaction(async (prisma) => {
+      // Create a new review entry (incremental)
+      const newReview = await prisma.review.create({
+        data: {
+          sessionId,
+          reviewerId,
+          stage,
+          status,
+          decision,
+          overallComments,
+          totalScore,
+          deliberationNotes,
+          internalNotes,
+          validationChecklist,
+          reviewedAt: new Date()
+        },
+        include: {
+          reviewer: {
+            select: {
+              name: true
+            }
+          }
+        }
+      });
+
+      // Add new question comments (don't remove existing ones)
+      if (questionComments && questionComments.length > 0) {
+        await prisma.reviewComment.createMany({
+          data: questionComments.map(comment => ({
+            reviewId: newReview.id,
+            questionId: comment.questionId,
+            comment: comment.comment,
+            isCritical: comment.isCritical || false,
+            stage: comment.stage || stage
+          }))
+        });
+      }
+
+      // Add new jury scores (don't remove existing ones)
+      if (juryScores && juryScores.length > 0) {
+        await prisma.juryScore.createMany({
+          data: juryScores.map(score => ({
+            reviewId: newReview.id,
+            questionId: score.questionId,
+            score: score.score,
+            comments: score.comments
+          }))
+        });
+      }
+
+      // Update session status if needed
+      await prisma.responseSession.update({
+        where: { id: sessionId },
+        data: {
+          reviewStatus: status,
+          reviewedAt: new Date()
+        }
+      });
+
+      return newReview;
+    });
+  }
+
+  private async updateExistingReview(
+    reviewId: number,
+    reviewerId: number,
+    sessionId: number,
+    batchReviewDto: BatchAssessmentReviewDto
+  ) {
+    const { 
+      stage, 
+      decision, 
+      overallComments, 
+      questionComments, 
+      juryScores, 
+      totalScore, 
+      deliberationNotes, 
+      internalNotes, 
+      validationChecklist 
+    } = batchReviewDto;
+
+    // Determine review status based on decision and stage
+    const status = this.determineReviewStatus(decision);
+
+    return await this.prisma.$transaction(async (prisma) => {
+      // Update the existing review
+      const updatedReview = await prisma.review.update({
+        where: { id: reviewId },
+        data: {
+          stage,
+          status,
+          decision,
+          overallComments,
+          totalScore,
+          deliberationNotes,
+          internalNotes,
+          validationChecklist,
+          reviewedAt: new Date()
+        },
+        include: {
+          reviewer: {
+            select: {
+              name: true
+            }
+          }
+        }
+      });
+
+      // Update question comments (replace existing ones for this review)
+      if (questionComments !== undefined) {
+        // Remove existing comments for this review
+        await prisma.reviewComment.deleteMany({
+          where: { reviewId }
+        });
+
+        // Add new comments
+        if (questionComments.length > 0) {
+          await prisma.reviewComment.createMany({
+            data: questionComments.map(comment => ({
+              reviewId,
+              questionId: comment.questionId,
+              comment: comment.comment,
+              isCritical: comment.isCritical || false,
+              stage: comment.stage || stage
+            }))
+          });
+        }
+      }
+
+      // Update jury scores (replace existing ones for this review)
+      if (juryScores !== undefined) {
+        // Remove existing scores for this review
+        await prisma.juryScore.deleteMany({
+          where: { reviewId }
+        });
+
+        // Add new scores
+        if (juryScores.length > 0) {
+          await prisma.juryScore.createMany({
+            data: juryScores.map(score => ({
+              reviewId,
+              questionId: score.questionId,
+              score: score.score,
+              comments: score.comments
+            }))
+          });
+        }
+      }
+
+      // Update session status
+      await prisma.responseSession.update({
+        where: { id: sessionId },
+        data: {
+          reviewStatus: status,
+          reviewedAt: new Date()
+        }
+      });
+
+      return updatedReview;
+    });
+  }
+
+  private determineReviewStatus(decision: ReviewDecision): string {
+    switch (decision) {
+      case ReviewDecision.APPROVE:
+        return 'approved';
+      case ReviewDecision.REJECT:
+        return 'rejected';
+      case ReviewDecision.REQUEST_REVISION:
+        return 'needs_revision';
+      case ReviewDecision.PASS_TO_JURY:
+        return 'in_progress';
+      case ReviewDecision.NEEDS_DELIBERATION:
+        return 'deliberated';
+      default:
+        throw new BadRequestException('Invalid review decision');
+    }
   }
 
   private mapValueByQuestionType(value: any, inputType: string) {

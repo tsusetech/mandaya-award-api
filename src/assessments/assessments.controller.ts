@@ -30,6 +30,8 @@ import { PaginationQueryDto } from './dto/pagination.dto';
 import { UserAssessmentSessionsQueryDto, UserAssessmentSessionDto } from './dto/user-assessment-sessions.dto';
 import { PaginatedResponseDto } from './dto/pagination.dto';
 import { AssessmentSessionDetailDto } from './dto/assessment-session.dto';
+import { CreateAssessmentReviewDto, AssessmentReviewResponseDto } from './dto/user-assessment-sessions.dto';
+import { BatchAssessmentReviewDto, BatchAssessmentReviewResponseDto } from './dto/user-assessment-sessions.dto';
 
 @ApiTags('Assessments API')
 @ApiBearerAuth()
@@ -238,5 +240,53 @@ export class AssessmentsController {
     @Param('sessionId', ParseIntPipe) sessionId: number
   ): Promise<AssessmentSessionDetailDto> {
     return this.assessmentsService.getAssessmentSessionDetail(sessionId);
+  }
+
+  @Post('session/:sessionId/review')
+  @Roles('ADMIN', 'SUPERADMIN', 'JURI')
+  @ApiOperation({ 
+    summary: 'Create assessment review',
+    description: 'Creates a new review for an assessment session. This endpoint consolidates review creation functionality within the assessment module for easier frontend integration.'
+  })
+  @ApiParam({ name: 'sessionId', description: 'Assessment Session ID', type: 'number' })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'Assessment review created successfully',
+    type: AssessmentReviewResponseDto
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - Session not submitted or review already exists' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Assessment session not found' })
+  async createAssessmentReview(
+    @Request() req,
+    @Param('sessionId', ParseIntPipe) sessionId: number,
+    @Body() createReviewDto: CreateAssessmentReviewDto
+  ): Promise<AssessmentReviewResponseDto> {
+    return this.assessmentsService.createAssessmentReview(req.user.userId, sessionId, createReviewDto);
+  }
+
+  @Post('session/:sessionId/review/batch')
+  @Roles('ADMIN', 'SUPERADMIN', 'JURI')
+  @ApiOperation({ 
+    summary: 'Create or update assessment review (batch mode)',
+    description: 'Creates a new review or updates existing review for an assessment session. Supports incremental review creation where multiple reviewers can add comments and scores without removing previous ones. Use updateExisting=true to modify the current review instead of creating a new one.'
+  })
+  @ApiParam({ name: 'sessionId', description: 'Assessment Session ID', type: 'number' })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'Assessment review created/updated successfully',
+    type: BatchAssessmentReviewResponseDto
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - Session not submitted' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Assessment session not found' })
+  async createBatchAssessmentReview(
+    @Request() req,
+    @Param('sessionId', ParseIntPipe) sessionId: number,
+    @Body() batchReviewDto: BatchAssessmentReviewDto
+  ): Promise<BatchAssessmentReviewResponseDto> {
+    return this.assessmentsService.createBatchAssessmentReview(req.user.userId, sessionId, batchReviewDto);
   }
 }
