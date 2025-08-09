@@ -7,6 +7,13 @@ export class UserAssessmentSessionDto {
   @IsNumber()
   id: number;
 
+  @ApiProperty({ 
+    example: 1, 
+    description: 'Session ID to use for getting detailed information via /assessments/session/{sessionId}/detail'
+  })
+  @IsNumber()
+  sessionId: number;
+
   @ApiProperty({ example: 1 })
   @IsNumber()
   userId: number;

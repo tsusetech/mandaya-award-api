@@ -71,3 +71,109 @@ export class AssessmentSessionDto {
   @IsDateString()
   submittedAt?: string;
 }
+
+export class AssessmentSessionDetailDto {
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  id: number;
+
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  userId: number;
+
+  @ApiProperty({ example: 'john.doe@example.com' })
+  @IsString()
+  userEmail: string;
+
+  @ApiProperty({ example: 'John Doe' })
+  @IsString()
+  userName: string;
+
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  groupId: number;
+
+  @ApiProperty({ example: 'Award Assessment 2024' })
+  @IsString()
+  groupName: string;
+
+  @ApiProperty({ enum: AssessmentStatus, example: AssessmentStatus.SUBMITTED })
+  @IsString()
+  status: AssessmentStatus;
+
+  @ApiProperty({ example: 75 })
+  @IsNumber()
+  progressPercentage: number;
+
+  @ApiProperty({ example: true })
+  @IsBoolean()
+  autoSaveEnabled: boolean;
+
+  @ApiProperty({ example: 1, required: false })
+  @IsOptional()
+  @IsNumber()
+  currentQuestionId?: number;
+
+  @ApiProperty({ type: [AssessmentQuestionDto] })
+  @IsArray()
+  questions: AssessmentQuestionDto[];
+
+  @ApiProperty({ example: '2024-01-01T00:00:00Z' })
+  @IsDateString()
+  startedAt: string;
+
+  @ApiProperty({ example: '2024-01-01T00:00:00Z', required: false })
+  @IsOptional()
+  @IsDateString()
+  lastAutoSaveAt?: string;
+
+  @ApiProperty({ example: '2024-01-01T00:00:00Z' })
+  @IsDateString()
+  lastActivityAt: string;
+
+  @ApiProperty({ example: '2024-01-01T00:00:00Z', required: false })
+  @IsOptional()
+  @IsDateString()
+  completedAt?: string;
+
+  @ApiProperty({ example: '2024-01-01T00:00:00Z', required: false })
+  @IsOptional()
+  @IsDateString()
+  submittedAt?: string;
+
+  // Review-related fields
+  @ApiProperty({ example: 'pending', required: false, nullable: true })
+  @IsOptional()
+  @IsString()
+  reviewStatus?: string | null;
+
+  @ApiProperty({ example: 'admin_validation', required: false, nullable: true })
+  @IsOptional()
+  @IsString()
+  reviewStage?: string | null;
+
+  @ApiProperty({ example: 'approve', required: false, nullable: true })
+  @IsOptional()
+  @IsString()
+  reviewDecision?: string | null;
+
+  @ApiProperty({ example: 85.5, required: false, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  reviewScore?: number | null;
+
+  @ApiProperty({ example: '2024-01-01T00:00:00Z', required: false, nullable: true })
+  @IsOptional()
+  @IsDateString()
+  reviewedAt?: string | null;
+
+  @ApiProperty({ example: 'John Reviewer', required: false, nullable: true })
+  @IsOptional()
+  @IsString()
+  reviewerName?: string | null;
+
+  @ApiProperty({ example: 'Overall comments about the assessment', required: false, nullable: true })
+  @IsOptional()
+  @IsString()
+  reviewComments?: string | null;
+}

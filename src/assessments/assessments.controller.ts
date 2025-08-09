@@ -29,6 +29,7 @@ import { BatchAnswerDto } from './dto/batch-answer.dto';
 import { PaginationQueryDto } from './dto/pagination.dto';
 import { UserAssessmentSessionsQueryDto, UserAssessmentSessionDto } from './dto/user-assessment-sessions.dto';
 import { PaginatedResponseDto } from './dto/pagination.dto';
+import { AssessmentSessionDetailDto } from './dto/assessment-session.dto';
 
 @ApiTags('Assessments API')
 @ApiBearerAuth()
@@ -216,5 +217,26 @@ export class AssessmentsController {
     @Param('groupId', ParseIntPipe) groupId: number
   ): Promise<{ sections: Array<{ sectionTitle: string; subsections: string[] }> }> {
     return this.assessmentsService.getAssessmentSections(req.user.userId, groupId);
+  }
+
+  @Get('session/:sessionId/detail')
+  @Roles('ADMIN', 'SUPERADMIN', 'JURI')
+  @ApiOperation({ 
+    summary: 'Get assessment session details',
+    description: 'Retrieves detailed information about a specific assessment session including all questions, responses, and review information. Only accessible by admin, superadmin, and juri roles.'
+  })
+  @ApiParam({ name: 'sessionId', description: 'Assessment Session ID', type: 'number' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Assessment session details retrieved successfully',
+    type: AssessmentSessionDetailDto
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Assessment session not found' })
+  async getAssessmentSessionDetail(
+    @Param('sessionId', ParseIntPipe) sessionId: number
+  ): Promise<AssessmentSessionDetailDto> {
+    return this.assessmentsService.getAssessmentSessionDetail(sessionId);
   }
 }
