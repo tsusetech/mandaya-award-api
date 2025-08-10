@@ -889,6 +889,20 @@ export class AssessmentsService {
         }
       });
 
+      // Record review status change in StatusProgress
+      await this.statusProgressService.recordStatusChange(
+        'review',
+        newReview.id,
+        status,
+        reviewerId,
+        { 
+          action: 'create_review',
+          stage,
+          decision,
+          sessionId
+        }
+      );
+
       return newReview;
     });
 
@@ -1088,6 +1102,20 @@ export class AssessmentsService {
         }
       });
 
+      // Record review status change in StatusProgress
+      await this.statusProgressService.recordStatusChange(
+        'review',
+        newReview.id,
+        status,
+        reviewerId,
+        { 
+          action: 'create_first_review',
+          stage,
+          decision,
+          sessionId
+        }
+      );
+
       return newReview;
     });
   }
@@ -1171,6 +1199,20 @@ export class AssessmentsService {
           reviewedAt: new Date()
         }
       });
+
+      // Record review status change in StatusProgress
+      await this.statusProgressService.recordStatusChange(
+        'review',
+        newReview.id,
+        status,
+        reviewerId,
+        { 
+          action: 'create_incremental_review',
+          stage,
+          decision,
+          sessionId
+        }
+      );
 
       return newReview;
     });
@@ -1270,6 +1312,20 @@ export class AssessmentsService {
           reviewedAt: new Date()
         }
       });
+
+      // Record review status change in StatusProgress
+      await this.statusProgressService.recordStatusChange(
+        'review',
+        reviewId,
+        status,
+        reviewerId,
+        { 
+          action: 'update_existing_review',
+          stage,
+          decision,
+          sessionId
+        }
+      );
 
       return updatedReview;
     });
