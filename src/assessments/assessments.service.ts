@@ -538,7 +538,7 @@ export class AssessmentsService {
       take: limit
     });
 
-    // Get current status from StatusProgress for each session
+    // ✅ GETS LATEST STATUS FROM StatusProgress FOR EACH SESSION
     const sessionsWithStatus = await Promise.all(
       sessions.map(async (session) => {
         const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', session.id);
@@ -547,8 +547,8 @@ export class AssessmentsService {
 
         return {
           ...session,
-          status: currentStatus?.status || session.status,
-          reviewStatus: currentReviewStatus?.status || session.reviewStatus
+          status: currentStatus?.status || session.status, // Uses latest status
+          reviewStatus: currentReviewStatus?.status || session.reviewStatus // Uses latest review status
         };
       })
     );
@@ -637,17 +637,17 @@ export class AssessmentsService {
       throw new NotFoundException('Assessment session not found');
     }
 
-    // Get current status from StatusProgress
+    // ✅ GETS LATEST STATUS FROM StatusProgress
     const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', session.id);
     if (currentStatus) {
-      session.status = currentStatus.status;
+      session.status = currentStatus.status; // Overwrites with latest status
     }
 
-    // Get current status from StatusProgress
+    // ✅ GETS LATEST REVIEW STATUS FROM StatusProgress
     const currentReviewStatus = session.review ? 
       await this.statusProgressService.getCurrentStatus('review', session.review.id) : null;
     if (currentReviewStatus) {
-      session.reviewStatus = currentReviewStatus.status;
+      session.reviewStatus = currentReviewStatus.status; // Overwrites with latest status
     }
 
     // Get all questions for this group
