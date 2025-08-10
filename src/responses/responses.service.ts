@@ -43,7 +43,7 @@ export class ResponsesService {
     });
 
     if (session) {
-      // Resume existing session
+      // Resume existing session - update both tables
       await this.prisma.responseSession.update({
         where: { id: session.id },
         data: {
@@ -52,7 +52,7 @@ export class ResponsesService {
         }
       });
 
-      // Record status change
+      // Record status change in StatusProgress
       await this.statusProgressService.recordStatusChange(
         'response_session',
         session.id,
@@ -60,8 +60,12 @@ export class ResponsesService {
         userId,
         { action: 'resume_session' }
       );
+
+      // Update session object for response
+      session.status = 'in_progress';
+      session.lastActivityAt = new Date();
     } else {
-      // Create new session
+      // Create new session - write to both tables
       session = await this.prisma.responseSession.create({
         data: {
           userId,
@@ -80,7 +84,7 @@ export class ResponsesService {
         }
       });
 
-      // Record initial status
+      // Record initial status in StatusProgress
       await this.statusProgressService.recordStatusChange(
         'response_session',
         session.id,
@@ -88,6 +92,12 @@ export class ResponsesService {
         userId,
         { action: 'create_session' }
       );
+    }
+
+    // Get current status from StatusProgress
+    const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', session.id);
+    if (currentStatus) {
+      session.status = currentStatus.status;
     }
 
     return this.mapSessionToDto(session);
@@ -110,6 +120,12 @@ export class ResponsesService {
       throw new NotFoundException('Session not found');
     }
 
+    // Get current status from StatusProgress
+    const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', sessionId);
+    if (currentStatus) {
+      session.status = currentStatus.status;
+    }
+
     return this.mapSessionToDto(session);
   }
 
@@ -122,7 +138,7 @@ export class ResponsesService {
       }
     });
 
-    // Record status change
+    // Record status change in StatusProgress
     await this.statusProgressService.recordStatusChange(
       'response_session',
       sessionId,
@@ -149,7 +165,7 @@ export class ResponsesService {
       }
     });
 
-    // Record status change
+    // Record status change in StatusProgress
     await this.statusProgressService.recordStatusChange(
       'response_session',
       sessionId,
@@ -374,7 +390,7 @@ export class ResponsesService {
         throw new BadRequestException('Cannot submit session: not all questions are answered or skipped');
       }
 
-      // Mark session as submitted
+      // Mark session as submitted in both tables
       await tx.responseSession.update({
         where: { id: sessionId },
         data: {
@@ -384,7 +400,7 @@ export class ResponsesService {
         }
       });
 
-      // Record status change
+      // Record status change in StatusProgress
       await this.statusProgressService.recordStatusChange(
         'response_session',
         sessionId,

@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { StatusProgressService } from '../common/services/status-progress.service';
 import { AssessmentSessionDto } from './dto/assessment-session.dto';
 import { AssessmentQuestionDto } from './dto/assessment-question.dto';
 import { AssessmentAnswerDto } from './dto/assessment-answer.dto';
@@ -21,7 +22,10 @@ import {
 
 @Injectable()
 export class AssessmentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private statusProgressService: StatusProgressService
+  ) {}
 
   async getAssessmentQuestions(
     userId: number, 
@@ -71,6 +75,15 @@ export class AssessmentsService {
           }
         }
       });
+
+      // Record initial status in StatusProgress
+      await this.statusProgressService.recordStatusChange(
+        'response_session',
+        session.id,
+        'draft',
+        userId,
+        { action: 'create_session' }
+      );
     } else {
       // Update session activity but preserve submitted status
       const updateData: any = {
@@ -86,10 +99,27 @@ export class AssessmentsService {
         where: { id: session.id },
         data: updateData
       });
+
+      // Record status change in StatusProgress if status changed
+      if (updateData.status && updateData.status !== session.status) {
+        await this.statusProgressService.recordStatusChange(
+          'response_session',
+          session.id,
+          updateData.status,
+          userId,
+          { action: 'resume_session' }
+        );
+      }
       
       // Update the session object for the response
       session.status = updateData.status || session.status;
       session.lastActivityAt = updateData.lastActivityAt;
+    }
+
+    // Get current status from StatusProgress
+    const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', session.id);
+    if (currentStatus) {
+      session.status = currentStatus.status;
     }
 
     // Get ALL questions for this group (for progress calculation)
@@ -337,21 +367,38 @@ export class AssessmentsService {
   }
 
   async submitAssessment(sessionId: number): Promise<{ success: boolean; message: string }> {
-    return this.prisma.$transaction(async (tx) => {
+    return await this.prisma.$transaction(async (tx) => {
       const session = await tx.responseSession.findUnique({
-        where: { id: sessionId }
+        where: { id: sessionId },
+        include: {
+          group: {
+            include: {
+              groupQuestions: {
+                orderBy: [
+                  { groupId: 'asc' },
+                  { orderNumber: 'asc' },
+                ],
+              }
+            }
+          },
+          responses: true
+        }
       });
 
       if (!session) {
-        throw new NotFoundException('Assessment session not found');
+        throw new NotFoundException('Session not found');
       }
 
-      // Check if session is already submitted
-      if (session.status === 'submitted') {
-        throw new BadRequestException('Assessment has already been submitted');
+      // Check if all questions are answered or skipped
+      const totalQuestions = session.group.groupQuestions.length;
+      const answeredQuestions = session.responses.filter(r => r.isComplete).length;
+      const skippedQuestions = session.responses.filter(r => r.isSkipped).length;
+
+      if (answeredQuestions + skippedQuestions < totalQuestions) {
+        throw new BadRequestException('Cannot submit session: not all questions are answered or skipped');
       }
 
-      // Mark session as submitted
+      // Mark session as submitted in both tables
       await tx.responseSession.update({
         where: { id: sessionId },
         data: {
@@ -361,9 +408,23 @@ export class AssessmentsService {
         }
       });
 
+      // Record status change in StatusProgress
+      await this.statusProgressService.recordStatusChange(
+        'response_session',
+        sessionId,
+        'submitted',
+        session.userId,
+        { 
+          action: 'submit_session',
+          totalQuestions,
+          answeredQuestions,
+          skippedQuestions
+        }
+      );
+
       return {
         success: true,
-        message: 'Assessment submitted successfully'
+        message: 'Session submitted successfully'
       };
     });
   }
@@ -476,8 +537,23 @@ export class AssessmentsService {
       take: limit
     });
 
+    // Get current status from StatusProgress for each session
+    const sessionsWithStatus = await Promise.all(
+      sessions.map(async (session) => {
+        const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', session.id);
+        const currentReviewStatus = session.review ? 
+          await this.statusProgressService.getCurrentStatus('review', session.review.id) : null;
+
+        return {
+          ...session,
+          status: currentStatus?.status || session.status,
+          reviewStatus: currentReviewStatus?.status || session.reviewStatus
+        };
+      })
+    );
+
     // Map to DTO with explicit null handling
-    const data: UserAssessmentSessionDto[] = sessions.map(session => ({
+    const data: UserAssessmentSessionDto[] = sessionsWithStatus.map(session => ({
       id: session.id,
       sessionId: session.id, // Add sessionId field for clarity
       userId: session.userId,
@@ -504,13 +580,11 @@ export class AssessmentsService {
     const totalPages = Math.ceil(total / limit);
 
     return {
+      data,
+      total,
       page,
       limit,
-      total,
-      totalPages,
-      hasNext: page < totalPages,
-      hasPrev: page > 1,
-      data
+      totalPages
     };
   }
 
@@ -556,6 +630,19 @@ export class AssessmentsService {
 
     if (!session) {
       throw new NotFoundException('Assessment session not found');
+    }
+
+    // Get current status from StatusProgress
+    const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', session.id);
+    if (currentStatus) {
+      session.status = currentStatus.status;
+    }
+
+    // Get current status from StatusProgress
+    const currentReviewStatus = session.review ? 
+      await this.statusProgressService.getCurrentStatus('review', session.review.id) : null;
+    if (currentReviewStatus) {
+      session.reviewStatus = currentReviewStatus.status;
     }
 
     // Get all questions for this group

@@ -80,7 +80,7 @@ export class ReviewsService {
         throw new BadRequestException('Invalid review decision');
     }
 
-    // Create review with transaction
+    // Create review with transaction - write to both tables
     const review = await this.prisma.$transaction(async (prisma) => {
       // Create the main review
       const newReview = await prisma.review.create({
@@ -143,7 +143,7 @@ export class ReviewsService {
         });
       }
 
-      // Update session status based on review decision
+      // Update session status based on review decision in both tables
       await prisma.responseSession.update({
         where: { id: sessionId },
         data: {
@@ -152,7 +152,7 @@ export class ReviewsService {
         }
       });
 
-      // Record review status change
+      // Record review status change in StatusProgress
       await this.statusProgressService.recordStatusChange(
         'review',
         newReview.id,
@@ -198,6 +198,12 @@ export class ReviewsService {
 
     if (!review) {
       throw new NotFoundException('Review not found');
+    }
+
+    // Get current status from StatusProgress
+    const currentStatus = await this.statusProgressService.getCurrentStatus('review', reviewId);
+    if (currentStatus) {
+      review.status = currentStatus.status;
     }
 
     return this.mapReviewToDto(review);
@@ -255,7 +261,7 @@ export class ReviewsService {
       status = review.status as ReviewStatus;
     }
 
-    // Update review with transaction
+    // Update review with transaction - write to both tables
     const updatedReview = await this.prisma.$transaction(async (prisma) => {
       // Update the main review
       const updatedReview = await prisma.review.update({
@@ -329,7 +335,7 @@ export class ReviewsService {
         });
       }
 
-      // Update session review status
+      // Update session review status in both tables
       await prisma.responseSession.update({
         where: { id: review.sessionId },
         data: {
@@ -338,7 +344,7 @@ export class ReviewsService {
         }
       });
 
-      // Record status change if status changed
+      // Record status change in StatusProgress if status changed
       if (status !== review.status) {
         await this.statusProgressService.recordStatusChange(
           'review',
