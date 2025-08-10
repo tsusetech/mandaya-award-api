@@ -104,40 +104,22 @@ export class AssessmentsService {
         { action: 'create_session' }
       );
     } else {
-      // Update session activity but preserve submitted status
-      const updateData: any = {
-        lastActivityAt: new Date()
-      };
-      
-      // Only update status to 'in_progress' if it's not already submitted
-      if (session.status !== 'submitted') {
-        updateData.status = 'in_progress';
-      }
-      
+      // Only update lastActivityAt, don't modify status here
       await this.prisma.responseSession.update({
         where: { id: session.id },
-        data: updateData
+        data: {
+          lastActivityAt: new Date()
+        }
       });
-
-      // Record status change in StatusProgress if status changed
-      if (updateData.status && updateData.status !== session.status) {
-        await this.statusProgressService.recordStatusChange(
-          'response_session',
-          session.id,
-          updateData.status,
-          userId,
-          { action: 'resume_session' }
-        );
-      }
       
       // Update the session object for the response
-      session.lastActivityAt = updateData.lastActivityAt;
+      session.lastActivityAt = new Date();
     }
 
-    // Always get the current status from StatusProgress (same as getUserAssessmentSessions)
+    // ✅ GETS LATEST STATUS FROM StatusProgress (EXACTLY LIKE getUserAssessmentSessions)
     const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', session.id);
     if (currentStatus) {
-      session.status = currentStatus.status;
+      session.status = currentStatus.status; // Use latest status from StatusProgress
     } else {
       // Fallback to session status if no StatusProgress record exists
       session.status = session.status;
