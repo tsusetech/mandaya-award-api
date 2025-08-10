@@ -3,6 +3,26 @@ import { IsNumber, IsString, IsOptional, IsDateString, IsBoolean, IsArray, IsEnu
 import { Type } from 'class-transformer';
 import { AssessmentStatus } from './assessment-session.dto';
 
+// Combined status enum that covers both session and review statuses
+export enum CombinedStatus {
+  // Session statuses
+  DRAFT = 'draft',
+  IN_PROGRESS = 'in_progress',
+  SUBMITTED = 'submitted',
+  
+  // Review statuses
+  PENDING_REVIEW = 'pending_review',
+  UNDER_REVIEW = 'under_review',
+  NEEDS_REVISION = 'needs_revision',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  PASSED_TO_JURY = 'passed_to_jury',
+  JURY_SCORING = 'jury_scoring',
+  JURY_DELIBERATION = 'jury_deliberation',
+  FINAL_DECISION = 'final_decision',
+  COMPLETED = 'completed'
+}
+
 export class UserAssessmentSessionDto {
   @ApiProperty({ example: 1 })
   @IsNumber()
@@ -38,6 +58,14 @@ export class UserAssessmentSessionDto {
   @ApiProperty({ enum: AssessmentStatus, example: AssessmentStatus.SUBMITTED })
   @IsString()
   status: AssessmentStatus;
+
+  @ApiProperty({ 
+    enum: CombinedStatus, 
+    example: CombinedStatus.SUBMITTED,
+    description: 'Combined status that represents the overall state of the assessment'
+  })
+  @IsString()
+  combinedStatus: CombinedStatus;
 
   @ApiProperty({ example: 75 })
   @IsNumber()
@@ -119,21 +147,13 @@ export class UserAssessmentSessionsQueryDto {
 
   @ApiProperty({ 
     example: 'submitted', 
-    description: 'Filter by assessment status',
-    required: false
+    description: 'Filter by combined status (combines session and review statuses)',
+    required: false,
+    enum: CombinedStatus
   })
   @IsOptional()
-  @IsString()
-  status?: string;
-
-  @ApiProperty({ 
-    example: 'pending', 
-    description: 'Filter by review status',
-    required: false
-  })
-  @IsOptional()
-  @IsString()
-  reviewStatus?: string;
+  @IsEnum(CombinedStatus)
+  combinedStatus?: CombinedStatus;
 
   @ApiProperty({ 
     example: 'admin_validation', 

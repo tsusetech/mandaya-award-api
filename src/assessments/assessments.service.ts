@@ -7,7 +7,7 @@ import { AssessmentAnswerDto } from './dto/assessment-answer.dto';
 import { BatchAnswerDto } from './dto/batch-answer.dto';
 import { PaginationQueryDto, PaginatedResponseDto } from './dto/pagination.dto';
 import { QuestionInputType } from './dto/assessment-question.dto';
-import { UserAssessmentSessionsQueryDto, UserAssessmentSessionDto } from './dto/user-assessment-sessions.dto';
+import { UserAssessmentSessionsQueryDto, UserAssessmentSessionDto, CombinedStatus } from './dto/user-assessment-sessions.dto';
 import { AssessmentStatus } from './dto/assessment-session.dto';
 import { ReviewCommentDto } from './dto/review-comment.dto';
 import { AssessmentSessionDetailDto } from './dto/assessment-session.dto';
@@ -478,19 +478,11 @@ export class AssessmentsService {
   async getUserAssessmentSessions(
     query: UserAssessmentSessionsQueryDto
   ): Promise<PaginatedResponseDto<UserAssessmentSessionDto>> {
-    const { page = 1, limit = 10, status, reviewStatus, reviewStage, groupId } = query;
+    const { page = 1, limit = 10, combinedStatus, reviewStage, groupId } = query;
     const skip = (page - 1) * limit;
 
     // Build where clause
     const where: any = {};
-    
-    if (status) {
-      where.status = status;
-    }
-    
-    if (reviewStatus) {
-      where.reviewStatus = reviewStatus;
-    }
     
     if (groupId) {
       where.groupId = groupId;
@@ -553,30 +545,50 @@ export class AssessmentsService {
       })
     );
 
+    // Filter by combined status if provided
+    let filteredSessions = sessionsWithStatus;
+    if (combinedStatus) {
+      filteredSessions = sessionsWithStatus.filter(session => {
+        const sessionStatus = session.status;
+        const reviewStatus = session.reviewStatus;
+        
+        return this.matchesCombinedStatus(combinedStatus, sessionStatus, reviewStatus, session.review?.stage || null);
+      });
+    }
+
     // Map to DTO with explicit null handling
-    const data: UserAssessmentSessionDto[] = sessionsWithStatus.map(session => ({
-      id: session.id,
-      sessionId: session.id, // Add sessionId field for clarity
-      userId: session.userId,
-      userEmail: session.user.email,
-      userName: session.user.name || 'Unknown User',
-      groupId: session.groupId,
-      groupName: session.group.groupName,
-      status: session.status as AssessmentStatus,
-      progressPercentage: session.progressPercentage,
-      startedAt: session.startedAt.toISOString(),
-      lastActivityAt: session.lastActivityAt.toISOString(),
-      completedAt: session.completedAt?.toISOString(),
-      submittedAt: session.submittedAt?.toISOString(),
-      reviewStatus: session.reviewStatus || null,
-      // Review-related fields - explicitly handle null values
-      reviewStage: session.review?.stage || null,
-      reviewDecision: session.review?.decision || null,
-      reviewScore: session.review?.totalScore ? Number(session.review.totalScore) : null,
-      reviewedAt: session.review?.reviewedAt?.toISOString() || null,
-      reviewerName: session.review?.reviewer?.name || null,
-      reviewComments: session.review?.overallComments || null
-    }));
+    const data: UserAssessmentSessionDto[] = filteredSessions.map(session => {
+      const combinedStatus = this.calculateCombinedStatus(
+        session.status, 
+        session.reviewStatus, 
+        session.review?.stage || null
+      );
+
+      return {
+        id: session.id,
+        sessionId: session.id, // Add sessionId field for clarity
+        userId: session.userId,
+        userEmail: session.user.email,
+        userName: session.user.name || 'Unknown User',
+        groupId: session.groupId,
+        groupName: session.group.groupName,
+        status: session.status as AssessmentStatus,
+        combinedStatus,
+        progressPercentage: session.progressPercentage,
+        startedAt: session.startedAt.toISOString(),
+        lastActivityAt: session.lastActivityAt.toISOString(),
+        completedAt: session.completedAt?.toISOString(),
+        submittedAt: session.submittedAt?.toISOString(),
+        reviewStatus: session.reviewStatus || null,
+        // Review-related fields - explicitly handle null values
+        reviewStage: session.review?.stage || null,
+        reviewDecision: session.review?.decision || null,
+        reviewScore: session.review?.totalScore ? Number(session.review.totalScore) : null,
+        reviewedAt: session.review?.reviewedAt?.toISOString() || null,
+        reviewerName: session.review?.reviewer?.name || null,
+        reviewComments: session.review?.overallComments || null
+      };
+    });
 
     const totalPages = Math.ceil(total / limit);
     const hasNext = page < totalPages;
@@ -584,13 +596,132 @@ export class AssessmentsService {
 
     return {
       data,
-      total,
+      total: filteredSessions.length,
       page,
       limit,
       totalPages,
       hasNext,
       hasPrev
     };
+  }
+
+  /**
+   * Determines if a session matches the given combined status
+   */
+  private matchesCombinedStatus(
+    combinedStatus: CombinedStatus, 
+    sessionStatus: string, 
+    reviewStatus: string | null, 
+    reviewStage: string | null
+  ): boolean {
+    switch (combinedStatus) {
+      case CombinedStatus.DRAFT:
+        return sessionStatus === 'draft';
+      
+      case CombinedStatus.IN_PROGRESS:
+        return sessionStatus === 'in_progress';
+      
+      case CombinedStatus.SUBMITTED:
+        return sessionStatus === 'submitted' && !reviewStatus;
+      
+      case CombinedStatus.PENDING_REVIEW:
+        return sessionStatus === 'submitted' && (!reviewStatus || reviewStatus === 'pending');
+      
+      case CombinedStatus.UNDER_REVIEW:
+        return sessionStatus === 'submitted' && reviewStatus === 'under_review';
+      
+      case CombinedStatus.NEEDS_REVISION:
+        return sessionStatus === 'submitted' && reviewStatus === 'needs_revision';
+      
+      case CombinedStatus.APPROVED:
+        return sessionStatus === 'submitted' && reviewStatus === 'approved';
+      
+      case CombinedStatus.REJECTED:
+        return sessionStatus === 'submitted' && reviewStatus === 'rejected';
+      
+      case CombinedStatus.PASSED_TO_JURY:
+        return sessionStatus === 'submitted' && reviewStatus === 'passed_to_jury';
+      
+      case CombinedStatus.JURY_SCORING:
+        return sessionStatus === 'submitted' && reviewStage === 'jury_scoring';
+      
+      case CombinedStatus.JURY_DELIBERATION:
+        return sessionStatus === 'submitted' && reviewStage === 'jury_deliberation';
+      
+      case CombinedStatus.FINAL_DECISION:
+        return sessionStatus === 'submitted' && reviewStage === 'final_decision';
+      
+      case CombinedStatus.COMPLETED:
+        return sessionStatus === 'submitted' && (
+          reviewStatus === 'approved' || 
+          reviewStatus === 'rejected' || 
+          reviewStatus === 'completed'
+        );
+      
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Calculates the combined status based on session status, review status, and review stage
+   */
+  private calculateCombinedStatus(
+    sessionStatus: string, 
+    reviewStatus: string | null, 
+    reviewStage: string | null
+  ): CombinedStatus {
+    // Session statuses
+    if (sessionStatus === 'draft') {
+      return CombinedStatus.DRAFT;
+    }
+    
+    if (sessionStatus === 'in_progress') {
+      return CombinedStatus.IN_PROGRESS;
+    }
+    
+    if (sessionStatus === 'submitted') {
+      // If no review status, it's just submitted
+      if (!reviewStatus) {
+        return CombinedStatus.SUBMITTED;
+      }
+      
+      // Review statuses
+      switch (reviewStatus) {
+        case 'pending':
+          return CombinedStatus.PENDING_REVIEW;
+        case 'under_review':
+          return CombinedStatus.UNDER_REVIEW;
+        case 'needs_revision':
+          return CombinedStatus.NEEDS_REVISION;
+        case 'approved':
+          return CombinedStatus.APPROVED;
+        case 'rejected':
+          return CombinedStatus.REJECTED;
+        case 'passed_to_jury':
+          return CombinedStatus.PASSED_TO_JURY;
+        case 'completed':
+          return CombinedStatus.COMPLETED;
+      }
+      
+      // Review stages (if review status doesn't match but stage does)
+      if (reviewStage) {
+        switch (reviewStage) {
+          case 'jury_scoring':
+            return CombinedStatus.JURY_SCORING;
+          case 'jury_deliberation':
+            return CombinedStatus.JURY_DELIBERATION;
+          case 'final_decision':
+            return CombinedStatus.FINAL_DECISION;
+        }
+      }
+      
+      // Default for submitted with unknown review status
+      return CombinedStatus.PENDING_REVIEW;
+    }
+    
+    // Default fallback
+    return CombinedStatus.DRAFT;
   }
 
   async getAssessmentSessionDetail(sessionId: number): Promise<AssessmentSessionDetailDto> {
