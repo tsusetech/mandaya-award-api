@@ -1670,23 +1670,24 @@ export class AssessmentsService {
       return CombinedStatus.IN_PROGRESS;
     }
     
-    if (sessionStatus === 'submitted') {
+    // Handle both 'submitted' and 'resubmitted' statuses
+    if (sessionStatus === 'submitted' || sessionStatus === 'resubmitted') {
       // If no review status, check if this is a resubmission
       if (!reviewStatus) {
-        if (await this.wasSessionPreviouslyNeedsRevision(sessionId)) {
+        if (sessionStatus === 'resubmitted' || await this.wasSessionPreviouslyNeedsRevision(sessionId)) {
           return CombinedStatus.RESUBMITTED;
         }
         return CombinedStatus.SUBMITTED;
       }
       
-      // Review statuses
+      // Review statuses - these take priority over session status
       switch (reviewStatus) {
         case 'pending':
           return CombinedStatus.PENDING_REVIEW;
         case 'under_review':
           return CombinedStatus.UNDER_REVIEW;
         case 'needs_revision':
-          return CombinedStatus.NEEDS_REVISION;
+          return CombinedStatus.NEEDS_REVISION; // This should return NEEDS_REVISION
         case 'approved':
           return CombinedStatus.APPROVED;
         case 'rejected':
