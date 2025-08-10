@@ -389,14 +389,18 @@ export class AssessmentsService {
         throw new NotFoundException('Session not found');
       }
 
-      // Check if all questions are answered or skipped
-      const totalQuestions = session.group.groupQuestions.length;
-      const answeredQuestions = session.responses.filter(r => r.isComplete).length;
-      const skippedQuestions = session.responses.filter(r => r.isSkipped).length;
-
-      if (answeredQuestions + skippedQuestions < totalQuestions) {
-        throw new BadRequestException('Cannot submit session: not all questions are answered or skipped');
-      }
+      // Mark all draft responses as complete
+      await tx.questionResponse.updateMany({
+        where: {
+          sessionId,
+          isDraft: true
+        },
+        data: {
+          isDraft: false,
+          isComplete: true,
+          finalizedAt: new Date()
+        }
+      });
 
       // Mark session as submitted in both tables
       await tx.responseSession.update({
@@ -415,10 +419,7 @@ export class AssessmentsService {
         'submitted',
         session.userId,
         { 
-          action: 'submit_session',
-          totalQuestions,
-          answeredQuestions,
-          skippedQuestions
+          action: 'submit_session'
         }
       );
 
