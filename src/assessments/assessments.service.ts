@@ -7,7 +7,8 @@ import { AssessmentAnswerDto } from './dto/assessment-answer.dto';
 import { BatchAnswerDto } from './dto/batch-answer.dto';
 import { PaginationQueryDto, PaginatedResponseDto } from './dto/pagination.dto';
 import { QuestionInputType } from './dto/assessment-question.dto';
-import { UserAssessmentSessionsQueryDto, UserAssessmentSessionDto, CombinedStatus } from './dto/user-assessment-sessions.dto';
+import { UserAssessmentSessionsQueryDto, UserAssessmentSessionDto } from './dto/user-assessment-sessions.dto';
+import { CombinedStatus } from './dto/combined-status.enum';
 import { AssessmentStatus } from './dto/assessment-session.dto';
 import { ReviewCommentDto } from './dto/review-comment.dto';
 import { AssessmentSessionDetailDto } from './dto/assessment-session.dto';
@@ -51,6 +52,15 @@ export class AssessmentsService {
             question: true,
             groupQuestion: true
           }
+        },
+        review: {
+          include: {
+            reviewer: {
+              select: {
+                name: true
+              }
+            }
+          }
         }
       }
     });
@@ -71,6 +81,15 @@ export class AssessmentsService {
             include: {
               question: true,
               groupQuestion: true
+            }
+          },
+          review: {
+            include: {
+              reviewer: {
+                select: {
+                  name: true
+                }
+              }
             }
           }
         }
@@ -121,6 +140,20 @@ export class AssessmentsService {
     if (currentStatus) {
       session.status = currentStatus.status;
     }
+
+    // Get current review status from StatusProgress if review exists
+    let currentReviewStatus: string | null = null;
+    if (session.review) {
+      const reviewStatus = await this.statusProgressService.getCurrentStatus('review', session.review.id);
+      currentReviewStatus = reviewStatus?.status || null;
+    }
+
+    // Calculate combined status
+    const combinedStatus = this.calculateCombinedStatus(
+      session.status,
+      currentReviewStatus,
+      session.review?.stage || null
+    );
 
     // Get ALL questions for this group (for progress calculation)
     const allGroupQuestions = await this.prisma.groupQuestion.findMany({
@@ -243,6 +276,7 @@ export class AssessmentsService {
       groupId: session.groupId,
       groupName: session.group.groupName,
       status: session.status as any,
+      combinedStatus,
       progressPercentage,
       autoSaveEnabled: session.autoSaveEnabled,
       currentQuestionId: session.currentQuestionId || undefined,
