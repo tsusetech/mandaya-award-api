@@ -132,11 +132,12 @@ export class AssessmentsService {
       currentReviewStatus = reviewStatus?.status || null;
     }
 
-    // Calculate combined status
-    const combinedStatus = this.calculateCombinedStatus(
+    // Calculate combined status with resubmission detection
+    const combinedStatus = await this.calculateCombinedStatusWithResubmission(
       session.status,
       currentReviewStatus,
-      session.review?.stage || null
+      session.review?.stage || null,
+      session.id
     );
 
     // Get ALL questions for this group (for progress calculation)
@@ -407,6 +408,9 @@ export class AssessmentsService {
         throw new NotFoundException('Session not found');
       }
 
+      // Check if this is a resubmission (was previously in needs_revision status)
+      const wasPreviouslyNeedsRevision = await this.wasSessionPreviouslyNeedsRevision(sessionId);
+
       // Mark all draft responses as complete
       await tx.questionResponse.updateMany({
         where: {
@@ -437,13 +441,14 @@ export class AssessmentsService {
         'submitted',
         session.userId,
         { 
-          action: 'submit_session'
+          action: 'submit_session',
+          isResubmission: wasPreviouslyNeedsRevision
         }
       );
 
       return {
         success: true,
-        message: 'Session submitted successfully'
+        message: wasPreviouslyNeedsRevision ? 'Session resubmitted successfully' : 'Session submitted successfully'
       };
     });
   }
@@ -575,11 +580,12 @@ export class AssessmentsService {
     }
 
     // Map to DTO with explicit null handling
-    const data: UserAssessmentSessionDto[] = filteredSessions.map(session => {
-      const combinedStatus = this.calculateCombinedStatus(
+    const data: UserAssessmentSessionDto[] = await Promise.all(filteredSessions.map(async (session) => {
+      const combinedStatus = await this.calculateCombinedStatusWithResubmission(
         session.status, 
         session.reviewStatus, 
-        session.review?.stage || null
+        session.review?.stage || null,
+        session.id
       );
 
       return {
@@ -606,7 +612,7 @@ export class AssessmentsService {
         reviewerName: session.review?.reviewer?.name || null,
         reviewComments: session.review?.overallComments || null
       };
-    });
+    }));
 
     const totalPages = Math.ceil(total / limit);
     const hasNext = page < totalPages;
@@ -1566,5 +1572,106 @@ export class AssessmentsService {
       reviewerName: review.reviewer?.name || 'Unknown Reviewer',
       message: 'Review retrieved successfully'
     }));
+  }
+
+  /**
+   * Check if a session was previously in needs_revision status
+   */
+  private async wasSessionPreviouslyNeedsRevision(sessionId: number): Promise<boolean> {
+    // Check if there's a review with needs_revision status
+    const review = await this.prisma.review.findFirst({
+      where: {
+        sessionId,
+        status: 'needs_revision'
+      }
+    });
+
+    if (review) {
+      return true;
+    }
+
+    // Check StatusProgress history for any review that was previously needs_revision
+    const statusProgress = await this.prisma.statusProgress.findFirst({
+      where: {
+        entityType: 'review',
+        entityId: {
+          in: await this.prisma.review.findMany({
+            where: { sessionId },
+            select: { id: true }
+          }).then(reviews => reviews.map(r => r.id))
+        },
+        status: 'needs_revision'
+      },
+      orderBy: {
+        changedAt: 'desc'
+      }
+    });
+
+    return !!statusProgress;
+  }
+
+  /**
+   * Calculates the combined status with resubmission detection
+   */
+  private async calculateCombinedStatusWithResubmission(
+    sessionStatus: string, 
+    reviewStatus: string | null, 
+    reviewStage: string | null,
+    sessionId: number
+  ): Promise<CombinedStatus> {
+    // Session statuses
+    if (sessionStatus === 'draft') {
+      return CombinedStatus.DRAFT;
+    }
+    
+    if (sessionStatus === 'in_progress') {
+      return CombinedStatus.IN_PROGRESS;
+    }
+    
+    if (sessionStatus === 'submitted') {
+      // If no review status, check if this is a resubmission
+      if (!reviewStatus) {
+        if (await this.wasSessionPreviouslyNeedsRevision(sessionId)) {
+          return CombinedStatus.RESUBMITTED;
+        }
+        return CombinedStatus.SUBMITTED;
+      }
+      
+      // Review statuses
+      switch (reviewStatus) {
+        case 'pending':
+          return CombinedStatus.PENDING_REVIEW;
+        case 'under_review':
+          return CombinedStatus.UNDER_REVIEW;
+        case 'needs_revision':
+          return CombinedStatus.NEEDS_REVISION;
+        case 'approved':
+          return CombinedStatus.APPROVED;
+        case 'rejected':
+          return CombinedStatus.REJECTED;
+        case 'passed_to_jury':
+          return CombinedStatus.PASSED_TO_JURY;
+        case 'completed':
+          return CombinedStatus.COMPLETED;
+      }
+      
+      // Review stages (if review status doesn't match but stage does)
+      if (reviewStage) {
+        switch (reviewStage) {
+          case 'jury_scoring':
+            return CombinedStatus.JURY_SCORING;
+          case 'jury_deliberation':
+            return CombinedStatus.JURY_DELIBERATION;
+          case 'final_decision':
+            return CombinedStatus.FINAL_DECISION;
+        }
+      }
+      
+      // Default for submitted with unknown review status
+      return CombinedStatus.PENDING_REVIEW;
+    }
+    
+    // Default fallback
+    return CombinedStatus.DRAFT;
   }
 }

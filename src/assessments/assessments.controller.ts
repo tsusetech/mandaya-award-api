@@ -66,7 +66,7 @@ export class AssessmentsController {
     type: 'string', 
     description: 'Filter by combined status (combines session and review statuses)',
     example: 'submitted',
-    enum: ['draft', 'in_progress', 'submitted', 'pending_review', 'under_review', 'needs_revision', 'approved', 'rejected', 'passed_to_jury', 'jury_scoring', 'jury_deliberation', 'final_decision', 'completed']
+    enum: ['draft', 'in_progress', 'submitted', 'pending_review', 'under_review', 'needs_revision', 'resubmitted', 'approved', 'rejected', 'passed_to_jury', 'jury_scoring', 'jury_deliberation', 'final_decision', 'completed']
   })
   @ApiQuery({ 
     name: 'reviewStage', 

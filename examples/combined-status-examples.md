@@ -26,6 +26,7 @@ GET /assessments/user-sessions?combinedStatus=needs_revision
 | `pending_review` | Assessment submitted, waiting for review | `submitted` | `pending` or `null` | - |
 | `under_review` | Assessment is currently being reviewed | `submitted` | `under_review` | - |
 | `needs_revision` | Assessment needs revision | `submitted` | `needs_revision` | - |
+| `resubmitted` | Assessment resubmitted after revision | `submitted` | `null` | - |
 | `approved` | Assessment approved | `submitted` | `approved` | - |
 | `rejected` | Assessment rejected | `submitted` | `rejected` | - |
 | `passed_to_jury` | Assessment passed to jury | `submitted` | `passed_to_jury` | - |
@@ -50,18 +51,18 @@ The response now includes a `combinedStatus` field that represents the overall s
       "groupId": 1,
       "groupName": "Provinsi",
       "status": "submitted",
-      "combinedStatus": "needs_revision",
+      "combinedStatus": "resubmitted",
       "progressPercentage": 47,
       "startedAt": "2025-08-03T10:37:36.500Z",
       "lastActivityAt": "2025-08-09T06:28:14.201Z",
       "submittedAt": "2025-08-07T00:02:06.961Z",
-      "reviewStatus": "needs_revision",
+      "reviewStatus": null,
       "reviewStage": "admin_validation",
-      "reviewDecision": "request_revision",
-      "reviewScore": 0,
-      "reviewedAt": "2025-08-10T07:40:38.910Z",
-      "reviewerName": "Reviewer Name",
-      "reviewComments": "Please revise section 3"
+      "reviewDecision": null,
+      "reviewScore": null,
+      "reviewedAt": null,
+      "reviewerName": null,
+      "reviewComments": null
     }
   ],
   "total": 1,
@@ -78,6 +79,11 @@ The response now includes a `combinedStatus` field that represents the overall s
 ### Get all assessments that need revision
 ```http
 GET /assessments/user-sessions?combinedStatus=needs_revision
+```
+
+### Get all resubmitted assessments
+```http
+GET /assessments/user-sessions?combinedStatus=resubmitted
 ```
 
 ### Get all assessments in jury scoring stage

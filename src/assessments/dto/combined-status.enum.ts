@@ -9,6 +9,7 @@ export enum CombinedStatus {
   PENDING_REVIEW = 'pending_review',
   UNDER_REVIEW = 'under_review',
   NEEDS_REVISION = 'needs_revision',
+  RESUBMITTED = 'resubmitted',
   APPROVED = 'approved',
   REJECTED = 'rejected',
   PASSED_TO_JURY = 'passed_to_jury',
