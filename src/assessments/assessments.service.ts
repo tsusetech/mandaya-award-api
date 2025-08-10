@@ -131,14 +131,16 @@ export class AssessmentsService {
       }
       
       // Update the session object for the response
-      session.status = updateData.status || session.status;
       session.lastActivityAt = updateData.lastActivityAt;
     }
 
-    // Get current status from StatusProgress
+    // Always get the current status from StatusProgress (same as getUserAssessmentSessions)
     const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', session.id);
     if (currentStatus) {
       session.status = currentStatus.status;
+    } else {
+      // Fallback to session status if no StatusProgress record exists
+      session.status = session.status;
     }
 
     // Get current review status from StatusProgress if review exists
