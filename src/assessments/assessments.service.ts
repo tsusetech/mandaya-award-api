@@ -578,13 +578,17 @@ export class AssessmentsService {
     }));
 
     const totalPages = Math.ceil(total / limit);
+    const hasNext = page < totalPages;
+    const hasPrev = page > 1;
 
     return {
       data,
       total,
       page,
       limit,
-      totalPages
+      totalPages,
+      hasNext,
+      hasPrev
     };
   }
 
