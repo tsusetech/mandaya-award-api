@@ -140,6 +140,27 @@ export class AssessmentsService {
       session.id
     );
 
+    // After calculating combinedStatus, check if it's a resubmission
+    if (combinedStatus === CombinedStatus.RESUBMITTED && session.status !== 'resubmitted') {
+      // Update the session status to resubmitted
+      await this.prisma.responseSession.update({
+        where: { id: session.id },
+        data: { status: 'resubmitted' }
+      });
+      
+      // Record the status change in StatusProgress
+      await this.statusProgressService.recordStatusChange(
+        'response_session',
+        session.id,
+        'resubmitted',
+        userId,
+        { action: 'resubmission_detected' }
+      );
+      
+      // Update the session object for the response
+      session.status = 'resubmitted';
+    }
+
     // Get ALL questions for this group (for progress calculation)
     const allGroupQuestions = await this.prisma.groupQuestion.findMany({
       where: { groupId },
@@ -424,27 +445,48 @@ export class AssessmentsService {
         }
       });
 
-      // Mark session as submitted in both tables
-      await tx.responseSession.update({
-        where: { id: sessionId },
-        data: {
-          status: 'submitted',
-          submittedAt: new Date(),
-          lastActivityAt: new Date()
-        }
-      });
+      if (wasPreviouslyNeedsRevision) {
+        // Mark session as resubmitted instead of submitted
+        await tx.responseSession.update({
+          where: { id: sessionId },
+          data: {
+            status: 'resubmitted',  // Change this from 'submitted' to 'resubmitted'
+            submittedAt: new Date(),
+            lastActivityAt: new Date()
+          }
+        });
 
-      // Record status change in StatusProgress
-      await this.statusProgressService.recordStatusChange(
-        'response_session',
-        sessionId,
-        'submitted',
-        session.userId,
-        { 
-          action: 'submit_session',
-          isResubmission: wasPreviouslyNeedsRevision
-        }
-      );
+        // Record status change in StatusProgress
+        await this.statusProgressService.recordStatusChange(
+          'response_session',
+          sessionId,
+          'resubmitted',  // Change this from 'submitted' to 'resubmitted'
+          session.userId,
+          { 
+            action: 'resubmit_session'
+          }
+        );
+      } else {
+        // Original logic for first-time submission
+        await tx.responseSession.update({
+          where: { id: sessionId },
+          data: {
+            status: 'submitted',
+            submittedAt: new Date(),
+            lastActivityAt: new Date()
+          }
+        });
+
+        await this.statusProgressService.recordStatusChange(
+          'response_session',
+          sessionId,
+          'submitted',
+          session.userId,
+          { 
+            action: 'submit_session'
+          }
+        );
+      }
 
       return {
         success: true,
