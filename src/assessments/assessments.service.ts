@@ -1670,24 +1670,20 @@ export class AssessmentsService {
       return CombinedStatus.IN_PROGRESS;
     }
     
-    // Handle both 'submitted' and 'resubmitted' statuses
-    if (sessionStatus === 'submitted' || sessionStatus === 'resubmitted') {
-      // If no review status, check if this is a resubmission
+    if (sessionStatus === 'submitted') {
+      // If no review status, it's just submitted
       if (!reviewStatus) {
-        if (sessionStatus === 'resubmitted' || await this.wasSessionPreviouslyNeedsRevision(sessionId)) {
-          return CombinedStatus.RESUBMITTED;
-        }
         return CombinedStatus.SUBMITTED;
       }
       
-      // Review statuses - these take priority over session status
+      // Review statuses
       switch (reviewStatus) {
         case 'pending':
           return CombinedStatus.PENDING_REVIEW;
         case 'under_review':
           return CombinedStatus.UNDER_REVIEW;
         case 'needs_revision':
-          return CombinedStatus.NEEDS_REVISION; // This should return NEEDS_REVISION
+          return CombinedStatus.NEEDS_REVISION;
         case 'approved':
           return CombinedStatus.APPROVED;
         case 'rejected':
@@ -1698,7 +1694,7 @@ export class AssessmentsService {
           return CombinedStatus.COMPLETED;
       }
       
-      // Review stages (if review status doesn't match but stage does)
+      // Review stages
       if (reviewStage) {
         switch (reviewStage) {
           case 'jury_scoring':
@@ -1710,11 +1706,14 @@ export class AssessmentsService {
         }
       }
       
-      // Default for submitted with unknown review status
       return CombinedStatus.PENDING_REVIEW;
     }
     
-    // Default fallback
+    // Handle resubmitted status - this should take priority
+    if (sessionStatus === 'resubmitted') {
+      return CombinedStatus.RESUBMITTED; // Always return RESUBMITTED for resubmitted sessions
+    }
+    
     return CombinedStatus.DRAFT;
   }
 }
