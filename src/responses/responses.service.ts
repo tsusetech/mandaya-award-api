@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { StatusProgressService } from '../common/services/status-progress.service';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { AutoSaveDto, BatchAutoSaveDto } from './dto/auto-save.dto';
 import { UpdatePositionDto } from './dto/update-position.dto';
@@ -10,7 +11,10 @@ import { ProgressSummaryDto } from './dto/progress-summary.dto';
 
 @Injectable()
 export class ResponsesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private statusProgressService: StatusProgressService
+  ) {}
 
   // Session Management
   async createOrResumeSession(userId: number, createSessionDto: CreateSessionDto): Promise<ResponseSessionDto> {
@@ -47,6 +51,15 @@ export class ResponsesService {
           lastActivityAt: new Date()
         }
       });
+
+      // Record status change
+      await this.statusProgressService.recordStatusChange(
+        'response_session',
+        session.id,
+        'in_progress',
+        userId,
+        { action: 'resume_session' }
+      );
     } else {
       // Create new session
       session = await this.prisma.responseSession.create({
@@ -66,6 +79,15 @@ export class ResponsesService {
           }
         }
       });
+
+      // Record initial status
+      await this.statusProgressService.recordStatusChange(
+        'response_session',
+        session.id,
+        'draft',
+        userId,
+        { action: 'create_session' }
+      );
     }
 
     return this.mapSessionToDto(session);
@@ -100,6 +122,15 @@ export class ResponsesService {
       }
     });
 
+    // Record status change
+    await this.statusProgressService.recordStatusChange(
+      'response_session',
+      sessionId,
+      'paused',
+      session.userId,
+      { action: 'pause_session' }
+    );
+
     return {
       message: 'Session paused successfully',
       lastSaved: session.lastActivityAt
@@ -117,6 +148,15 @@ export class ResponsesService {
         currentQuestion: true
       }
     });
+
+    // Record status change
+    await this.statusProgressService.recordStatusChange(
+      'response_session',
+      sessionId,
+      'in_progress',
+      session.userId,
+      { action: 'resume_session' }
+    );
 
     return {
       message: 'Session resumed successfully',
@@ -343,6 +383,20 @@ export class ResponsesService {
           lastActivityAt: new Date()
         }
       });
+
+      // Record status change
+      await this.statusProgressService.recordStatusChange(
+        'response_session',
+        sessionId,
+        'submitted',
+        session.userId,
+        { 
+          action: 'submit_session',
+          totalQuestions,
+          answeredQuestions,
+          skippedQuestions
+        }
+      );
 
       return {
         success: true,

@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { StatusProgressService } from '../common/services/status-progress.service';
 import { CreateReviewDto, ReviewStatus, ReviewDecision } from './dto/create-review.dto';
 import { UpdateReviewDto } from './dto/update-review.dto';
 import { ReviewResponseDto } from './dto/review-response.dto';
@@ -7,7 +8,10 @@ import { ReviewListResponseDto, ReviewListItemDto } from './dto/review-list.dto'
 
 @Injectable()
 export class ReviewsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private statusProgressService: StatusProgressService
+  ) {}
 
   async createReview(reviewerId: number, createReviewDto: CreateReviewDto): Promise<ReviewResponseDto> {
     const { 
@@ -148,6 +152,20 @@ export class ReviewsService {
         }
       });
 
+      // Record review status change
+      await this.statusProgressService.recordStatusChange(
+        'review',
+        newReview.id,
+        status,
+        reviewerId,
+        { 
+          action: 'create_review',
+          stage,
+          decision,
+          sessionId
+        }
+      );
+
       return newReview;
     });
 
@@ -233,16 +251,18 @@ export class ReviewsService {
         default:
           throw new BadRequestException('Invalid review decision');
       }
+    } else {
+      status = review.status as ReviewStatus;
     }
 
     // Update review with transaction
     const updatedReview = await this.prisma.$transaction(async (prisma) => {
-      // Update main review
-      const updated = await prisma.review.update({
+      // Update the main review
+      const updatedReview = await prisma.review.update({
         where: { id: reviewId },
         data: {
           stage: stage || review.stage,
-          status: status || review.status,
+          status,
           decision: decision || review.decision,
           overallComments,
           totalScore,
@@ -273,47 +293,68 @@ export class ReviewsService {
       });
 
       // Update question comments if provided
-      if (questionComments) {
+      if (questionComments && questionComments.length > 0) {
         // Delete existing comments
         await prisma.reviewComment.deleteMany({
           where: { reviewId }
         });
 
         // Create new comments
-        if (questionComments.length > 0) {
-          await prisma.reviewComment.createMany({
-            data: questionComments.map(comment => ({
-              reviewId,
-              questionId: comment.questionId,
-              comment: comment.comment,
-              isCritical: comment.isCritical || false,
-              stage: comment.stage || stage || review.stage
-            }))
-          });
-        }
+        await prisma.reviewComment.createMany({
+          data: questionComments.map(comment => ({
+            reviewId,
+            questionId: comment.questionId,
+            comment: comment.comment,
+            isCritical: comment.isCritical || false,
+            stage: comment.stage || stage || review.stage
+          }))
+        });
       }
 
       // Update jury scores if provided
-      if (juryScores) {
+      if (juryScores && juryScores.length > 0) {
         // Delete existing scores
         await prisma.juryScore.deleteMany({
           where: { reviewId }
         });
 
         // Create new scores
-        if (juryScores.length > 0) {
-          await prisma.juryScore.createMany({
-            data: juryScores.map(score => ({
-              reviewId,
-              questionId: score.questionId,
-              score: score.score,
-              comments: score.comments
-            }))
-          });
-        }
+        await prisma.juryScore.createMany({
+          data: juryScores.map(score => ({
+            reviewId,
+            questionId: score.questionId,
+            score: score.score,
+            comments: score.comments
+          }))
+        });
       }
 
-      return updated;
+      // Update session review status
+      await prisma.responseSession.update({
+        where: { id: review.sessionId },
+        data: {
+          reviewStatus: status,
+          reviewedAt: new Date()
+        }
+      });
+
+      // Record status change if status changed
+      if (status !== review.status) {
+        await this.statusProgressService.recordStatusChange(
+          'review',
+          reviewId,
+          status,
+          review.reviewerId,
+          { 
+            action: 'update_review',
+            stage: stage || review.stage,
+            decision: decision || review.decision,
+            sessionId: review.sessionId
+          }
+        );
+      }
+
+      return updatedReview;
     });
 
     return this.mapReviewToDto(updatedReview);

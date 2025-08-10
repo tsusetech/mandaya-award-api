@@ -7,6 +7,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model StatusProgress {
+  id              Int      @id @default(autoincrement())
+  entityType      String   // 'response_session' or 'review'
+  entityId        Int      // ID of the ResponseSession or Review
+  status          String   // The status value
+  version         Int      // Incremental version (1 for latest, 2 for previous, etc.)
+  previousStatus  String?  // The previous status before this change
+  changedBy       Int?     // User ID who made the change
+  changedAt       DateTime @default(now())
+  metadata        Json?    // Additional metadata about the status change
+
+  // Relations
+  changedByUser   User?    @relation("StatusProgressChangedBy", fields: [changedBy], references: [id])
+
+  @@unique([entityType, entityId, version])
+  @@index([entityType, entityId])
+  @@index([changedAt])
+  @@index([status])
+}
+
 model User {
   id              Int               @id @default(autoincrement())
   email           String            @unique
@@ -28,6 +48,7 @@ model User {
   deletedGroups   Group[]           @relation("GroupDeletedBy")
   deletedResponseSessions ResponseSession[] @relation("ResponseSessionDeletedBy")
   deletedCategories Category[]       @relation("CategoryDeletedBy")
+  statusProgressChanges StatusProgress[] @relation("StatusProgressChangedBy")
 }
 
 model Role {
