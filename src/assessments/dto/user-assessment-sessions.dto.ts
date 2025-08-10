@@ -37,7 +37,7 @@ export class UserAssessmentSessionDto {
 
   @ApiProperty({ enum: AssessmentStatus, example: AssessmentStatus.SUBMITTED })
   @IsString()
-  status: AssessmentStatus;
+  currentStatus: AssessmentStatus; // Changed from 'status' to 'currentStatus'
 
   @ApiProperty({ example: 75 })
   @IsNumber()
@@ -61,12 +61,7 @@ export class UserAssessmentSessionDto {
   @IsDateString()
   submittedAt?: string | null;
 
-  @ApiProperty({ example: 'pending', required: false, nullable: true })
-  @IsOptional()
-  @IsString()
-  reviewStatus?: string | null;
-
-  // Review-related fields
+  // Review-related fields (keeping these for backward compatibility but they're now derived from StatusProgress)
   @ApiProperty({ example: 'admin_validation', required: false, nullable: true })
   @IsOptional()
   @IsString()
@@ -119,21 +114,12 @@ export class UserAssessmentSessionsQueryDto {
 
   @ApiProperty({ 
     example: 'submitted', 
-    description: 'Filter by assessment status',
+    description: 'Filter by current status (unified status from StatusProgress)',
     required: false
   })
   @IsOptional()
   @IsString()
-  status?: string;
-
-  @ApiProperty({ 
-    example: 'pending', 
-    description: 'Filter by review status',
-    required: false
-  })
-  @IsOptional()
-  @IsString()
-  reviewStatus?: string;
+  currentStatus?: string; // Changed from 'status' to 'currentStatus'
 
   @ApiProperty({ 
     example: 'admin_validation', 

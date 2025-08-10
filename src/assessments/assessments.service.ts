@@ -61,7 +61,7 @@ export class AssessmentsService {
         data: {
           userId,
           groupId,
-          status: 'draft',
+          status: 'draft', // Keep this for backward compatibility
           progressPercentage: 0,
           autoSaveEnabled: true
         },
@@ -107,145 +107,55 @@ export class AssessmentsService {
           session.id,
           updateData.status,
           userId,
-          { action: 'resume_session' }
+          { action: 'update_activity' }
         );
       }
-      
-      // Update the session object for the response
-      session.status = updateData.status || session.status;
-      session.lastActivityAt = updateData.lastActivityAt;
     }
 
     // Get current status from StatusProgress
     const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', session.id);
-    if (currentStatus) {
-      session.status = currentStatus.status;
-    }
 
-    // Get ALL questions for this group (for progress calculation)
-    const allGroupQuestions = await this.prisma.groupQuestion.findMany({
-      where: { groupId },
-      select: { id: true }
-    });
-
-    // Get questions with full details for display
-    let groupQuestions = await this.prisma.groupQuestion.findMany({
+    // Get questions for this group
+    const groupQuestions = await this.prisma.groupQuestion.findMany({
       where: { groupId },
       include: {
-        question: {
-          include: {
-            options: {
-              where: { isActive: true },
-              orderBy: { orderNumber: 'asc' }
-            }
-          }
-        }
+        question: true
       },
-      orderBy: { orderNumber: 'asc' }
+      orderBy: [
+        { groupId: 'asc' },
+        { orderNumber: 'asc' },
+      ],
     });
 
-    // Apply filtering if provided (but no pagination) 
-    if (paginationQuery?.sectionTitle) {
-      groupQuestions = groupQuestions.filter(gq => 
-        gq.sectionTitle?.toLowerCase().includes(paginationQuery.sectionTitle!.toLowerCase())
-      );
-    }
-    
-    if (paginationQuery?.subsection) {
-      groupQuestions = groupQuestions.filter(gq => 
-        gq.subsection?.toLowerCase().includes(paginationQuery.subsection!.toLowerCase())
-      );
-    }
+    // Map questions to DTO format
+    const questions = groupQuestions.map(gq => ({
+      id: gq.question.id,
+      questionText: gq.question.questionText,
+      questionType: gq.question.questionType,
+      isRequired: gq.question.isRequired,
+      orderNumber: gq.orderNumber,
+      groupQuestionId: gq.id,
+      options: gq.question.options,
+      validationRules: gq.question.validationRules,
+      response: session.responses.find(r => r.groupQuestionId === gq.id) || null,
+      isAnswered: session.responses.some(r => r.groupQuestionId === gq.id && r.value !== null),
+      isSkipped: session.responses.some(r => r.groupQuestionId === gq.id && r.value === null && r.isSkipped)
+    }));
 
-    // Get review comments for all questions in this session
-    const reviewComments = await this.prisma.reviewComment.findMany({
-      where: {
-        review: {
-          sessionId: session.id
-        }
-      },
-      include: {
-        review: {
-          include: {
-            reviewer: {
-              select: {
-                name: true
-              }
-            }
-          }
-        }
-      }
-    });
-
-    // Group review comments by question ID for easy lookup
-    const reviewCommentsByQuestion = reviewComments.reduce((acc, comment) => {
-      if (!acc[comment.questionId]) {
-        acc[comment.questionId] = [];
-      }
-      acc[comment.questionId].push({
-        id: comment.id,
-        comment: comment.comment,
-        isCritical: comment.isCritical,
-        stage: comment.stage || undefined,
-        createdAt: comment.createdAt.toISOString(),
-        reviewerName: comment.review.reviewer.name || undefined
-      });
-      return acc;
-    }, {} as Record<number, ReviewCommentDto[]>);
-
-    // Map questions WITH responses (if they exist) and review comments
-    const questions: AssessmentQuestionDto[] = groupQuestions.map(gq => {
-      const response = session.responses.find(r => r.questionId === gq.question.id);
-      const questionReviewComments = reviewCommentsByQuestion[gq.question.id] || [];
-      
-      return {
-        id: gq.question.id,
-        questionText: gq.question.questionText,
-        description: gq.question.description || undefined,
-        inputType: gq.question.inputType as QuestionInputType,
-        isRequired: gq.question.isRequired,
-        orderNumber: gq.orderNumber,
-        sectionTitle: gq.sectionTitle || undefined,
-        subsection: gq.subsection || undefined,
-        options: gq.question.options.map(opt => ({
-          id: opt.id,
-          optionText: opt.optionText,
-          optionValue: opt.optionValue,
-          orderNumber: opt.orderNumber,
-          isCorrect: opt.isCorrect || undefined
-        })),
-        response: response ? this.mapResponseToValue(response) : undefined,
-        isAnswered: response ? response.isComplete : false,
-        isSkipped: response ? response.isSkipped : false,
-        reviewComments: questionReviewComments // Always include, will be empty array if no comments
-      };
-    });
-
-    // Calculate progress based on ALL questions in the group (not filtered)
-    const totalQuestionsInGroup = allGroupQuestions.length;
-    const answeredQuestions = session.responses.filter(r => r.isComplete).length;
-    const skippedQuestions = session.responses.filter(r => r.isSkipped).length;
-    const progressPercentage = totalQuestionsInGroup > 0 
-      ? Math.round(((answeredQuestions + skippedQuestions) / totalQuestionsInGroup) * 100) 
-      : 0;
-
-    // Update progress if changed
-    if (session.progressPercentage !== progressPercentage) {
-      await this.prisma.responseSession.update({
-        where: { id: session.id },
-        data: { progressPercentage }
-      });
-    }
+    // Calculate progress
+    const totalQuestions = questions.length;
+    const answeredQuestions = questions.filter(q => q.isAnswered).length;
+    const progressPercentage = totalQuestions > 0 ? Math.round((answeredQuestions / totalQuestions) * 100) : 0;
 
     return {
       id: session.id,
       userId: session.userId,
       groupId: session.groupId,
       groupName: session.group.groupName,
-      status: session.status as any,
+      currentStatus: currentStatus || session.status, // Use StatusProgress status, fallback to session status
       progressPercentage,
       autoSaveEnabled: session.autoSaveEnabled,
-      currentQuestionId: session.currentQuestionId || undefined,
+      currentQuestionId: session.currentQuestionId,
       questions,
       startedAt: session.startedAt.toISOString(),
       lastAutoSaveAt: session.lastAutoSaveAt?.toISOString(),
@@ -386,29 +296,25 @@ export class AssessmentsService {
       });
 
       if (!session) {
-        throw new NotFoundException('Session not found');
+        throw new NotFoundException('Assessment session not found');
       }
 
-      // Mark all draft responses as complete
-      await tx.questionResponse.updateMany({
-        where: {
-          sessionId,
-          isDraft: true
-        },
-        data: {
-          isDraft: false,
-          isComplete: true,
-          finalizedAt: new Date()
-        }
-      });
+      // Check if all questions are answered or skipped
+      const totalQuestions = session.group.groupQuestions.length;
+      const answeredQuestions = session.responses.filter(r => r.value !== null).length;
+      const skippedQuestions = session.responses.filter(r => r.value === null && r.isSkipped).length;
 
-      // Mark session as submitted in both tables
+      if (answeredQuestions + skippedQuestions < totalQuestions) {
+        throw new BadRequestException('Cannot submit session: not all questions are answered or skipped');
+      }
+
+      // Update session status
       await tx.responseSession.update({
         where: { id: sessionId },
         data: {
           status: 'submitted',
           submittedAt: new Date(),
-          lastActivityAt: new Date()
+          completedAt: new Date()
         }
       });
 
@@ -418,14 +324,12 @@ export class AssessmentsService {
         sessionId,
         'submitted',
         session.userId,
-        { 
-          action: 'submit_session'
-        }
+        { action: 'submit_assessment' }
       );
 
       return {
         success: true,
-        message: 'Session submitted successfully'
+        message: 'Assessment submitted successfully'
       };
     });
   }
@@ -478,118 +382,91 @@ export class AssessmentsService {
   async getUserAssessmentSessions(
     query: UserAssessmentSessionsQueryDto
   ): Promise<PaginatedResponseDto<UserAssessmentSessionDto>> {
-    const { page = 1, limit = 10, status, reviewStatus, reviewStage, groupId } = query;
+    const { page = 1, limit = 10, currentStatus, reviewStage, groupId } = query;
     const skip = (page - 1) * limit;
 
-    // Build where clause
-    const where: any = {};
-    
-    if (status) {
-      where.status = status;
-    }
-    
-    if (reviewStatus) {
-      where.reviewStatus = reviewStatus;
-    }
-    
+    // Build where clause for sessions
+    const sessionWhere: any = {};
     if (groupId) {
-      where.groupId = groupId;
+      sessionWhere.groupId = groupId;
     }
 
-    // Add review stage filter if provided
-    if (reviewStage) {
-      where.review = {
-        stage: reviewStage
-      };
-    }
-
-    // Get total count
-    const total = await this.prisma.responseSession.count({ where });
-
-    // Get sessions with user, group, and review information
+    // Get sessions
     const sessions = await this.prisma.responseSession.findMany({
-      where,
+      where: sessionWhere,
       include: {
-        user: {
-          select: {
-            email: true,
-            name: true
-          }
-        },
-        group: {
-          select: {
-            groupName: true
-          }
-        },
-        review: {
+        user: true,
+        group: true,
+        reviews: {
           include: {
-            reviewer: {
-              select: {
-                name: true
-              }
-            }
+            reviewer: true
+          },
+          orderBy: {
+            reviewedAt: 'desc'
           }
         }
       },
+      skip,
+      take: limit,
       orderBy: {
         lastActivityAt: 'desc'
-      },
-      skip,
-      take: limit
+      }
     });
 
-    // ✅ GETS LATEST STATUS FROM StatusProgress FOR EACH SESSION
+    // Get current status for each session from StatusProgress
     const sessionsWithStatus = await Promise.all(
       sessions.map(async (session) => {
         const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', session.id);
-        const currentReviewStatus = session.review ? 
-          await this.statusProgressService.getCurrentStatus('review', session.review.id) : null;
-
+        
+        // Get latest review info
+        const latestReview = session.reviews[0];
+        
         return {
-          ...session,
-          status: currentStatus?.status || session.status, // Uses latest status
-          reviewStatus: currentReviewStatus?.status || session.reviewStatus // Uses latest review status
+          id: session.id,
+          sessionId: session.id,
+          userId: session.userId,
+          userEmail: session.user.email,
+          userName: session.user.name,
+          groupId: session.groupId,
+          groupName: session.group.groupName,
+          currentStatus: currentStatus || session.status, // Use StatusProgress status, fallback to session status
+          progressPercentage: session.progressPercentage,
+          startedAt: session.startedAt.toISOString(),
+          lastActivityAt: session.lastActivityAt.toISOString(),
+          completedAt: session.completedAt?.toISOString(),
+          submittedAt: session.submittedAt?.toISOString(),
+          reviewStage: latestReview?.stage || null,
+          reviewDecision: latestReview?.decision || null,
+          reviewScore: latestReview?.totalScore || null,
+          reviewedAt: latestReview?.reviewedAt.toISOString() || null,
+          reviewerName: latestReview?.reviewer?.name || null,
+          reviewComments: latestReview?.overallComments || null
         };
       })
     );
 
-    // Map to DTO with explicit null handling
-    const data: UserAssessmentSessionDto[] = sessionsWithStatus.map(session => ({
-      id: session.id,
-      sessionId: session.id, // Add sessionId field for clarity
-      userId: session.userId,
-      userEmail: session.user.email,
-      userName: session.user.name || 'Unknown User',
-      groupId: session.groupId,
-      groupName: session.group.groupName,
-      status: session.status as AssessmentStatus,
-      progressPercentage: session.progressPercentage,
-      startedAt: session.startedAt.toISOString(),
-      lastActivityAt: session.lastActivityAt.toISOString(),
-      completedAt: session.completedAt?.toISOString(),
-      submittedAt: session.submittedAt?.toISOString(),
-      reviewStatus: session.reviewStatus || null,
-      // Review-related fields - explicitly handle null values
-      reviewStage: session.review?.stage || null,
-      reviewDecision: session.review?.decision || null,
-      reviewScore: session.review?.totalScore ? Number(session.review.totalScore) : null,
-      reviewedAt: session.review?.reviewedAt?.toISOString() || null,
-      reviewerName: session.review?.reviewer?.name || null,
-      reviewComments: session.review?.overallComments || null
-    }));
+    // Filter by currentStatus if provided
+    let filteredSessions = sessionsWithStatus;
+    if (currentStatus) {
+      filteredSessions = sessionsWithStatus.filter(session => session.currentStatus === currentStatus);
+    }
 
-    const totalPages = Math.ceil(total / limit);
-    const hasNext = page < totalPages;
-    const hasPrev = page > 1;
+    // Filter by reviewStage if provided
+    if (reviewStage) {
+      filteredSessions = filteredSessions.filter(session => session.reviewStage === reviewStage);
+    }
+
+    // Get total count
+    const total = await this.prisma.responseSession.count({ where: sessionWhere });
 
     return {
-      data,
+      data: filteredSessions,
       total,
       page,
       limit,
-      totalPages,
-      hasNext,
-      hasPrev
+      totalPages: Math.ceil(total / limit),
+      hasNext: page < Math.ceil(total / limit),
+      hasPrev: page > 1
     };
   }
 
@@ -597,37 +474,20 @@ export class AssessmentsService {
     const session = await this.prisma.responseSession.findUnique({
       where: { id: sessionId },
       include: {
-        user: {
-          select: {
-            email: true,
-            name: true
-          }
-        },
-        group: {
-          select: {
-            groupName: true
-          }
-        },
+        user: true,
+        group: true,
         responses: {
           include: {
-            question: {
-              include: {
-                options: {
-                  where: { isActive: true },
-                  orderBy: { orderNumber: 'asc' }
-                }
-              }
-            },
+            question: true,
             groupQuestion: true
           }
         },
-        review: {
+        reviews: {
           include: {
-            reviewer: {
-              select: {
-                name: true
-              }
-            }
+            reviewer: true
+          },
+          orderBy: {
+            reviewedAt: 'desc'
           }
         }
       }
@@ -637,124 +497,62 @@ export class AssessmentsService {
       throw new NotFoundException('Assessment session not found');
     }
 
-    // ✅ GETS LATEST STATUS FROM StatusProgress
+    // Get current status from StatusProgress
     const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', session.id);
-    if (currentStatus) {
-      session.status = currentStatus.status; // Overwrites with latest status
-    }
 
-    // ✅ GETS LATEST REVIEW STATUS FROM StatusProgress
-    const currentReviewStatus = session.review ? 
-      await this.statusProgressService.getCurrentStatus('review', session.review.id) : null;
-    if (currentReviewStatus) {
-      session.reviewStatus = currentReviewStatus.status; // Overwrites with latest status
-    }
-
-    // Get all questions for this group
+    // Get questions for this group
     const groupQuestions = await this.prisma.groupQuestion.findMany({
       where: { groupId: session.groupId },
       include: {
-        question: {
-          include: {
-            options: {
-              where: { isActive: true },
-              orderBy: { orderNumber: 'asc' }
-            }
-          }
-        }
+        question: true
       },
-      orderBy: { orderNumber: 'asc' }
+      orderBy: [
+        { groupId: 'asc' },
+        { orderNumber: 'asc' },
+      ],
     });
 
-    // Get review comments for all questions in this session
-    const reviewComments = await this.prisma.reviewComment.findMany({
-      where: {
-        review: {
-          sessionId: session.id
-        }
-      },
-      include: {
-        review: {
-          include: {
-            reviewer: {
-              select: {
-                name: true
-              }
-            }
-          }
-        }
-      }
-    });
+    // Map questions to DTO format
+    const questions = groupQuestions.map(gq => ({
+      id: gq.question.id,
+      questionText: gq.question.questionText,
+      questionType: gq.question.questionType,
+      isRequired: gq.question.isRequired,
+      orderNumber: gq.orderNumber,
+      groupQuestionId: gq.id,
+      options: gq.question.options,
+      validationRules: gq.question.validationRules,
+      response: session.responses.find(r => r.groupQuestionId === gq.id) || null,
+      isAnswered: session.responses.some(r => r.groupQuestionId === gq.id && r.value !== null),
+      isSkipped: session.responses.some(r => r.groupQuestionId === gq.id && r.value === null && r.isSkipped)
+    }));
 
-    // Group review comments by question ID for easy lookup
-    const reviewCommentsByQuestion = reviewComments.reduce((acc, comment) => {
-      if (!acc[comment.questionId]) {
-        acc[comment.questionId] = [];
-      }
-      acc[comment.questionId].push({
-        id: comment.id,
-        comment: comment.comment,
-        isCritical: comment.isCritical,
-        stage: comment.stage || undefined,
-        createdAt: comment.createdAt.toISOString(),
-        reviewerName: comment.review.reviewer.name || undefined
-      });
-      return acc;
-    }, {} as Record<number, ReviewCommentDto[]>);
-
-    // Map questions with responses and review comments
-    const questions: AssessmentQuestionDto[] = groupQuestions.map(gq => {
-      const response = session.responses.find(r => r.questionId === gq.question.id);
-      const questionReviewComments = reviewCommentsByQuestion[gq.question.id] || [];
-      
-      return {
-        id: gq.question.id,
-        questionText: gq.question.questionText,
-        description: gq.question.description || undefined,
-        inputType: gq.question.inputType as QuestionInputType,
-        isRequired: gq.question.isRequired,
-        orderNumber: gq.orderNumber,
-        sectionTitle: gq.sectionTitle || undefined,
-        subsection: gq.subsection || undefined,
-        options: gq.question.options.map(opt => ({
-          id: opt.id,
-          optionText: opt.optionText,
-          optionValue: opt.optionValue,
-          orderNumber: opt.orderNumber,
-          isCorrect: opt.isCorrect || undefined
-        })),
-        response: response ? this.mapResponseToValue(response) : undefined,
-        isAnswered: response ? response.isComplete : false,
-        isSkipped: response ? response.isSkipped : false,
-        reviewComments: questionReviewComments
-      };
-    });
+    // Get latest review info
+    const latestReview = session.reviews[0];
 
     return {
       id: session.id,
       userId: session.userId,
       userEmail: session.user.email,
-      userName: session.user.name || 'Unknown User',
+      userName: session.user.name,
       groupId: session.groupId,
       groupName: session.group.groupName,
-      status: session.status as AssessmentStatus,
+      currentStatus: currentStatus || session.status, // Use StatusProgress status, fallback to session status
       progressPercentage: session.progressPercentage,
       autoSaveEnabled: session.autoSaveEnabled,
-      currentQuestionId: session.currentQuestionId || undefined,
+      currentQuestionId: session.currentQuestionId,
       questions,
       startedAt: session.startedAt.toISOString(),
       lastAutoSaveAt: session.lastAutoSaveAt?.toISOString(),
       lastActivityAt: session.lastActivityAt.toISOString(),
       completedAt: session.completedAt?.toISOString(),
       submittedAt: session.submittedAt?.toISOString(),
-      // Review-related fields
-      reviewStatus: session.reviewStatus || null,
-      reviewStage: session.review?.stage || null,
-      reviewDecision: session.review?.decision || null,
-      reviewScore: session.review?.totalScore ? Number(session.review.totalScore) : null,
-      reviewedAt: session.review?.reviewedAt?.toISOString() || null,
-      reviewerName: session.review?.reviewer?.name || null,
-      reviewComments: session.review?.overallComments || null
+      reviewStage: latestReview?.stage || null,
+      reviewDecision: latestReview?.decision || null,
+      reviewScore: latestReview?.totalScore || null,
+      reviewedAt: latestReview?.reviewedAt.toISOString() || null,
+      reviewerName: latestReview?.reviewer?.name || null,
+      reviewComments: latestReview?.overallComments || null
     };
   }
 

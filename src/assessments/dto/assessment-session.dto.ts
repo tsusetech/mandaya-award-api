@@ -2,12 +2,22 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsNumber, IsString, IsBoolean, IsOptional, IsArray, IsDateString } from 'class-validator';
 import { AssessmentQuestionDto } from './assessment-question.dto';
 
+// Unified status enum that covers both session and review statuses
 export enum AssessmentStatus {
+  // Session statuses
   DRAFT = 'draft',
   IN_PROGRESS = 'in_progress',
   PAUSED = 'paused',
   COMPLETED = 'completed',
-  SUBMITTED = 'submitted'
+  SUBMITTED = 'submitted',
+  
+  // Review statuses
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  NEEDS_REVISION = 'needs_revision',
+  SCORED = 'scored',
+  DELIBERATED = 'deliberated'
 }
 
 export class AssessmentSessionDto {
@@ -29,7 +39,7 @@ export class AssessmentSessionDto {
 
   @ApiProperty({ enum: AssessmentStatus, example: AssessmentStatus.IN_PROGRESS })
   @IsString()
-  status: AssessmentStatus;
+  currentStatus: AssessmentStatus; // Changed from 'status' to 'currentStatus'
 
   @ApiProperty({ example: 75 })
   @IsNumber()
@@ -99,7 +109,7 @@ export class AssessmentSessionDetailDto {
 
   @ApiProperty({ enum: AssessmentStatus, example: AssessmentStatus.SUBMITTED })
   @IsString()
-  status: AssessmentStatus;
+  currentStatus: AssessmentStatus; // Changed from 'status' to 'currentStatus'
 
   @ApiProperty({ example: 75 })
   @IsNumber()
@@ -141,12 +151,7 @@ export class AssessmentSessionDetailDto {
   @IsDateString()
   submittedAt?: string;
 
-  // Review-related fields
-  @ApiProperty({ example: 'pending', required: false, nullable: true })
-  @IsOptional()
-  @IsString()
-  reviewStatus?: string | null;
-
+  // Review-related fields (keeping these for backward compatibility but they're now derived from StatusProgress)
   @ApiProperty({ example: 'admin_validation', required: false, nullable: true })
   @IsOptional()
   @IsString()
