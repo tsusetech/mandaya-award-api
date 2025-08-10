@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class AuthUserResponseDto {
+export class UserResponseDto {
   @ApiProperty({ example: 1 })
   id: number;
 
@@ -11,7 +11,7 @@ export class AuthUserResponseDto {
   username: string;
 
   @ApiProperty({ example: 'John Doe', required: false })
-  name?: string | null;
+  name?: string | null; // Change this line
 
   @ApiProperty({ example: '2024-01-01T00:00:00.000Z' })
   createdAt: Date;
@@ -24,22 +24,22 @@ export class LoginResponseDto {
   @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' })
   accessToken: string;
 
-  @ApiProperty({ type: AuthUserResponseDto })
-  user: AuthUserResponseDto;
+  @ApiProperty({ type: UserResponseDto })
+  user: UserResponseDto;
 }
 
 export class SignupResponseDto {
   @ApiProperty({ example: 'User created successfully' })
   message: string;
 
-  @ApiProperty({ type: AuthUserResponseDto })
-  user: AuthUserResponseDto;
+  @ApiProperty({ type: UserResponseDto })
+  user: UserResponseDto;
 }
 
 export class ProfileResponseDto {
   @ApiProperty({ example: 'Profile retrieved successfully' })
   message: string;
 
-  @ApiProperty({ type: AuthUserResponseDto })
-  user: AuthUserResponseDto;
+  @ApiProperty({ type: UserResponseDto })
+  user: UserResponseDto;
 } 
