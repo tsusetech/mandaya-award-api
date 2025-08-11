@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNumber, IsString, IsBoolean, IsOptional, IsArray, IsDateString, IsEnum } from 'class-validator';
 import { AssessmentQuestionDto } from './assessment-question.dto';
+import { CombinedStatus } from './combined-status.enum';
 
 export enum AssessmentStatus {
   DRAFT = 'draft',
@@ -30,6 +31,14 @@ export class AssessmentSessionDto {
   @ApiProperty({ enum: AssessmentStatus, example: AssessmentStatus.SUBMITTED })
   @IsString()
   status: AssessmentStatus;
+
+  @ApiProperty({ 
+    enum: CombinedStatus, 
+    example: CombinedStatus.SUBMITTED,
+    description: 'Final status that represents the overall state of the assessment'
+  })
+  @IsString()
+  finalStatus: CombinedStatus;
 
   @ApiProperty({ example: 75 })
   @IsNumber()
