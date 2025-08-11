@@ -87,7 +87,7 @@ export class StatusProgressService {
     version: number;
     changedAt: Date;
   } | null> {
-    return await this.prisma.statusProgress.findFirst({
+    const result = await this.prisma.statusProgress.findFirst({
       where: {
         entityType,
         entityId
@@ -101,5 +101,9 @@ export class StatusProgressService {
         changedAt: true
       }
     });
+
+
+
+    return result;
   }
 }

@@ -35,10 +35,10 @@ export class AssessmentSessionDto {
   @ApiProperty({ 
     enum: CombinedStatus, 
     example: CombinedStatus.IN_PROGRESS,
-    description: 'Combined status that represents the overall state of the assessment'
+    description: 'Final status that represents the overall state of the assessment'
   })
   @IsEnum(CombinedStatus)
-  combinedStatus: CombinedStatus;
+  finalStatus: CombinedStatus;
 
   @ApiProperty({ example: 75 })
   @IsNumber()

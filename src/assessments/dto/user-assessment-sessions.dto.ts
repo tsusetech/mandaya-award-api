@@ -43,10 +43,10 @@ export class UserAssessmentSessionDto {
   @ApiProperty({ 
     enum: CombinedStatus, 
     example: CombinedStatus.SUBMITTED,
-    description: 'Combined status that represents the overall state of the assessment'
+    description: 'Final status that represents the overall state of the assessment'
   })
   @IsString()
-  combinedStatus: CombinedStatus;
+  finalStatus: CombinedStatus;
 
   @ApiProperty({ example: 75 })
   @IsNumber()
@@ -128,13 +128,13 @@ export class UserAssessmentSessionsQueryDto {
 
   @ApiProperty({ 
     example: 'submitted', 
-    description: 'Filter by combined status (combines session and review statuses)',
+    description: 'Filter by final status (combines session and review statuses)',
     required: false,
     enum: CombinedStatus
   })
   @IsOptional()
   @IsEnum(CombinedStatus)
-  combinedStatus?: CombinedStatus;
+  finalStatus?: CombinedStatus;
 
   @ApiProperty({ 
     example: 'admin_validation', 

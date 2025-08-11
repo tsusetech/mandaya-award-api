@@ -118,12 +118,7 @@ export class AssessmentsService {
 
     // ✅ GETS LATEST STATUS FROM StatusProgress (EXACTLY LIKE getUserAssessmentSessions)
     const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', session.id);
-    if (currentStatus) {
-      session.status = currentStatus.status; // Use latest status from StatusProgress
-    } else {
-      // Fallback to session status if no StatusProgress record exists
-      session.status = session.status;
-    }
+    let sessionCurrentStatus = currentStatus?.status || session.status; // Current status from StatusProgress
 
     // Get current review status from StatusProgress if review exists
     let currentReviewStatus: string | null = null;
@@ -132,16 +127,16 @@ export class AssessmentsService {
       currentReviewStatus = reviewStatus?.status || null;
     }
 
-    // Calculate combined status with resubmission detection
-    const combinedStatus = await this.calculateCombinedStatusWithResubmission(
-      session.status,
+    // Calculate final status with resubmission detection
+    const finalStatus = await this.calculateCombinedStatusWithResubmission(
+      sessionCurrentStatus, // Use current status from StatusProgress for final status calculation
       currentReviewStatus,
       session.review?.stage || null,
       session.id
     );
 
-    // After calculating combinedStatus, check if it's a resubmission
-    if (combinedStatus === CombinedStatus.RESUBMITTED && session.status !== 'resubmitted') {
+    // After calculating finalStatus, check if it's a resubmission
+    if (finalStatus === CombinedStatus.RESUBMITTED && sessionCurrentStatus !== 'resubmitted') {
       // Update the session status to resubmitted
       await this.prisma.responseSession.update({
         where: { id: session.id },
@@ -159,6 +154,8 @@ export class AssessmentsService {
       
       // Update the session object for the response
       session.status = 'resubmitted';
+      // Also update the current status for this response
+      sessionCurrentStatus = 'resubmitted';
     }
 
     // Get ALL questions for this group (for progress calculation)
@@ -282,7 +279,7 @@ export class AssessmentsService {
       groupId: session.groupId,
       groupName: session.group.groupName,
       status: session.status as any,
-      combinedStatus,
+      finalStatus,
       progressPercentage,
       autoSaveEnabled: session.autoSaveEnabled,
       currentQuestionId: session.currentQuestionId || undefined,
@@ -543,7 +540,7 @@ export class AssessmentsService {
   async getUserAssessmentSessions(
     query: UserAssessmentSessionsQueryDto
   ): Promise<PaginatedResponseDto<UserAssessmentSessionDto>> {
-    const { page = 1, limit = 10, combinedStatus, reviewStage, groupId } = query;
+    const { page = 1, limit = 10, finalStatus, reviewStage, groupId } = query;
     const skip = (page - 1) * limit;
 
     // Build where clause
@@ -602,29 +599,35 @@ export class AssessmentsService {
         const currentReviewStatus = session.review ? 
           await this.statusProgressService.getCurrentStatus('review', session.review.id) : null;
 
+
+
         return {
           ...session,
-          status: currentStatus?.status || session.status, // Uses latest status
+          // Keep original status from database, don't overwrite
           reviewStatus: currentReviewStatus?.status || session.reviewStatus // Uses latest review status
         };
       })
     );
 
-    // Filter by combined status if provided
+    // Filter by final status if provided
     let filteredSessions = sessionsWithStatus;
-    if (combinedStatus) {
+    if (finalStatus) {
       filteredSessions = sessionsWithStatus.filter(session => {
         const sessionStatus = session.status;
         const reviewStatus = session.reviewStatus;
         
-        return this.matchesCombinedStatus(combinedStatus, sessionStatus, reviewStatus, session.review?.stage || null);
+        return this.matchesCombinedStatus(finalStatus, sessionStatus, reviewStatus, session.review?.stage || null);
       });
     }
 
     // Map to DTO with explicit null handling
     const data: UserAssessmentSessionDto[] = await Promise.all(filteredSessions.map(async (session) => {
-      const combinedStatus = await this.calculateCombinedStatusWithResubmission(
-        session.status, 
+      // Get current status from StatusProgress for this session
+      const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', session.id);
+      const sessionCurrentStatus = currentStatus?.status || session.status;
+      
+      const finalStatus = await this.calculateCombinedStatusWithResubmission(
+        sessionCurrentStatus, // Use current status from StatusProgress for final status calculation
         session.reviewStatus, 
         session.review?.stage || null,
         session.id
@@ -639,7 +642,7 @@ export class AssessmentsService {
         groupId: session.groupId,
         groupName: session.group.groupName,
         status: session.status as AssessmentStatus,
-        combinedStatus,
+        finalStatus,
         progressPercentage: session.progressPercentage,
         startedAt: session.startedAt.toISOString(),
         lastActivityAt: session.lastActivityAt.toISOString(),
@@ -836,9 +839,6 @@ export class AssessmentsService {
 
     // ✅ GETS LATEST STATUS FROM StatusProgress
     const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', session.id);
-    if (currentStatus) {
-      session.status = currentStatus.status; // Overwrites with latest status
-    }
 
     // ✅ GETS LATEST REVIEW STATUS FROM StatusProgress
     const currentReviewStatus = session.review ? 
