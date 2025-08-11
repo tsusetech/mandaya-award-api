@@ -278,6 +278,7 @@ export class AssessmentsService {
       groupId: session.groupId,
       groupName: session.group.groupName,
       status: sessionCurrentStatus as AssessmentStatus,
+      finalStatus, // Add this line back
       progressPercentage,
       autoSaveEnabled: session.autoSaveEnabled,
       currentQuestionId: session.currentQuestionId || undefined,
