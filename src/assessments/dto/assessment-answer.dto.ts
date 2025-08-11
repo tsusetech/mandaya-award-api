@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsBoolean, IsOptional, IsPositive, IsString, IsEnum } from 'class-validator';
+import { IsNumber, IsBoolean, IsOptional, IsPositive, IsString, IsEnum, Min, Max } from 'class-validator';
 import { QuestionInputType } from './assessment-question.dto';
 
 export class AssessmentAnswerDto {
@@ -42,4 +42,17 @@ export class AssessmentAnswerDto {
   @IsOptional()
   @IsNumber()
   timeSpent?: number;
+
+  @ApiProperty({ 
+    example: 25, 
+    description: 'Calculated progress percentage (0-100)', 
+    required: false,
+    minimum: 0,
+    maximum: 100
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  progressPercentage?: number;
 }

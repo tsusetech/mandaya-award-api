@@ -382,16 +382,28 @@ export class AssessmentsService {
       });
     }
 
-    // Update progress percentage
-    await this.updateSessionProgress(sessionId);
-
-    // Update session activity
-    await this.prisma.responseSession.update({
-      where: { id: sessionId },
-      data: {
-        lastActivityAt: new Date()
-      }
-    });
+    // Update progress percentage - use frontend value if provided, otherwise calculate
+    if (answerDto.progressPercentage !== undefined) {
+      // Use frontend-calculated progress percentage
+      await this.prisma.responseSession.update({
+        where: { id: sessionId },
+        data: { 
+          progressPercentage: answerDto.progressPercentage,
+          lastActivityAt: new Date()
+        }
+      });
+    } else {
+      // Calculate progress on backend
+      await this.updateSessionProgress(sessionId);
+      
+      // Update session activity
+      await this.prisma.responseSession.update({
+        where: { id: sessionId },
+        data: {
+          lastActivityAt: new Date()
+        }
+      });
+    }
 
     return {
       success: true,
@@ -427,8 +439,17 @@ export class AssessmentsService {
       });
     }
 
-    // Update progress percentage after batch operations
-    await this.updateSessionProgress(sessionId);
+    // Update progress percentage - use frontend value if provided, otherwise calculate
+    if (batchDto.progressPercentage !== undefined) {
+      // Use frontend-calculated progress percentage for the entire batch
+      await this.prisma.responseSession.update({
+        where: { id: sessionId },
+        data: { progressPercentage: batchDto.progressPercentage }
+      });
+    } else {
+      // Calculate progress on backend after batch operations
+      await this.updateSessionProgress(sessionId);
+    }
 
     return {
       success: true,
