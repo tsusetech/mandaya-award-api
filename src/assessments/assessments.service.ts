@@ -1762,18 +1762,12 @@ export class AssessmentsService {
     }
     
     if (sessionStatus === 'submitted') {
-      // Check if this is a resubmission (has previous review with needs_revision)
-      const hasPreviousNeedsRevision = await this.hasPreviousNeedsRevision(sessionId);
-      if (hasPreviousNeedsRevision) {
-        return CombinedStatus.RESUBMITTED;
-      }
-      
       // If no review status, it's just submitted
       if (!reviewStatus) {
         return CombinedStatus.SUBMITTED;
       }
       
-      // Review statuses
+      // Review statuses - check these first before resubmission logic
       switch (reviewStatus) {
         case 'pending':
           return CombinedStatus.PENDING_REVIEW;
@@ -1801,6 +1795,13 @@ export class AssessmentsService {
           case 'final_decision':
             return CombinedStatus.FINAL_DECISION;
         }
+      }
+      
+      // Check if this is a resubmission (has previous review with needs_revision)
+      // Only if no specific review status is set
+      const hasPreviousNeedsRevision = await this.hasPreviousNeedsRevision(sessionId);
+      if (hasPreviousNeedsRevision) {
+        return CombinedStatus.RESUBMITTED;
       }
       
       return CombinedStatus.PENDING_REVIEW;
