@@ -1151,8 +1151,8 @@ export class AssessmentsService {
       throw new NotFoundException('Assessment session not found');
     }
 
-    if (session.status !== 'submitted') {
-      throw new BadRequestException('Session must be submitted before it can be reviewed');
+    if (session.status !== 'submitted' && session.status !== 'resubmitted') {
+      throw new BadRequestException('Session must be submitted or resubmitted before it can be reviewed');
     }
 
     // Check if this specific reviewer already has a review for this session
