@@ -285,6 +285,41 @@ export class AssessmentsService {
     };
   }
 
+  private async updateSessionProgress(sessionId: number): Promise<void> {
+    // Get all questions for this session's group
+    const session = await this.prisma.responseSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        responses: true
+      }
+    });
+
+    if (!session) {
+      throw new NotFoundException('Session not found');
+    }
+
+    const allGroupQuestions = await this.prisma.groupQuestion.findMany({
+      where: { groupId: session.groupId },
+      select: { id: true }
+    });
+
+    // Calculate progress based on ALL questions in the group
+    const totalQuestionsInGroup = allGroupQuestions.length;
+    const answeredQuestions = session.responses.filter(r => r.isComplete).length;
+    const skippedQuestions = session.responses.filter(r => r.isSkipped).length;
+    const progressPercentage = totalQuestionsInGroup > 0 
+      ? Math.round(((answeredQuestions + skippedQuestions) / totalQuestionsInGroup) * 100) 
+      : 0;
+
+    // Update progress if changed
+    if (session.progressPercentage !== progressPercentage) {
+      await this.prisma.responseSession.update({
+        where: { id: sessionId },
+        data: { progressPercentage }
+      });
+    }
+  }
+
   async submitAnswer(sessionId: number, answerDto: AssessmentAnswerDto): Promise<{ success: boolean; message: string }> {
     const session = await this.prisma.responseSession.findUnique({
       where: { id: sessionId },
@@ -347,6 +382,9 @@ export class AssessmentsService {
       });
     }
 
+    // Update progress percentage
+    await this.updateSessionProgress(sessionId);
+
     // Update session activity
     await this.prisma.responseSession.update({
       where: { id: sessionId },
@@ -388,6 +426,9 @@ export class AssessmentsService {
         data: { currentQuestionId: batchDto.currentQuestionId }
       });
     }
+
+    // Update progress percentage after batch operations
+    await this.updateSessionProgress(sessionId);
 
     return {
       success: true,
