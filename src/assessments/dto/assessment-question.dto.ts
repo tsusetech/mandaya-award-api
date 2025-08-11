@@ -29,7 +29,11 @@ export class QuestionOptionDto {
 
   @ApiProperty({ example: false })
   @IsBoolean()
-  isCorrect?: boolean;
+  isMultipleChoice?: boolean;
+
+  @ApiProperty({ example: false })
+  @IsBoolean()
+  isCheckBox?: boolean;
 }
 
 export class AssessmentQuestionDto {

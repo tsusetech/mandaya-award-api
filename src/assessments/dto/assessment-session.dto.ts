@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNumber, IsString, IsBoolean, IsOptional, IsArray, IsDateString, IsEnum } from 'class-validator';
 import { AssessmentQuestionDto } from './assessment-question.dto';
-import { CombinedStatus } from './combined-status.enum';
 
 export enum AssessmentStatus {
   DRAFT = 'draft',
@@ -28,17 +27,9 @@ export class AssessmentSessionDto {
   @IsString()
   groupName: string;
 
-  @ApiProperty({ enum: AssessmentStatus, example: AssessmentStatus.IN_PROGRESS })
+  @ApiProperty({ enum: AssessmentStatus, example: AssessmentStatus.SUBMITTED })
   @IsString()
   status: AssessmentStatus;
-
-  @ApiProperty({ 
-    enum: CombinedStatus, 
-    example: CombinedStatus.IN_PROGRESS,
-    description: 'Final status that represents the overall state of the assessment'
-  })
-  @IsEnum(CombinedStatus)
-  finalStatus: CombinedStatus;
 
   @ApiProperty({ example: 75 })
   @IsNumber()
@@ -151,11 +142,6 @@ export class AssessmentSessionDetailDto {
   submittedAt?: string;
 
   // Review-related fields
-  @ApiProperty({ example: 'pending', required: false, nullable: true })
-  @IsOptional()
-  @IsString()
-  reviewStatus?: string | null;
-
   @ApiProperty({ example: 'admin_validation', required: false, nullable: true })
   @IsOptional()
   @IsString()

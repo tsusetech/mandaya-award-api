@@ -102,8 +102,50 @@ export class StatusProgressService {
       }
     });
 
-
-
     return result;
+  }
+
+  async getLatestStatus(
+    entityType: EntityType,
+    entityId: number
+  ): Promise<string | null> {
+    const result = await this.getCurrentStatus(entityType, entityId);
+    return result?.status || null;
+  }
+
+  async updateStatus(
+    entityType: EntityType,
+    entityId: number,
+    newStatus: string,
+    changedBy?: number,
+    metadata?: any
+  ): Promise<void> {
+    await this.recordStatusChange(entityType, entityId, newStatus, changedBy, metadata);
+  }
+
+  async getResponseSessionStatus(sessionId: number): Promise<string | null> {
+    return await this.getLatestStatus('response_session', sessionId);
+  }
+
+  async getReviewStatus(reviewId: number): Promise<string | null> {
+    return await this.getLatestStatus('review', reviewId);
+  }
+
+  async updateResponseSessionStatus(
+    sessionId: number,
+    newStatus: string,
+    changedBy?: number,
+    metadata?: any
+  ): Promise<void> {
+    await this.updateStatus('response_session', sessionId, newStatus, changedBy, metadata);
+  }
+
+  async updateReviewStatus(
+    reviewId: number,
+    newStatus: string,
+    changedBy?: number,
+    metadata?: any
+  ): Promise<void> {
+    await this.updateStatus('review', reviewId, newStatus, changedBy, metadata);
   }
 }

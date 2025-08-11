@@ -71,7 +71,6 @@ export class AssessmentsService {
         data: {
           userId,
           groupId,
-          status: 'draft',
           progressPercentage: 0,
           autoSaveEnabled: true
         },
@@ -116,9 +115,9 @@ export class AssessmentsService {
       session.lastActivityAt = new Date();
     }
 
-    // ✅ GETS LATEST STATUS FROM StatusProgress (EXACTLY LIKE getUserAssessmentSessions)
+    // Get current status from StatusProgress
     const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', session.id);
-    let sessionCurrentStatus = currentStatus?.status || session.status; // Current status from StatusProgress
+    let sessionCurrentStatus = currentStatus?.status || 'draft';
 
     // Get current review status from StatusProgress if review exists
     let currentReviewStatus: string | null = null;
@@ -137,11 +136,7 @@ export class AssessmentsService {
 
     // After calculating finalStatus, check if it's a resubmission
     if (finalStatus === CombinedStatus.RESUBMITTED && sessionCurrentStatus !== 'resubmitted') {
-      // Update the session status to resubmitted
-      await this.prisma.responseSession.update({
-        where: { id: session.id },
-        data: { status: 'resubmitted' }
-      });
+      // Update the session status to resubmitted via StatusProgress only
       
       // Record the status change in StatusProgress
       await this.statusProgressService.recordStatusChange(
@@ -152,9 +147,7 @@ export class AssessmentsService {
         { action: 'resubmission_detected' }
       );
       
-      // Update the session object for the response
-      session.status = 'resubmitted';
-      // Also update the current status for this response
+      // Update the current status for this response
       sessionCurrentStatus = 'resubmitted';
     }
 
@@ -248,7 +241,8 @@ export class AssessmentsService {
           optionText: opt.optionText,
           optionValue: opt.optionValue,
           orderNumber: opt.orderNumber,
-          isCorrect: opt.isCorrect || undefined
+          isMultipleChoice: opt.isMultipleChoice || false,
+          isCheckBox: opt.isCheckBox || false
         })),
         response: response ? this.mapResponseToValue(response) : undefined,
         isAnswered: response ? response.isComplete : false,
@@ -278,8 +272,7 @@ export class AssessmentsService {
       userId: session.userId,
       groupId: session.groupId,
       groupName: session.group.groupName,
-      status: session.status as any,
-      finalStatus,
+      status: sessionCurrentStatus as AssessmentStatus,
       progressPercentage,
       autoSaveEnabled: session.autoSaveEnabled,
       currentQuestionId: session.currentQuestionId || undefined,
@@ -447,7 +440,6 @@ export class AssessmentsService {
         await tx.responseSession.update({
           where: { id: sessionId },
           data: {
-            status: 'resubmitted',  // Change this from 'submitted' to 'resubmitted'
             submittedAt: new Date(),
             lastActivityAt: new Date()
           }
@@ -457,7 +449,7 @@ export class AssessmentsService {
         await this.statusProgressService.recordStatusChange(
           'response_session',
           sessionId,
-          'resubmitted',  // Change this from 'submitted' to 'resubmitted'
+          'resubmitted',
           session.userId,
           { 
             action: 'resubmit_session'
@@ -468,7 +460,6 @@ export class AssessmentsService {
         await tx.responseSession.update({
           where: { id: sessionId },
           data: {
-            status: 'submitted',
             submittedAt: new Date(),
             lastActivityAt: new Date()
           }
@@ -592,19 +583,17 @@ export class AssessmentsService {
       take: limit
     });
 
-    // ✅ GETS LATEST STATUS FROM StatusProgress FOR EACH SESSION
+    // Get latest status from StatusProgress for each session
     const sessionsWithStatus = await Promise.all(
       sessions.map(async (session) => {
         const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', session.id);
         const currentReviewStatus = session.review ? 
           await this.statusProgressService.getCurrentStatus('review', session.review.id) : null;
 
-
-
         return {
           ...session,
-          // Keep original status from database, don't overwrite
-          reviewStatus: currentReviewStatus?.status || session.reviewStatus // Uses latest review status
+          currentStatus: currentStatus?.status || 'draft',
+          currentReviewStatus: currentReviewStatus?.status || null
         };
       })
     );
@@ -613,8 +602,8 @@ export class AssessmentsService {
     let filteredSessions = sessionsWithStatus;
     if (finalStatus) {
       filteredSessions = sessionsWithStatus.filter(session => {
-        const sessionStatus = session.status;
-        const reviewStatus = session.reviewStatus;
+        const sessionStatus = session.currentStatus;
+        const reviewStatus = session.currentReviewStatus;
         
         return this.matchesCombinedStatus(finalStatus, sessionStatus, reviewStatus, session.review?.stage || null);
       });
@@ -622,13 +611,9 @@ export class AssessmentsService {
 
     // Map to DTO with explicit null handling
     const data: UserAssessmentSessionDto[] = await Promise.all(filteredSessions.map(async (session) => {
-      // Get current status from StatusProgress for this session
-      const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', session.id);
-      const sessionCurrentStatus = currentStatus?.status || session.status;
-      
       const finalStatus = await this.calculateCombinedStatusWithResubmission(
-        sessionCurrentStatus, // Use current status from StatusProgress for final status calculation
-        session.reviewStatus, 
+        session.currentStatus,
+        session.currentReviewStatus, 
         session.review?.stage || null,
         session.id
       );
@@ -641,14 +626,14 @@ export class AssessmentsService {
         userName: session.user.name || 'Unknown User',
         groupId: session.groupId,
         groupName: session.group.groupName,
-        status: session.status as AssessmentStatus,
+        status: session.currentStatus as AssessmentStatus,
         finalStatus,
         progressPercentage: session.progressPercentage,
         startedAt: session.startedAt.toISOString(),
         lastActivityAt: session.lastActivityAt.toISOString(),
         completedAt: session.completedAt?.toISOString(),
         submittedAt: session.submittedAt?.toISOString(),
-        reviewStatus: session.reviewStatus || null,
+        reviewStatus: session.currentReviewStatus,
         // Review-related fields - explicitly handle null values
         reviewStage: session.review?.stage || null,
         reviewDecision: session.review?.decision || null,
@@ -837,15 +822,12 @@ export class AssessmentsService {
       throw new NotFoundException('Assessment session not found');
     }
 
-    // ✅ GETS LATEST STATUS FROM StatusProgress
+    // Get latest status from StatusProgress
     const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', session.id);
 
-    // ✅ GETS LATEST REVIEW STATUS FROM StatusProgress
+    // Get latest review status from StatusProgress
     const currentReviewStatus = session.review ? 
       await this.statusProgressService.getCurrentStatus('review', session.review.id) : null;
-    if (currentReviewStatus) {
-      session.reviewStatus = currentReviewStatus.status; // Overwrites with latest status
-    }
 
     // Get all questions for this group
     const groupQuestions = await this.prisma.groupQuestion.findMany({
@@ -918,7 +900,8 @@ export class AssessmentsService {
           optionText: opt.optionText,
           optionValue: opt.optionValue,
           orderNumber: opt.orderNumber,
-          isCorrect: opt.isCorrect || undefined
+          isMultipleChoice: opt.isMultipleChoice || false,
+          isCheckBox: opt.isCheckBox || false
         })),
         response: response ? this.mapResponseToValue(response) : undefined,
         isAnswered: response ? response.isComplete : false,
@@ -934,7 +917,7 @@ export class AssessmentsService {
       userName: session.user.name || 'Unknown User',
       groupId: session.groupId,
       groupName: session.group.groupName,
-      status: session.status as AssessmentStatus,
+      status: (currentStatus?.status || 'draft') as AssessmentStatus,
       progressPercentage: session.progressPercentage,
       autoSaveEnabled: session.autoSaveEnabled,
       currentQuestionId: session.currentQuestionId || undefined,
@@ -945,7 +928,6 @@ export class AssessmentsService {
       completedAt: session.completedAt?.toISOString(),
       submittedAt: session.submittedAt?.toISOString(),
       // Review-related fields
-      reviewStatus: session.reviewStatus || null,
       reviewStage: session.review?.stage || null,
       reviewDecision: session.review?.decision || null,
       reviewScore: session.review?.totalScore ? Number(session.review.totalScore) : null,
@@ -988,7 +970,9 @@ export class AssessmentsService {
       throw new NotFoundException('Assessment session not found');
     }
 
-    if (session.status !== 'submitted' && session.status !== 'resubmitted') {
+    // Check if session is submitted or resubmitted using StatusProgress
+    const sessionStatus = await this.statusProgressService.getResponseSessionStatus(sessionId);
+    if (sessionStatus !== 'submitted' && sessionStatus !== 'resubmitted') {
       throw new BadRequestException('Session must be submitted or resubmitted before it can be reviewed');
     }
 
@@ -1034,7 +1018,6 @@ export class AssessmentsService {
           sessionId,
           reviewerId,
           stage,
-          status,
           decision,
           overallComments,
           totalScore,
@@ -1051,6 +1034,19 @@ export class AssessmentsService {
           }
         }
       });
+
+      // Record review status in StatusProgress
+      await this.statusProgressService.recordStatusChange(
+        'review',
+        newReview.id,
+        status,
+        reviewerId,
+        { 
+          action: 'create_review',
+          stage,
+          decision
+        }
+      );
 
       // Create question comments if provided
       if (questionComments && questionComments.length > 0) {
@@ -1077,11 +1073,10 @@ export class AssessmentsService {
         });
       }
 
-      // Update session status based on the most recent review decision
+      // Update session reviewedAt timestamp
       await prisma.responseSession.update({
         where: { id: sessionId },
         data: {
-          reviewStatus: status,
           reviewedAt: new Date()
         }
       });
@@ -1151,7 +1146,9 @@ export class AssessmentsService {
       throw new NotFoundException('Assessment session not found');
     }
 
-    if (session.status !== 'submitted' && session.status !== 'resubmitted') {
+    // Check if session is submitted or resubmitted using StatusProgress
+    const sessionStatus = await this.statusProgressService.getResponseSessionStatus(sessionId);
+    if (sessionStatus !== 'submitted' && sessionStatus !== 'resubmitted') {
       throw new BadRequestException('Session must be submitted or resubmitted before it can be reviewed');
     }
 
@@ -1247,7 +1244,6 @@ export class AssessmentsService {
           sessionId,
           reviewerId,
           stage,
-          status,
           decision,
           overallComments,
           totalScore,
@@ -1290,11 +1286,10 @@ export class AssessmentsService {
         });
       }
 
-      // Update session status
+      // Update session reviewedAt timestamp
       await prisma.responseSession.update({
         where: { id: sessionId },
         data: {
-          reviewStatus: status,
           reviewedAt: new Date()
         }
       });
@@ -1345,7 +1340,6 @@ export class AssessmentsService {
           sessionId,
           reviewerId,
           stage,
-          status,
           decision,
           overallComments,
           totalScore,
@@ -1388,11 +1382,10 @@ export class AssessmentsService {
         });
       }
 
-      // Update session status if needed
+      // Update session reviewedAt timestamp
       await prisma.responseSession.update({
         where: { id: sessionId },
         data: {
-          reviewStatus: status,
           reviewedAt: new Date()
         }
       });
@@ -1442,7 +1435,6 @@ export class AssessmentsService {
         where: { id: reviewId },
         data: {
           stage,
-          status,
           decision,
           overallComments,
           totalScore,
@@ -1501,11 +1493,10 @@ export class AssessmentsService {
         }
       }
 
-      // Update session status
+      // Update session reviewedAt timestamp
       await prisma.responseSession.update({
         where: { id: sessionId },
         data: {
-          reviewStatus: status,
           reviewedAt: new Date()
         }
       });
@@ -1620,16 +1611,17 @@ export class AssessmentsService {
    * Check if a session was previously in needs_revision status
    */
   private async wasSessionPreviouslyNeedsRevision(sessionId: number): Promise<boolean> {
-    // Check if there's a review with needs_revision status
-    const review = await this.prisma.review.findFirst({
-      where: {
-        sessionId,
-        status: 'needs_revision'
-      }
+    // Check if there's a review with needs_revision status in StatusProgress
+    const reviews = await this.prisma.review.findMany({
+      where: { sessionId },
+      select: { id: true }
     });
 
-    if (review) {
-      return true;
+    for (const review of reviews) {
+      const currentStatus = await this.statusProgressService.getCurrentStatus('review', review.id);
+      if (currentStatus?.status === 'needs_revision') {
+        return true;
+      }
     }
 
     // Check StatusProgress history for any review that was previously needs_revision

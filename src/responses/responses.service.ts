@@ -43,11 +43,10 @@ export class ResponsesService {
     });
 
     if (session) {
-      // Resume existing session - update both tables
+      // Resume existing session - update activity timestamp
       await this.prisma.responseSession.update({
         where: { id: session.id },
         data: {
-          status: 'in_progress',
           lastActivityAt: new Date()
         }
       });
@@ -62,15 +61,13 @@ export class ResponsesService {
       );
 
       // Update session object for response
-      session.status = 'in_progress';
       session.lastActivityAt = new Date();
     } else {
-      // Create new session - write to both tables
+      // Create new session
       session = await this.prisma.responseSession.create({
         data: {
           userId,
           groupId,
-          status: 'draft',
           progressPercentage: 0,
           autoSaveEnabled: true
         },
@@ -94,13 +91,10 @@ export class ResponsesService {
       );
     }
 
-    // Get current status from StatusProgress
+    // Get current status from StatusProgress (for DTO mapping)
     const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', session.id);
-    if (currentStatus) {
-      session.status = currentStatus.status;
-    }
 
-    return this.mapSessionToDto(session);
+    return await this.mapSessionToDto(session);
   }
 
   async getSession(sessionId: number): Promise<ResponseSessionDto> {
@@ -120,20 +114,16 @@ export class ResponsesService {
       throw new NotFoundException('Session not found');
     }
 
-    // Get current status from StatusProgress
+    // Get current status from StatusProgress (for DTO mapping)
     const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', sessionId);
-    if (currentStatus) {
-      session.status = currentStatus.status;
-    }
 
-    return this.mapSessionToDto(session);
+    return await this.mapSessionToDto(session);
   }
 
   async pauseSession(sessionId: number): Promise<{ message: string; lastSaved: Date }> {
     const session = await this.prisma.responseSession.update({
       where: { id: sessionId },
       data: {
-        status: 'paused',
         lastActivityAt: new Date()
       }
     });
@@ -157,7 +147,6 @@ export class ResponsesService {
     const session = await this.prisma.responseSession.update({
       where: { id: sessionId },
       data: {
-        status: 'in_progress',
         lastActivityAt: new Date()
       },
       include: {
@@ -390,11 +379,10 @@ export class ResponsesService {
         throw new BadRequestException('Cannot submit session: not all questions are answered or skipped');
       }
 
-      // Mark session as submitted in both tables
+      // Mark session as submitted
       await tx.responseSession.update({
         where: { id: sessionId },
         data: {
-          status: 'submitted',
           submittedAt: new Date(),
           lastActivityAt: new Date()
         }
@@ -480,12 +468,15 @@ export class ResponsesService {
     };
   }
 
-  private mapSessionToDto(session: any): ResponseSessionDto {
+  private async mapSessionToDto(session: any): Promise<ResponseSessionDto> {
+    // Get current status from StatusProgress
+    const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', session.id);
+    
     return {
       id: session.id,
       userId: session.userId,
       groupId: session.groupId,
-      status: session.status,
+      status: currentStatus?.status || 'draft',
       currentQuestionId: session.currentQuestionId,
       progressPercentage: session.progressPercentage,
       autoSaveEnabled: session.autoSaveEnabled,

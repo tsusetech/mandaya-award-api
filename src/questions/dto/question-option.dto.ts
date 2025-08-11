@@ -35,12 +35,21 @@ export class CreateQuestionOptionDto {
 
   @ApiProperty({ 
     example: true, 
-    description: 'For multiple-choice questions, indicates if this is the correct answer',
+    description: 'Indicates if this option is part of a multiple choice question',
     required: false 
   })
   @IsOptional()
   @IsBoolean()
-  isCorrect?: boolean;
+  isMultipleChoice?: boolean;
+
+  @ApiProperty({ 
+    example: true, 
+    description: 'Indicates if this option should be rendered as a checkbox',
+    required: false 
+  })
+  @IsOptional()
+  @IsBoolean()
+  isCheckBox?: boolean;
 }
 
 export class UpdateQuestionOptionDto {
@@ -73,12 +82,21 @@ export class UpdateQuestionOptionDto {
 
   @ApiProperty({ 
     example: true, 
-    description: 'For multiple-choice questions, indicates if this is the correct answer',
+    description: 'Indicates if this option is part of a multiple choice question',
     required: false 
   })
   @IsOptional()
   @IsBoolean()
-  isCorrect?: boolean;
+  isMultipleChoice?: boolean;
+
+  @ApiProperty({ 
+    example: true, 
+    description: 'Indicates if this option should be rendered as a checkbox',
+    required: false 
+  })
+  @IsOptional()
+  @IsBoolean()
+  isCheckBox?: boolean;
 
   @ApiProperty({ 
     example: true, 
@@ -107,7 +125,10 @@ export class QuestionOptionResponseDto {
   orderNumber: number;
 
   @ApiProperty({ example: true, required: false })
-  isCorrect?: boolean;
+  isMultipleChoice?: boolean;
+
+  @ApiProperty({ example: true, required: false })
+  isCheckBox?: boolean;
 
   @ApiProperty({ example: true })
   isActive: boolean;
