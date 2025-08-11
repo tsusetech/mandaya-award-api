@@ -9,7 +9,9 @@ import {
   Request,
   ParseIntPipe,
   HttpCode,
-  HttpStatus
+  HttpStatus,
+  Patch,
+  BadRequestException
 } from '@nestjs/common';
 import { 
   ApiTags, 
@@ -32,13 +34,14 @@ import { PaginatedResponseDto } from './dto/pagination.dto';
 import { AssessmentSessionDetailDto } from './dto/assessment-session.dto';
 import { CreateAssessmentReviewDto, AssessmentReviewResponseDto } from './dto/user-assessment-sessions.dto';
 import { BatchAssessmentReviewDto, BatchAssessmentReviewResponseDto } from './dto/user-assessment-sessions.dto';
+import { PrismaService } from '../prisma/prisma.service';
 
 @ApiTags('Assessments API')
 @ApiBearerAuth()
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('assessments')
 export class AssessmentsController {
-  constructor(private readonly assessmentsService: AssessmentsService) {}
+  constructor(private readonly assessmentsService: AssessmentsService, private readonly prisma: PrismaService) {}
 
   @Get('user-sessions')
   @Roles('ADMIN', 'SUPERADMIN', 'JURI')
@@ -131,14 +134,25 @@ export class AssessmentsController {
   }
 
   @Post('session/:sessionId/answer')
-  @HttpCode(HttpStatus.OK)
   @ApiOperation({ 
-    summary: 'Submit assessment answer',
-    description: 'Saves an answer for a specific assessment question with auto-save functionality'
+    summary: 'Submit a single assessment answer',
+    description: 'Submits a single answer for a specific question in an assessment session. Updates progress percentage automatically.'
   })
-  @ApiParam({ name: 'sessionId', description: 'Assessment Session ID', type: 'number' })
-  @ApiResponse({ status: 200, description: 'Answer saved successfully' })
-  @ApiResponse({ status: 404, description: 'Assessment session not found' })
+  @ApiParam({ name: 'sessionId', description: 'Assessment session ID', example: 1 })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'Answer submitted successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'Answer saved successfully' }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - Invalid data' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Session or question not found' })
   async submitAnswer(
     @Param('sessionId', ParseIntPipe) sessionId: number,
     @Body() answerDto: AssessmentAnswerDto
@@ -147,19 +161,74 @@ export class AssessmentsController {
   }
 
   @Post('session/:sessionId/batch-answer')
-  @HttpCode(HttpStatus.OK)
   @ApiOperation({ 
     summary: 'Submit multiple assessment answers',
-    description: 'Saves multiple assessment answers at once for efficiency'
+    description: 'Submits multiple answers for different questions in an assessment session. Updates progress percentage automatically.'
   })
-  @ApiParam({ name: 'sessionId', description: 'Assessment Session ID', type: 'number' })
-  @ApiResponse({ status: 200, description: 'Answers saved successfully' })
-  @ApiResponse({ status: 404, description: 'Assessment session not found' })
+  @ApiParam({ name: 'sessionId', description: 'Assessment session ID', example: 1 })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'Answers submitted successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        savedCount: { type: 'number', example: 3 },
+        message: { type: 'string', example: '3 answers saved successfully' }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - Invalid data' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Session not found' })
   async submitBatchAnswers(
     @Param('sessionId', ParseIntPipe) sessionId: number,
     @Body() batchDto: BatchAnswerDto
   ): Promise<{ success: boolean; savedCount: number; message: string }> {
     return this.assessmentsService.submitBatchAnswers(sessionId, batchDto);
+  }
+
+  @Patch('session/:sessionId/progress')
+  @ApiOperation({ 
+    summary: 'Update session progress percentage',
+    description: 'Updates the progress percentage for an assessment session. Useful for frontend-initiated progress updates.'
+  })
+  @ApiParam({ name: 'sessionId', description: 'Assessment session ID', example: 1 })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Progress updated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'Progress updated successfully' },
+        progressPercentage: { type: 'number', example: 75 }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - Invalid progress percentage' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Session not found' })
+  async updateSessionProgress(
+    @Param('sessionId', ParseIntPipe) sessionId: number,
+    @Body() body: { progressPercentage: number }
+  ): Promise<{ success: boolean; message: string; progressPercentage: number }> {
+    const { progressPercentage } = body;
+    
+    if (progressPercentage < 0 || progressPercentage > 100) {
+      throw new BadRequestException('Progress percentage must be between 0 and 100');
+    }
+
+    await this.prisma.responseSession.update({
+      where: { id: sessionId },
+      data: { progressPercentage }
+    });
+
+    return {
+      success: true,
+      message: 'Progress updated successfully',
+      progressPercentage
+    };
   }
 
   @Post('session/:sessionId/submit')
