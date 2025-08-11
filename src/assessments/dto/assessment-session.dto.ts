@@ -110,6 +110,14 @@ export class AssessmentSessionDetailDto {
   @IsString()
   status: AssessmentStatus;
 
+  @ApiProperty({ 
+    enum: CombinedStatus, 
+    example: CombinedStatus.SUBMITTED,
+    description: 'Final status that represents the overall state of the assessment'
+  })
+  @IsString()
+  finalStatus: CombinedStatus;
+
   @ApiProperty({ example: 75 })
   @IsNumber()
   progressPercentage: number;

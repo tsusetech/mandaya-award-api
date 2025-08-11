@@ -139,22 +139,8 @@ export class AssessmentsService {
       throw new BadRequestException(`Session status '${finalStatus}' does not match requested status '${paginationQuery.finalStatus}'`);
     }
 
-    // After calculating finalStatus, check if it's a resubmission
-    if (finalStatus === CombinedStatus.RESUBMITTED && sessionCurrentStatus !== 'resubmitted') {
-      // Update the session status to resubmitted via StatusProgress only
-      
-      // Record the status change in StatusProgress
-      await this.statusProgressService.recordStatusChange(
-        'response_session',
-        session.id,
-        'resubmitted',
-        userId,
-        { action: 'resubmission_detected' }
-      );
-      
-      // Update the current status for this response
-      sessionCurrentStatus = 'resubmitted';
-    }
+    // Note: Resubmission detection is now handled within calculateCombinedStatusWithResubmission
+    // No need to update session status here as the final status calculation already considers resubmission
 
     // Get ALL questions for this group (for progress calculation)
     const allGroupQuestions = await this.prisma.groupQuestion.findMany({
@@ -667,15 +653,28 @@ export class AssessmentsService {
     );
 
     // Filter by final status if provided
-    let filteredSessions = sessionsWithStatus;
-    if (finalStatus) {
-      filteredSessions = sessionsWithStatus.filter(session => {
-        const sessionStatus = session.currentStatus;
-        const reviewStatus = session.currentReviewStatus;
-        
-        return this.matchesCombinedStatus(finalStatus, sessionStatus, reviewStatus, session.review?.stage || null);
-      });
-    }
+          let filteredSessions = sessionsWithStatus;
+      if (finalStatus) {
+        const sessionsWithCalculatedStatus = await Promise.all(
+          sessionsWithStatus.map(async (session) => {
+            const calculatedFinalStatus = await this.calculateCombinedStatusWithResubmission(
+              session.currentStatus,
+              session.currentReviewStatus,
+              session.review?.stage || null,
+              session.id
+            );
+
+            return {
+              session,
+              matches: calculatedFinalStatus === finalStatus
+            };
+          })
+        );
+
+        filteredSessions = sessionsWithCalculatedStatus
+          .filter(item => item.matches)
+          .map(item => item.session);
+      }
 
     // Map to DTO with explicit null handling
     const data: UserAssessmentSessionDto[] = await Promise.all(filteredSessions.map(async (session) => {
@@ -754,6 +753,9 @@ export class AssessmentsService {
       
       case CombinedStatus.NEEDS_REVISION:
         return sessionStatus === 'submitted' && reviewStatus === 'needs_revision';
+      
+      case CombinedStatus.RESUBMITTED:
+        return sessionStatus === 'resubmitted';
       
       case CombinedStatus.APPROVED:
         return sessionStatus === 'submitted' && reviewStatus === 'approved';
@@ -978,6 +980,14 @@ export class AssessmentsService {
       };
     });
 
+    // Calculate final status
+    const finalStatus = await this.calculateCombinedStatusWithResubmission(
+      currentStatus?.status || 'draft',
+      currentReviewStatus?.status || null,
+      session.review?.stage || null,
+      session.id
+    );
+
     return {
       id: session.id,
       userId: session.userId,
@@ -986,6 +996,7 @@ export class AssessmentsService {
       groupId: session.groupId,
       groupName: session.group.groupName,
       status: (currentStatus?.status || 'draft') as AssessmentStatus,
+      finalStatus,
       progressPercentage: session.progressPercentage,
       autoSaveEnabled: session.autoSaveEnabled,
       currentQuestionId: session.currentQuestionId || undefined,
@@ -1715,12 +1726,32 @@ export class AssessmentsService {
   /**
    * Calculates the combined status with resubmission detection
    */
+    private async hasPreviousNeedsRevision(sessionId: number): Promise<boolean> {
+    // Check if this session has any previous review with 'needs_revision' status
+    const previousReviews = await this.prisma.review.findMany({
+      where: {
+        sessionId: sessionId,
+        decision: 'request_revision'
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    return previousReviews.length > 0;
+  }
+
   private async calculateCombinedStatusWithResubmission(
-    sessionStatus: string, 
-    reviewStatus: string | null, 
+    sessionStatus: string,
+    reviewStatus: string | null,
     reviewStage: string | null,
     sessionId: number
   ): Promise<CombinedStatus> {
+    // Handle resubmitted status - this should take priority
+    if (sessionStatus === 'resubmitted') {
+      return CombinedStatus.RESUBMITTED;
+    }
+    
     // Session statuses
     if (sessionStatus === 'draft') {
       return CombinedStatus.DRAFT;
@@ -1731,6 +1762,12 @@ export class AssessmentsService {
     }
     
     if (sessionStatus === 'submitted') {
+      // Check if this is a resubmission (has previous review with needs_revision)
+      const hasPreviousNeedsRevision = await this.hasPreviousNeedsRevision(sessionId);
+      if (hasPreviousNeedsRevision) {
+        return CombinedStatus.RESUBMITTED;
+      }
+      
       // If no review status, it's just submitted
       if (!reviewStatus) {
         return CombinedStatus.SUBMITTED;
@@ -1767,11 +1804,6 @@ export class AssessmentsService {
       }
       
       return CombinedStatus.PENDING_REVIEW;
-    }
-    
-    // Handle resubmitted status - this should take priority
-    if (sessionStatus === 'resubmitted') {
-      return CombinedStatus.RESUBMITTED; // Always return RESUBMITTED for resubmitted sessions
     }
     
     return CombinedStatus.DRAFT;
