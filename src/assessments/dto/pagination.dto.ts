@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsNumber, IsString, IsPositive, Min, Max } from 'class-validator';
+import { IsOptional, IsNumber, IsString, IsPositive, Min, Max, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
+import { CombinedStatus } from './combined-status.enum';
 
 export class PaginationQueryDto {
   @ApiProperty({ 
@@ -47,6 +48,16 @@ export class PaginationQueryDto {
   @IsOptional()
   @IsString()
   subsection?: string;
+
+  @ApiProperty({ 
+    example: 'submitted', 
+    description: 'Filter by final status (combines session and review statuses)',
+    required: false,
+    enum: CombinedStatus
+  })
+  @IsOptional()
+  @IsEnum(CombinedStatus)
+  finalStatus?: CombinedStatus;
 }
 
 export class PaginatedResponseDto<T> {

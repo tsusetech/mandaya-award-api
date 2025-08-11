@@ -134,6 +134,11 @@ export class AssessmentsService {
       session.id
     );
 
+    // Check if finalStatus filter is provided and if the session matches
+    if (paginationQuery?.finalStatus && finalStatus !== paginationQuery.finalStatus) {
+      throw new BadRequestException(`Session status '${finalStatus}' does not match requested status '${paginationQuery.finalStatus}'`);
+    }
+
     // After calculating finalStatus, check if it's a resubmission
     if (finalStatus === CombinedStatus.RESUBMITTED && sessionCurrentStatus !== 'resubmitted') {
       // Update the session status to resubmitted via StatusProgress only

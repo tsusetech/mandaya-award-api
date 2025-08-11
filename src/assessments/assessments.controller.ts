@@ -101,9 +101,23 @@ export class AssessmentsController {
   @Get('session/:groupId')
   @ApiOperation({ 
     summary: 'Get assessment questions for a group',
-    description: 'Retrieves all assessment questions for a group with filtering support. Creates or resumes an assessment session, and returns questions with current responses and progress. Supports filtering by sectionTitle and subsection.'
+    description: 'Retrieves all assessment questions for a group with filtering support. Creates or resumes an assessment session, and returns questions with current responses and progress. Supports filtering by sectionTitle, subsection, and finalStatus.'
   })
   @ApiParam({ name: 'groupId', description: 'Group ID', type: 'number' })
+  @ApiQuery({ 
+    name: 'page', 
+    required: false, 
+    type: 'number', 
+    description: 'Page number (starts from 1)',
+    example: 1
+  })
+  @ApiQuery({ 
+    name: 'limit', 
+    required: false, 
+    type: 'number', 
+    description: 'Number of items per page',
+    example: 10
+  })
   @ApiQuery({ 
     name: 'sectionTitle', 
     required: false, 
@@ -117,6 +131,14 @@ export class AssessmentsController {
     type: 'string', 
     description: 'Filter by subsection (case-insensitive)',
     example: 'Basic Info'
+  })
+  @ApiQuery({ 
+    name: 'finalStatus', 
+    required: false, 
+    type: 'string', 
+    description: 'Filter by final status (combines session and review statuses)',
+    example: 'submitted',
+    enum: ['draft', 'in_progress', 'submitted', 'pending_review', 'under_review', 'needs_revision', 'resubmitted', 'approved', 'rejected', 'passed_to_jury', 'jury_scoring', 'jury_deliberation', 'final_decision', 'completed']
   })
   @ApiResponse({ 
     status: 200, 

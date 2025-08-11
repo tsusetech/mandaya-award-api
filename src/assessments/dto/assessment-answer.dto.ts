@@ -55,4 +55,14 @@ export class AssessmentAnswerDto {
   @Min(0)
   @Max(100)
   progressPercentage?: number;
+
+  @ApiProperty({ 
+    example: 5, 
+    description: 'Current question ID being viewed/answered', 
+    required: false 
+  })
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  currentQuestionId?: number;
 }
