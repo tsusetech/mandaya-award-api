@@ -50,9 +50,9 @@ export class AssessmentQuestionDto {
   @IsString()
   description?: string;
 
-  @ApiProperty({ enum: QuestionInputType, example: QuestionInputType.TEXT_OPEN })
-  @IsEnum(QuestionInputType)
-  inputType: QuestionInputType;
+  @ApiProperty({ example: 'text-open' })
+  @IsString()
+  inputType: string;
 
   @ApiProperty({ example: true })
   @IsBoolean()

@@ -12,7 +12,7 @@ export class ResponseSessionDto {
   groupId: number;
 
   @ApiProperty({ example: 'in_progress' })
-  status: string;
+  status: string; // Just use the latest status from StatusProgress
 
   @ApiProperty({ example: 2, required: false })
   currentQuestionId?: number;
@@ -37,6 +37,31 @@ export class ResponseSessionDto {
 
   @ApiProperty({ example: '2024-01-01T00:31:00.000Z', required: false })
   submittedAt?: Date;
+
+  // Review-related fields
+  @ApiProperty({ example: 1, required: false })
+  reviewerId?: number;
+
+  @ApiProperty({ example: 'admin_validation', required: false })
+  stage?: string;
+
+  @ApiProperty({ example: 'approve', required: false })
+  decision?: string;
+
+  @ApiProperty({ example: 'Overall comments', required: false })
+  overallComments?: string;
+
+  @ApiProperty({ example: 85.5, required: false })
+  totalScore?: number;
+
+  @ApiProperty({ example: 'Deliberation notes', required: false })
+  deliberationNotes?: string;
+
+  @ApiProperty({ example: 'Internal notes', required: false })
+  internalNotes?: string;
+
+  @ApiProperty({ example: '2024-01-01T00:00:00.000Z', required: false })
+  reviewedAt?: Date;
 
   @ApiProperty({ 
     type: [QuestionResponseDto], 

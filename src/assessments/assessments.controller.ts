@@ -35,67 +35,28 @@ import { AssessmentSessionDetailDto } from './dto/assessment-session.dto';
 import { CreateAssessmentReviewDto, AssessmentReviewResponseDto } from './dto/user-assessment-sessions.dto';
 import { BatchAssessmentReviewDto, BatchAssessmentReviewResponseDto } from './dto/user-assessment-sessions.dto';
 import { PrismaService } from '../prisma/prisma.service';
+import { ResponseService } from '../common/services/response.service';
 
 @ApiTags('Assessments API')
 @ApiBearerAuth()
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('assessments')
 export class AssessmentsController {
-  constructor(private readonly assessmentsService: AssessmentsService, private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly assessmentsService: AssessmentsService, 
+    private readonly prisma: PrismaService,
+    private readonly responseService: ResponseService
+  ) {}
 
-  @Get('user-sessions')
-  @Roles('ADMIN', 'SUPERADMIN', 'JURI')
-  @ApiOperation({ 
-    summary: 'Get all user assessment sessions',
-    description: 'Retrieves all assessment sessions from users with pagination and filtering. Only accessible by admin, superadmin, and juri roles.'
-  })
-  @ApiQuery({ 
-    name: 'page', 
-    required: false, 
-    type: 'number', 
-    description: 'Page number (starts from 1)',
-    example: 1
-  })
-  @ApiQuery({ 
-    name: 'limit', 
-    required: false, 
-    type: 'number', 
-    description: 'Number of items per page',
-    example: 10
-  })
-  @ApiQuery({ 
-    name: 'finalStatus', 
-    required: false, 
-    type: 'string', 
-    description: 'Filter by final status (combines session and review statuses)',
-    example: 'submitted',
-    enum: ['draft', 'in_progress', 'submitted', 'pending_review', 'under_review', 'needs_revision', 'resubmitted', 'approved', 'rejected', 'passed_to_jury', 'jury_scoring', 'jury_deliberation', 'final_decision', 'completed']
-  })
-  @ApiQuery({ 
-    name: 'reviewStage', 
-    required: false, 
-    type: 'string', 
-    description: 'Filter by review stage (admin_validation, jury_scoring, jury_deliberation, final_decision)',
-    example: 'admin_validation'
-  })
-  @ApiQuery({ 
-    name: 'groupId', 
-    required: false, 
-    type: 'number', 
-    description: 'Filter by group ID',
-    example: 1
-  })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'User assessment sessions retrieved successfully',
-    type: PaginatedResponseDto<UserAssessmentSessionDto>
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @Get('user/:userId/sessions')
+  @ApiOperation({ summary: 'Get all assessment sessions for a user' })
+  @ApiResponse({ status: 200, description: 'Sessions retrieved successfully' })
   async getUserAssessmentSessions(
+    @Param('userId', ParseIntPipe) userId: number,
     @Query() query: UserAssessmentSessionsQueryDto
-  ): Promise<PaginatedResponseDto<UserAssessmentSessionDto>> {
-    return this.assessmentsService.getUserAssessmentSessions(query);
+  ) {
+    const sessions = await this.assessmentsService.getUserAssessmentSessions(userId, query, query.finalStatus);
+    return this.responseService.success(sessions, 'Sessions retrieved successfully');
   }
 
   @Get('session/:groupId')
@@ -307,24 +268,11 @@ export class AssessmentsController {
   }
 
   @Get('session/:sessionId/detail')
-  @Roles('ADMIN', 'SUPERADMIN', 'JURI')
-  @ApiOperation({ 
-    summary: 'Get assessment session details',
-    description: 'Retrieves detailed information about a specific assessment session including all questions, responses, and review information. Only accessible by admin, superadmin, and juri roles.'
-  })
-  @ApiParam({ name: 'sessionId', description: 'Assessment Session ID', type: 'number' })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Assessment session details retrieved successfully',
-    type: AssessmentSessionDetailDto
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  @ApiResponse({ status: 404, description: 'Assessment session not found' })
-  async getAssessmentSessionDetail(
-    @Param('sessionId', ParseIntPipe) sessionId: number
-  ): Promise<AssessmentSessionDetailDto> {
-    return this.assessmentsService.getAssessmentSessionDetail(sessionId);
+  @ApiOperation({ summary: 'Get detailed assessment session information' })
+  @ApiResponse({ status: 200, description: 'Session detail retrieved successfully', type: AssessmentSessionDto })
+  async getAssessmentSessionDetail(@Param('sessionId', ParseIntPipe) sessionId: number) {
+    const session = await this.assessmentsService.getAssessmentSessionDetail(sessionId);
+    return this.responseService.success(session, 'Session detail retrieved successfully');
   }
 
   @Post('session/:sessionId/review')
@@ -375,24 +323,5 @@ export class AssessmentsController {
     return this.assessmentsService.createBatchAssessmentReview(req.user.userId, sessionId, batchReviewDto);
   }
 
-  @Get('session/:sessionId/reviews')
-  @Roles('ADMIN', 'SUPERADMIN', 'JURI')
-  @ApiOperation({ 
-    summary: 'Get all reviews for an assessment session',
-    description: 'Retrieves all reviews created by different reviewers for a specific assessment session.'
-  })
-  @ApiParam({ name: 'sessionId', description: 'Assessment Session ID', type: 'number' })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'All reviews retrieved successfully',
-    type: [AssessmentReviewResponseDto]
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
-  @ApiResponse({ status: 404, description: 'Assessment session not found' })
-  async getAssessmentReviews(
-    @Param('sessionId', ParseIntPipe) sessionId: number
-  ): Promise<AssessmentReviewResponseDto[]> {
-    return this.assessmentsService.getAssessmentReviews(sessionId);
-  }
+  // Removed getAssessmentReviews endpoint - use reviews service instead
 }

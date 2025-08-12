@@ -1,8 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNumber, IsString, IsOptional, IsDateString, IsBoolean, IsArray, IsEnum, ValidateNested, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
-import { AssessmentStatus } from './assessment-session.dto';
-import { CombinedStatus } from './combined-status.enum';
+import { AssessmentQuestionDto } from './assessment-question.dto';
 
 export class UserAssessmentSessionDto {
   @ApiProperty({ example: 1 })
@@ -36,17 +35,9 @@ export class UserAssessmentSessionDto {
   @IsString()
   groupName: string;
 
-  @ApiProperty({ enum: AssessmentStatus, example: AssessmentStatus.SUBMITTED })
+  @ApiProperty({ example: 'submitted' })
   @IsString()
-  status: AssessmentStatus;
-
-  @ApiProperty({ 
-    enum: CombinedStatus, 
-    example: CombinedStatus.SUBMITTED,
-    description: 'Final status that represents the overall state of the assessment'
-  })
-  @IsString()
-  finalStatus: CombinedStatus;
+  status: string;
 
   @ApiProperty({ example: 75 })
   @IsNumber()
@@ -70,11 +61,6 @@ export class UserAssessmentSessionDto {
   @IsDateString()
   submittedAt?: string | null;
 
-  @ApiProperty({ example: 'pending', required: false, nullable: true })
-  @IsOptional()
-  @IsString()
-  reviewStatus?: string | null;
-
   // Review-related fields
   @ApiProperty({ example: 'admin_validation', required: false, nullable: true })
   @IsOptional()
@@ -96,63 +82,36 @@ export class UserAssessmentSessionDto {
   @IsDateString()
   reviewedAt?: string | null;
 
-  @ApiProperty({ example: 'John Reviewer', required: false, nullable: true })
+  @ApiProperty({ example: 'John Doe', required: false, nullable: true })
   @IsOptional()
   @IsString()
   reviewerName?: string | null;
 
-  @ApiProperty({ example: 'Overall comments about the assessment', required: false, nullable: true })
+  @ApiProperty({ example: 'Overall comments', required: false, nullable: true })
   @IsOptional()
   @IsString()
   reviewComments?: string | null;
 }
 
 export class UserAssessmentSessionsQueryDto {
-  @ApiProperty({ 
-    example: 1, 
-    description: 'Page number (starts from 1)',
-    required: false,
-    default: 1
-  })
+  @ApiProperty({ example: 1, required: false })
   @IsOptional()
-  page?: number = 1;
+  @IsNumber()
+  page?: number;
 
-  @ApiProperty({ 
-    example: 10, 
-    description: 'Number of items per page',
-    required: false,
-    default: 10
-  })
+  @ApiProperty({ example: 10, required: false })
   @IsOptional()
-  limit?: number = 10;
+  @IsNumber()
+  limit?: number;
 
   @ApiProperty({ 
     example: 'submitted', 
-    description: 'Filter by final status (combines session and review statuses)',
     required: false,
-    enum: CombinedStatus
-  })
-  @IsOptional()
-  @IsEnum(CombinedStatus)
-  finalStatus?: CombinedStatus;
-
-  @ApiProperty({ 
-    example: 'admin_validation', 
-    description: 'Filter by review stage',
-    required: false
+    description: 'Filter by status'
   })
   @IsOptional()
   @IsString()
-  reviewStage?: string;
-
-  @ApiProperty({ 
-    example: 1, 
-    description: 'Filter by group ID',
-    required: false
-  })
-  @IsOptional()
-  @IsNumber()
-  groupId?: number;
+  finalStatus?: string;
 }
 
 export enum ReviewStage {
@@ -262,7 +221,7 @@ export class CreateAssessmentReviewDto {
 export class AssessmentReviewResponseDto {
   @ApiProperty({ example: 1 })
   @IsNumber()
-  id: number;
+  reviewId: number;
 
   @ApiProperty({ example: 1 })
   @IsNumber()
@@ -280,7 +239,7 @@ export class AssessmentReviewResponseDto {
   @IsString()
   decision: string;
 
-  @ApiProperty({ example: 'Overall assessment is well-structured', required: false })
+  @ApiProperty({ example: 'Overall comments', required: false })
   @IsOptional()
   @IsString()
   overallComments?: string;
@@ -290,17 +249,39 @@ export class AssessmentReviewResponseDto {
   @IsNumber()
   totalScore?: number;
 
+  @ApiProperty({ example: 'Deliberation notes', required: false })
+  @IsOptional()
+  @IsString()
+  deliberationNotes?: string;
+
+  @ApiProperty({ example: 'Internal notes', required: false })
+  @IsOptional()
+  @IsString()
+  internalNotes?: string;
+
   @ApiProperty({ example: '2024-01-01T00:00:00Z' })
   @IsDateString()
   reviewedAt: string;
 
-  @ApiProperty({ example: 'John Reviewer' })
+  @ApiProperty({ example: 'John Doe' })
   @IsString()
   reviewerName: string;
 
   @ApiProperty({ example: 'Assessment review created successfully' })
   @IsString()
   message: string;
+
+  @ApiProperty({ example: true })
+  @IsBoolean()
+  isNewReview: boolean;
+
+  @ApiProperty({ example: 5 })
+  @IsNumber()
+  totalCommentsAdded: number;
+
+  @ApiProperty({ example: 3 })
+  @IsNumber()
+  totalScoresAdded: number;
 }
 
 export class BatchAssessmentReviewDto {

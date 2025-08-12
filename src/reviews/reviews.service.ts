@@ -1,10 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StatusProgressService } from '../common/services/status-progress.service';
-import { CreateReviewDto, ReviewStatus, ReviewDecision } from './dto/create-review.dto';
+import { CreateReviewDto, ReviewStatus } from './dto/create-review.dto';
 import { UpdateReviewDto } from './dto/update-review.dto';
 import { ReviewResponseDto } from './dto/review-response.dto';
-import { ReviewListResponseDto, ReviewListItemDto } from './dto/review-list.dto';
+import { ReviewListResponseDto } from './dto/review-list.dto';
 
 @Injectable()
 export class ReviewsService {
@@ -31,63 +31,57 @@ export class ReviewsService {
     const session = await this.prisma.responseSession.findUnique({
       where: { id: sessionId },
       include: {
-        user: true,
-        group: true,
-        responses: {
-          include: {
-            question: true
+        user: {
+          select: {
+            name: true
           }
         }
       }
     });
 
     if (!session) {
-      throw new NotFoundException('Response session not found');
+      throw new NotFoundException('Assessment session not found');
     }
 
     // Check if session is submitted using StatusProgress
-    const sessionStatus = await this.statusProgressService.getResponseSessionStatus(sessionId);
+    const sessionStatus = await this.statusProgressService.getLatestStatus(sessionId);
     if (sessionStatus !== 'submitted' && sessionStatus !== 'resubmitted') {
       throw new BadRequestException('Session must be submitted or resubmitted before it can be reviewed');
     }
 
-    // Check if review already exists
-    const existingReview = await this.prisma.review.findFirst({
-      where: { sessionId }
-    });
-
-    if (existingReview) {
-      throw new BadRequestException('Review already exists for this session');
+    // Check if review already exists (now checking session review fields)
+    if (session.reviewerId || session.stage || session.decision) {
+      throw new BadRequestException('Review already exists for this session. Use update endpoint to modify your review.');
     }
 
     // Determine review status based on decision and stage
-    let status: ReviewStatus;
+    let status: string;
     switch (decision) {
-      case ReviewDecision.APPROVE:
-        status = ReviewStatus.APPROVED;
+      case 'approve':
+        status = 'approved';
         break;
-      case ReviewDecision.REJECT:
-        status = ReviewStatus.REJECTED;
+      case 'reject':
+        status = 'rejected';
         break;
-      case ReviewDecision.REQUEST_REVISION:
-        status = ReviewStatus.NEEDS_REVISION;
+      case 'request_revision':
+        status = 'needs_revision';
         break;
-      case ReviewDecision.PASS_TO_JURY:
-        status = ReviewStatus.IN_PROGRESS;
+      case 'pass_to_jury':
+        status = 'in_progress';
         break;
-      case ReviewDecision.NEEDS_DELIBERATION:
-        status = ReviewStatus.DELIBERATED;
+      case 'needs_deliberation':
+        status = 'deliberated';
         break;
       default:
         throw new BadRequestException('Invalid review decision');
     }
 
     // Create review with transaction
-    const review = await this.prisma.$transaction(async (prisma) => {
-      // Create the main review
-      const newReview = await prisma.review.create({
+    const updatedSession = await this.prisma.$transaction(async (prisma) => {
+      // Update session with review data
+      const updatedSession = await prisma.responseSession.update({
+        where: { id: sessionId },
         data: {
-          sessionId,
           reviewerId,
           stage,
           decision,
@@ -99,31 +93,31 @@ export class ReviewsService {
           reviewedAt: new Date()
         },
         include: {
-          reviewer: true,
-          session: {
-            include: {
-              user: true,
-              group: true
+          user: {
+            select: {
+              name: true
             }
           },
-          comments: {
-            include: {
-              question: true
-            }
-          },
-          juryScores: {
-            include: {
-              question: true
+          reviewer: {
+            select: {
+              name: true
             }
           }
         }
       });
 
+      // Record review status in StatusProgress
+      await this.statusProgressService.recordStatusChange(
+        sessionId,
+        status,
+        reviewerId
+      );
+
       // Create question comments if provided
       if (questionComments && questionComments.length > 0) {
         await prisma.reviewComment.createMany({
           data: questionComments.map(comment => ({
-            reviewId: newReview.id,
+            sessionId, // Changed from reviewId to sessionId
             questionId: comment.questionId,
             comment: comment.comment,
             isCritical: comment.isCritical || false,
@@ -136,7 +130,7 @@ export class ReviewsService {
       if (juryScores && juryScores.length > 0) {
         await prisma.juryScore.createMany({
           data: juryScores.map(score => ({
-            reviewId: newReview.id,
+            sessionId, // Changed from reviewId to sessionId
             questionId: score.questionId,
             score: score.score,
             comments: score.comments
@@ -144,75 +138,29 @@ export class ReviewsService {
         });
       }
 
-      // Record review status change in StatusProgress
-      await this.statusProgressService.recordStatusChange(
-        'review',
-        newReview.id,
-        status,
-        reviewerId,
-        { 
-          action: 'create_review',
-          stage,
-          decision,
-          sessionId
-        }
-      );
-
-      return newReview;
+      return updatedSession;
     });
 
-    return await this.mapReviewToDto(review);
+    return {
+      sessionId: updatedSession.id,
+      reviewerId: updatedSession.reviewerId!,
+      reviewerName: updatedSession.reviewer?.name || 'Unknown Reviewer',
+      stage: updatedSession.stage!,
+      decision: updatedSession.decision!,
+      overallComments: updatedSession.overallComments || undefined,
+      totalScore: updatedSession.totalScore ? Number(updatedSession.totalScore) : undefined,
+      deliberationNotes: updatedSession.deliberationNotes || undefined,
+      internalNotes: updatedSession.internalNotes || undefined,
+      validationChecklist: Array.isArray(updatedSession.validationChecklist) ? updatedSession.validationChecklist : undefined,
+      reviewedAt: updatedSession.reviewedAt || new Date(),
+      createdAt: updatedSession.createdAt || new Date(),
+      updatedAt: updatedSession.updatedAt || new Date(),
+      comments: [], // Will be populated separately if needed
+      juryScores: [] // Will be populated separately if needed
+    };
   }
 
-  async getReview(reviewId: number): Promise<ReviewResponseDto> {
-    const review = await this.prisma.review.findUnique({
-      where: { id: reviewId },
-      include: {
-        reviewer: true,
-        session: {
-          include: {
-            user: true,
-            group: true
-          }
-        },
-        comments: {
-          include: {
-            question: true
-          }
-        },
-        juryScores: {
-          include: {
-            question: true
-          }
-        }
-      }
-    });
-
-    if (!review) {
-      throw new NotFoundException('Review not found');
-    }
-
-    // Get current status from StatusProgress (for DTO mapping)
-    const currentStatus = await this.statusProgressService.getCurrentStatus('review', reviewId);
-
-    return await this.mapReviewToDto(review);
-  }
-
-  async updateReview(reviewId: number, updateReviewDto: UpdateReviewDto): Promise<ReviewResponseDto> {
-    const review = await this.prisma.review.findUnique({
-      where: { id: reviewId }
-    });
-
-    if (!review) {
-      throw new NotFoundException('Review not found');
-    }
-
-    // Only allow updates if review is not finalized
-    const currentStatus = await this.statusProgressService.getCurrentStatus('review', reviewId);
-    if (currentStatus?.status === 'approved' || currentStatus?.status === 'rejected') {
-      throw new BadRequestException('Cannot update finalized review');
-    }
-
+  async updateReview(reviewerId: number, sessionId: number, updateReviewDto: UpdateReviewDto): Promise<ReviewResponseDto> {
     const { 
       stage, 
       decision, 
@@ -225,40 +173,62 @@ export class ReviewsService {
       validationChecklist 
     } = updateReviewDto;
 
-    // Determine new status based on decision and stage
-    let status: ReviewStatus;
-    if (decision) {
-      switch (decision) {
-        case ReviewDecision.APPROVE:
-          status = ReviewStatus.APPROVED;
-          break;
-        case ReviewDecision.REJECT:
-          status = ReviewStatus.REJECTED;
-          break;
-        case ReviewDecision.REQUEST_REVISION:
-          status = ReviewStatus.NEEDS_REVISION;
-          break;
-        case ReviewDecision.PASS_TO_JURY:
-          status = ReviewStatus.IN_PROGRESS;
-          break;
-        case ReviewDecision.NEEDS_DELIBERATION:
-          status = ReviewStatus.DELIBERATED;
-          break;
-        default:
-          throw new BadRequestException('Invalid review decision');
+    // Check if session exists and has a review
+    const session = await this.prisma.responseSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        user: {
+          select: {
+            name: true
+          }
+        },
+        reviewer: {
+          select: {
+            name: true
+          }
+        }
       }
-    } else {
-      status = (currentStatus?.status || 'pending') as ReviewStatus;
+    });
+
+    if (!session) {
+      throw new NotFoundException('Assessment session not found');
     }
 
-    // Update review with transaction - write to both tables
-    const updatedReview = await this.prisma.$transaction(async (prisma) => {
-      // Update the main review
-      const updatedReview = await prisma.review.update({
-        where: { id: reviewId },
+    if (!session.reviewerId || !session.stage || !session.decision) {
+      throw new BadRequestException('No review exists for this session. Use create endpoint to create a new review.');
+    }
+
+    // Determine review status based on decision and stage
+    let status: string;
+    switch (decision) {
+      case 'approve':
+        status = 'approved';
+        break;
+      case 'reject':
+        status = 'rejected';
+        break;
+      case 'request_revision':
+        status = 'needs_revision';
+        break;
+      case 'pass_to_jury':
+        status = 'in_progress';
+        break;
+      case 'needs_deliberation':
+        status = 'deliberated';
+        break;
+      default:
+        throw new BadRequestException('Invalid review decision');
+    }
+
+    // Update review with transaction
+    const updatedSession = await this.prisma.$transaction(async (prisma) => {
+      // Update session with review data
+      const updatedSession = await prisma.responseSession.update({
+        where: { id: sessionId },
         data: {
-          stage: stage || review.stage,
-          decision: decision || review.decision,
+          reviewerId,
+          stage,
+          decision,
           overallComments,
           totalScore,
           deliberationNotes,
@@ -267,56 +237,53 @@ export class ReviewsService {
           reviewedAt: new Date()
         },
         include: {
-          reviewer: true,
-          session: {
-            include: {
-              user: true,
-              group: true
+          user: {
+            select: {
+              name: true
             }
           },
-          comments: {
-            include: {
-              question: true
-            }
-          },
-          juryScores: {
-            include: {
-              question: true
+          reviewer: {
+            select: {
+              name: true
             }
           }
         }
       });
 
-      // Update question comments if provided
-      if (questionComments && questionComments.length > 0) {
-        // Delete existing comments
-        await prisma.reviewComment.deleteMany({
-          where: { reviewId }
-        });
+      // Record review status in StatusProgress
+      await this.statusProgressService.recordStatusChange(
+        sessionId,
+        status,
+        reviewerId
+      );
 
-        // Create new comments
+      // Delete existing comments and scores
+      await prisma.reviewComment.deleteMany({
+        where: { sessionId } // Changed from reviewId to sessionId
+      });
+
+      await prisma.juryScore.deleteMany({
+        where: { sessionId } // Changed from reviewId to sessionId
+      });
+
+      // Create new question comments if provided
+      if (questionComments && questionComments.length > 0) {
         await prisma.reviewComment.createMany({
           data: questionComments.map(comment => ({
-            reviewId,
+            sessionId, // Changed from reviewId to sessionId
             questionId: comment.questionId,
             comment: comment.comment,
             isCritical: comment.isCritical || false,
-            stage: comment.stage || stage || review.stage
+            stage: comment.stage || stage
           }))
         });
       }
 
-      // Update jury scores if provided
+      // Create new jury scores if provided
       if (juryScores && juryScores.length > 0) {
-        // Delete existing scores
-        await prisma.juryScore.deleteMany({
-          where: { reviewId }
-        });
-
-        // Create new scores
         await prisma.juryScore.createMany({
           data: juryScores.map(score => ({
-            reviewId,
+            sessionId, // Changed from reviewId to sessionId
             questionId: score.questionId,
             score: score.score,
             comments: score.comments
@@ -324,259 +291,285 @@ export class ReviewsService {
         });
       }
 
-      // Update session reviewedAt timestamp
-      await prisma.responseSession.update({
-        where: { id: review.sessionId },
-        data: {
-          reviewedAt: new Date()
-        }
-      });
+      return updatedSession;
+    });
 
-      // Record status change in StatusProgress if status changed
-      if (status !== currentStatus?.status) {
-        await this.statusProgressService.recordStatusChange(
-          'review',
-          reviewId,
-          status,
-          review.reviewerId,
-          { 
-            action: 'update_review',
-            stage: stage || review.stage,
-            decision: decision || review.decision,
-            sessionId: review.sessionId
+    return {
+      sessionId: updatedSession.id,
+      reviewerId: updatedSession.reviewerId!,
+      reviewerName: updatedSession.reviewer?.name || 'Unknown Reviewer',
+      stage: updatedSession.stage!,
+      decision: updatedSession.decision!,
+      overallComments: updatedSession.overallComments || undefined,
+      totalScore: updatedSession.totalScore ? Number(updatedSession.totalScore) : undefined,
+      deliberationNotes: updatedSession.deliberationNotes || undefined,
+      internalNotes: updatedSession.internalNotes || undefined,
+      validationChecklist: Array.isArray(updatedSession.validationChecklist) ? updatedSession.validationChecklist : undefined,
+      reviewedAt: updatedSession.reviewedAt?.toISOString() || new Date().toISOString(),
+      createdAt: updatedSession.createdAt?.toISOString() || new Date().toISOString(),
+      updatedAt: updatedSession.updatedAt?.toISOString() || new Date().toISOString(),
+      comments: [], // Will be populated separately if needed
+      juryScores: [] // Will be populated separately if needed
+    };
+  }
+
+  async getReview(sessionId: number): Promise<ReviewResponseDto> {
+    const session = await this.prisma.responseSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        user: {
+          select: {
+            name: true
           }
-        );
-      }
-
-      return updatedReview;
-    });
-
-    return this.mapReviewToDto(updatedReview);
-  }
-
-  async getReviewsForReviewer(
-    reviewerId: number,
-    page: number = 1,
-    limit: number = 10,
-    status?: ReviewStatus
-  ): Promise<ReviewListResponseDto> {
-    const skip = (page - 1) * limit;
-
-    const where: any = {
-      reviewerId
-    };
-
-    const [reviews, total] = await Promise.all([
-      this.prisma.review.findMany({
-        where,
-        include: {
-          session: {
-            include: {
-              user: true,
-              group: true
-            }
-          },
-          reviewer: true
         },
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit
-      }),
-      this.prisma.review.count({ where })
-    ]);
-
-    const reviewList = await Promise.all(reviews.map(review => this.mapReviewToListDto(review)));
-
-    return {
-      reviews: reviewList,
-      total,
-      page,
-      limit
-    };
-  }
-
-  async getPendingReviews(
-    page: number = 1,
-    limit: number = 10
-  ): Promise<ReviewListResponseDto> {
-    const skip = (page - 1) * limit;
-
-    // Get all submitted sessions
-    const [sessions, total] = await Promise.all([
-      this.prisma.responseSession.findMany({
-        where: {
-          // We'll filter by status using StatusProgress after fetching
-        },
-        include: {
-          user: true,
-          group: true
-        },
-        orderBy: { submittedAt: 'desc' },
-        skip,
-        take: limit
-      }),
-      this.prisma.responseSession.count({
-        where: {
-          // We'll filter by status using StatusProgress after fetching
-        }
-      })
-    ]);
-
-    // Filter sessions that are submitted and don't have reviews
-    const pendingSessions: any[] = [];
-    for (const session of sessions) {
-      const sessionStatus = await this.statusProgressService.getResponseSessionStatus(session.id);
-      const hasReview = await this.prisma.review.findFirst({
-        where: { sessionId: session.id }
-      });
-      
-      if (sessionStatus === 'submitted' && !hasReview) {
-        pendingSessions.push(session);
-      }
-    }
-
-    const reviewList = pendingSessions.map(session => this.mapSessionToListDto(session));
-
-    return {
-      reviews: reviewList,
-      total: pendingSessions.length,
-      page,
-      limit
-    };
-  }
-
-  async getReviewStats(): Promise<{
-    pending: number;
-    approved: number;
-    rejected: number;
-    needsRevision: number;
-    total: number;
-  }> {
-    // Get all submitted sessions
-    const submittedSessions = await this.prisma.responseSession.findMany({
-      where: {
-        // We'll filter by status using StatusProgress
-      }
-    });
-
-    let pending = 0;
-    let approved = 0;
-    let rejected = 0;
-    let needsRevision = 0;
-    let total = 0;
-
-    for (const session of submittedSessions) {
-      const sessionStatus = await this.statusProgressService.getResponseSessionStatus(session.id);
-      
-      if (sessionStatus === 'submitted') {
-        total++;
-        
-        const review = await this.prisma.review.findFirst({
-          where: { sessionId: session.id }
-        });
-        
-        if (!review) {
-          pending++;
-        } else {
-          const reviewStatus = await this.statusProgressService.getReviewStatus(review.id);
-          switch (reviewStatus) {
-            case 'approved':
-              approved++;
-              break;
-            case 'rejected':
-              rejected++;
-              break;
-            case 'needs_revision':
-              needsRevision++;
-              break;
-            default:
-              pending++;
+        reviewer: {
+          select: {
+            name: true
           }
         }
       }
+    });
+
+    if (!session) {
+      throw new NotFoundException('Assessment session not found');
     }
 
-    return {
-      pending,
-      approved,
-      rejected,
-      needsRevision,
-      total
-    };
-  }
+    if (!session.reviewerId || !session.stage || !session.decision) {
+      throw new NotFoundException('No review found for this session');
+    }
 
-  private async mapReviewToDto(review: any): Promise<ReviewResponseDto> {
-    // Get current status from StatusProgress
-    const currentStatus = await this.statusProgressService.getReviewStatus(review.id);
-    
+    // Get review comments for this session
+    const reviewComments = await this.prisma.reviewComment.findMany({
+      where: { sessionId },
+      include: {
+        question: true
+      }
+    });
+
+    // Get jury scores for this session
+    const juryScores = await this.prisma.juryScore.findMany({
+      where: { sessionId },
+      include: {
+        question: true
+      }
+    });
+
     return {
-      id: review.id,
-      sessionId: review.sessionId,
-      reviewerId: review.reviewerId,
-      reviewerName: review.reviewer.name,
-      stage: review.stage,
-      status: currentStatus || 'pending',
-      decision: review.decision,
-      overallComments: review.overallComments,
-      totalScore: review.totalScore,
-      deliberationNotes: review.deliberationNotes,
-      internalNotes: review.internalNotes,
-      validationChecklist: review.validationChecklist,
-      questionComments: review.comments.map(comment => ({
+      sessionId: session.id,
+      reviewerId: session.reviewerId,
+      reviewerName: session.reviewer?.name || 'Unknown Reviewer',
+      stage: session.stage,
+      decision: session.decision,
+      overallComments: session.overallComments || undefined,
+      totalScore: session.totalScore ? Number(session.totalScore) : undefined,
+      deliberationNotes: session.deliberationNotes || undefined,
+      internalNotes: session.internalNotes || undefined,
+      validationChecklist: session.validationChecklist || undefined,
+      reviewedAt: session.reviewedAt?.toISOString() || new Date().toISOString(),
+      createdAt: session.createdAt?.toISOString() || new Date().toISOString(),
+      updatedAt: session.updatedAt?.toISOString() || new Date().toISOString(),
+      comments: reviewComments.map(comment => ({
         id: comment.id,
         questionId: comment.questionId,
+        questionText: comment.question.questionText,
         comment: comment.comment,
         isCritical: comment.isCritical,
-        stage: comment.stage,
-        createdAt: comment.createdAt
+        stage: comment.stage || undefined,
+        createdAt: comment.createdAt.toISOString()
       })),
-      juryScores: review.juryScores.map(score => ({
+      juryScores: juryScores.map(score => ({
         id: score.id,
         questionId: score.questionId,
+        questionText: score.question.questionText,
         score: score.score,
-        comments: score.comments,
-        createdAt: score.createdAt
-      })),
-      reviewedAt: review.reviewedAt,
-      createdAt: review.createdAt,
-      updatedAt: review.updatedAt
+        comments: score.comments || undefined,
+        createdAt: score.createdAt.toISOString()
+      }))
     };
   }
 
-  private async mapReviewToListDto(review: any): Promise<ReviewListItemDto> {
+  async getReviews(
+    paginationQuery?: any,
+    filters?: any
+  ): Promise<ReviewListResponseDto> {
+    const { page = 1, limit = 10 } = paginationQuery || {};
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const where: any = {
+      reviewerId: { not: null },
+      stage: { not: null },
+      decision: { not: null }
+    };
+
+    if (filters?.status) {
+      // Get sessions with specific status from StatusProgress
+      const sessionsWithStatus = await this.statusProgressService.getSessionsByStatus(filters.status);
+      where.id = { in: sessionsWithStatus };
+    }
+
+    if (filters?.reviewerId) {
+      where.reviewerId = filters.reviewerId;
+    }
+
+    if (filters?.stage) {
+      where.stage = filters.stage;
+    }
+
+    if (filters?.decision) {
+      where.decision = filters.decision;
+    }
+
+    // Get total count
+    const total = await this.prisma.responseSession.count({ where });
+
+    // Get sessions with review data
+    const sessions = await this.prisma.responseSession.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true
+          }
+        },
+        reviewer: {
+          select: {
+            name: true
+          }
+        },
+        group: {
+          select: {
+            groupName: true
+          }
+        }
+      },
+      skip,
+      take: limit,
+      orderBy: {
+        reviewedAt: 'desc'
+      }
+    });
+
+    // Map to DTO
+    const data = await Promise.all(
+      sessions.map(async (session) => {
+        const currentStatus = await this.statusProgressService.getLatestStatus(session.id);
+        
+        return {
+          id: session.id,
+          sessionId: session.id,
+          reviewerId: session.reviewerId!,
+          reviewerName: session.reviewer?.name || 'Unknown Reviewer',
+          stage: session.stage!,
+          decision: session.decision!,
+          status: currentStatus || 'pending',
+          reviewedAt: session.reviewedAt?.toISOString() || new Date().toISOString(),
+          createdAt: session.createdAt?.toISOString() || new Date().toISOString(),
+          userName: session.user.name || 'Unknown User',
+          userEmail: session.user.email,
+          groupName: session.group.groupName
+        };
+      })
+    );
+
+    const totalPages = Math.ceil(total / limit);
+    const hasNext = page < totalPages;
+    const hasPrev = page > 1;
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages,
+      hasNext,
+      hasPrev
+    };
+  }
+
+  async deleteReview(sessionId: number): Promise<{ success: boolean; message: string }> {
+    const session = await this.prisma.responseSession.findUnique({
+      where: { id: sessionId }
+    });
+
+    if (!session) {
+      throw new NotFoundException('Assessment session not found');
+    }
+
+    if (!session.reviewerId || !session.stage || !session.decision) {
+      throw new NotFoundException('No review found for this session');
+    }
+
+    await this.prisma.$transaction(async (prisma) => {
+      // Delete review comments
+      await prisma.reviewComment.deleteMany({
+        where: { sessionId }
+      });
+
+      // Delete jury scores
+      await prisma.juryScore.deleteMany({
+        where: { sessionId }
+      });
+
+      // Clear review data from session
+      await prisma.responseSession.update({
+        where: { id: sessionId },
+        data: {
+          reviewerId: null,
+          stage: null,
+          decision: null,
+          overallComments: null,
+          totalScore: null,
+          deliberationNotes: null,
+          internalNotes: null,
+          validationChecklist: null,
+          reviewedAt: null
+        }
+      });
+
+      // Record status change back to submitted
+      await this.statusProgressService.recordStatusChange(
+        sessionId,
+        'submitted',
+        null
+      );
+    });
+
+    return {
+      success: true,
+      message: 'Review deleted successfully'
+    };
+  }
+
+  async hasReview(sessionId: number): Promise<boolean> {
+    const session = await this.prisma.responseSession.findUnique({
+      where: { id: sessionId },
+      select: {
+        reviewerId: true,
+        stage: true,
+        decision: true
+      }
+    });
+
+    return !!(session?.reviewerId && session?.stage && session?.decision);
+  }
+
+  async getReviewStatus(sessionId: number): Promise<string | null> {
+    const session = await this.prisma.responseSession.findUnique({
+      where: { id: sessionId },
+      select: {
+        reviewerId: true,
+        stage: true,
+        decision: true
+      }
+    });
+
+    if (!session?.reviewerId || !session?.stage || !session?.decision) {
+      return null;
+    }
+
     // Get current status from StatusProgress
-    const currentStatus = await this.statusProgressService.getReviewStatus(review.id);
-    
-    return {
-      id: review.id,
-      sessionId: review.sessionId,
-      userId: review.session.userId,
-      userName: review.session.user.name,
-      groupId: review.session.groupId,
-      groupName: review.session.group.groupName,
-      status: currentStatus || 'pending',
-      submittedAt: review.session.submittedAt,
-      reviewerId: review.reviewerId,
-      reviewerName: review.reviewer.name,
-      reviewedAt: review.reviewedAt,
-      decision: review.decision
-    };
-  }
-
-  private mapSessionToListDto(session: any): ReviewListItemDto {
-    return {
-      id: undefined, // No review ID yet
-      sessionId: session.id,
-      userId: session.userId,
-      userName: session.user.name,
-      groupId: session.groupId,
-      groupName: session.group.groupName,
-      status: 'pending',
-      submittedAt: session.submittedAt,
-      reviewerId: undefined,
-      reviewerName: undefined,
-      reviewedAt: undefined,
-      decision: undefined
-    };
+    return await this.statusProgressService.getLatestStatus(sessionId);
   }
 }

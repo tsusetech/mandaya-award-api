@@ -53,11 +53,9 @@ export class ResponsesService {
 
       // Record status change in StatusProgress
       await this.statusProgressService.recordStatusChange(
-        'response_session',
         session.id,
         'in_progress',
-        userId,
-        { action: 'resume_session' }
+        userId
       );
 
       // Update session object for response
@@ -83,16 +81,14 @@ export class ResponsesService {
 
       // Record initial status in StatusProgress
       await this.statusProgressService.recordStatusChange(
-        'response_session',
         session.id,
         'draft',
-        userId,
-        { action: 'create_session' }
+        userId
       );
     }
 
     // Get current status from StatusProgress (for DTO mapping)
-    const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', session.id);
+    const currentStatus = await this.statusProgressService.getCurrentStatus(session.id);
 
     return await this.mapSessionToDto(session);
   }
@@ -115,7 +111,7 @@ export class ResponsesService {
     }
 
     // Get current status from StatusProgress (for DTO mapping)
-    const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', sessionId);
+    const currentStatus = await this.statusProgressService.getCurrentStatus(sessionId);
 
     return await this.mapSessionToDto(session);
   }
@@ -130,11 +126,9 @@ export class ResponsesService {
 
     // Record status change in StatusProgress
     await this.statusProgressService.recordStatusChange(
-      'response_session',
       sessionId,
       'paused',
-      session.userId,
-      { action: 'pause_session' }
+      session.userId
     );
 
     return {
@@ -156,11 +150,9 @@ export class ResponsesService {
 
     // Record status change in StatusProgress
     await this.statusProgressService.recordStatusChange(
-      'response_session',
       sessionId,
       'in_progress',
-      session.userId,
-      { action: 'resume_session' }
+      session.userId
     );
 
     return {
@@ -352,6 +344,7 @@ export class ResponsesService {
       const session = await tx.responseSession.findUnique({
         where: { id: sessionId },
         include: {
+          user: true,
           group: {
             include: {
               groupQuestions: {
@@ -390,16 +383,9 @@ export class ResponsesService {
 
       // Record status change in StatusProgress
       await this.statusProgressService.recordStatusChange(
-        'response_session',
         sessionId,
         'submitted',
-        session.userId,
-        { 
-          action: 'submit_session',
-          totalQuestions,
-          answeredQuestions,
-          skippedQuestions
-        }
+        session.userId
       );
 
       return {
@@ -470,7 +456,7 @@ export class ResponsesService {
 
   private async mapSessionToDto(session: any): Promise<ResponseSessionDto> {
     // Get current status from StatusProgress
-    const currentStatus = await this.statusProgressService.getCurrentStatus('response_session', session.id);
+    const currentStatus = await this.statusProgressService.getCurrentStatus(session.id);
     
     return {
       id: session.id,

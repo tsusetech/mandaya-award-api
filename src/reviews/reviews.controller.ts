@@ -1,7 +1,8 @@
 import { 
   Controller, 
-  Post, 
   Get, 
+  Post, 
+  Delete,
   Put, 
   Body, 
   Param, 
@@ -40,64 +41,70 @@ export class ReviewsController {
     return this.responseService.success({ review }, 'Review created successfully');
   }
 
-  @Get(':reviewId')
-  @ApiOperation({ summary: 'Get review details' })
+  @Get('session/:sessionId')
+  @ApiOperation({ summary: 'Get review details for a session' })
   @ApiResponse({ status: 200, description: 'Review retrieved successfully', type: ReviewResponseDto })
-  async getReview(@Param('reviewId', ParseIntPipe) reviewId: number) {
-    const review = await this.reviewsService.getReview(reviewId);
+  async getReview(@Param('sessionId', ParseIntPipe) sessionId: number) {
+    const review = await this.reviewsService.getReview(sessionId);
     return this.responseService.success({ review }, 'Review retrieved successfully');
   }
 
-  @Put(':reviewId')
-  @ApiOperation({ summary: 'Update an existing review' })
+  @Put('session/:sessionId')
+  @ApiOperation({ summary: 'Update an existing review for a session' })
   @ApiResponse({ status: 200, description: 'Review updated successfully', type: ReviewResponseDto })
   async updateReview(
-    @Param('reviewId', ParseIntPipe) reviewId: number,
+    @Request() req,
+    @Param('sessionId', ParseIntPipe) sessionId: number,
     @Body() updateReviewDto: UpdateReviewDto
   ) {
-    const review = await this.reviewsService.updateReview(reviewId, updateReviewDto);
+    const review = await this.reviewsService.updateReview(req.user.userId, sessionId, updateReviewDto);
     return this.responseService.success({ review }, 'Review updated successfully');
   }
 
-  @Get('my-reviews')
-  @ApiOperation({ summary: 'Get reviews created by the current reviewer' })
+  @Delete('session/:sessionId')
+  @ApiOperation({ summary: 'Delete a review for a session' })
+  @ApiResponse({ status: 200, description: 'Review deleted successfully' })
+  async deleteReview(@Param('sessionId', ParseIntPipe) sessionId: number) {
+    const result = await this.reviewsService.deleteReview(sessionId);
+    return this.responseService.success(result, 'Review deleted successfully');
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Get all reviews with pagination and filters' })
   @ApiResponse({ status: 200, description: 'Reviews retrieved successfully', type: ReviewListResponseDto })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'status', required: false, enum: ReviewStatus })
-  async getMyReviews(
-    @Request() req,
+  @ApiQuery({ name: 'status', required: false, type: String })
+  @ApiQuery({ name: 'reviewerId', required: false, type: Number })
+  @ApiQuery({ name: 'stage', required: false, type: String })
+  @ApiQuery({ name: 'decision', required: false, type: String })
+  async getReviews(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
-    @Query('status') status?: ReviewStatus
+    @Query('status') status?: string,
+    @Query('reviewerId') reviewerId?: number,
+    @Query('stage') stage?: string,
+    @Query('decision') decision?: string
   ) {
-    const reviews = await this.reviewsService.getReviewsForReviewer(
-      req.user.userId,
-      page,
-      limit,
-      status
-    );
+    const paginationQuery = { page, limit };
+    const filters = { status, reviewerId, stage, decision };
+    const reviews = await this.reviewsService.getReviews(paginationQuery, filters);
     return this.responseService.success(reviews, 'Reviews retrieved successfully');
   }
 
-  @Get('pending')
-  @ApiOperation({ summary: 'Get all pending reviews that need to be assigned' })
-  @ApiResponse({ status: 200, description: 'Pending reviews retrieved successfully', type: ReviewListResponseDto })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  async getPendingReviews(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number
-  ) {
-    const reviews = await this.reviewsService.getPendingReviews(page, limit);
-    return this.responseService.success(reviews, 'Pending reviews retrieved successfully');
+  @Get('session/:sessionId/status')
+  @ApiOperation({ summary: 'Check if a session has a review' })
+  @ApiResponse({ status: 200, description: 'Review status checked successfully' })
+  async hasReview(@Param('sessionId', ParseIntPipe) sessionId: number) {
+    const hasReview = await this.reviewsService.hasReview(sessionId);
+    return this.responseService.success({ hasReview }, 'Review status checked successfully');
   }
 
-  @Get('stats/overview')
-  @ApiOperation({ summary: 'Get review statistics overview' })
-  @ApiResponse({ status: 200, description: 'Statistics retrieved successfully' })
-  async getReviewStats() {
-    const stats = await this.reviewsService.getReviewStats();
-    return this.responseService.success({ stats }, 'Review statistics retrieved successfully');
+  @Get('session/:sessionId/review-status')
+  @ApiOperation({ summary: 'Get the review status for a session' })
+  @ApiResponse({ status: 200, description: 'Review status retrieved successfully' })
+  async getReviewStatus(@Param('sessionId', ParseIntPipe) sessionId: number) {
+    const status = await this.reviewsService.getReviewStatus(sessionId);
+    return this.responseService.success({ status }, 'Review status retrieved successfully');
   }
 }

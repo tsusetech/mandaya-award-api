@@ -9,20 +9,17 @@ datasource db {
 
 model StatusProgress {
   id              Int      @id @default(autoincrement())
-  entityType      String   // 'response_session' or 'review'
-  entityId        Int      // ID of the ResponseSession or Review
+  sessionId       Int      // ID of the ResponseSession
   status          String   // The status value
-  version         Int      // Incremental version (1 for latest, 2 for previous, etc.)
   previousStatus  String?  // The previous status before this change
   changedBy       Int?     // User ID who made the change
   changedAt       DateTime @default(now())
-  metadata        Json?    // Additional metadata about the status change
 
   // Relations
+  session         ResponseSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   changedByUser   User?    @relation("StatusProgressChangedBy", fields: [changedBy], references: [id])
 
-  @@unique([entityType, entityId, version])
-  @@index([entityType, entityId])
+  @@index([sessionId])
   @@index([changedAt])
   @@index([status])
 }
@@ -40,7 +37,7 @@ model User {
   userRoles       UserRole[]
   userGroups      UserGroup[]
   responseSessions ResponseSession[]
-  reviews         Review[]          @relation("Reviewer")
+  reviewedSessions ResponseSession[] @relation("Reviewer")
   deletedByUser   User?             @relation("UserDeletedBy", fields: [deletedBy], references: [id])
   deletedUsers    User[]            @relation("UserDeletedBy")
   deletedRoles    Role[]            @relation("RoleDeletedBy")
@@ -197,17 +194,33 @@ model ResponseSession {
   deletedAt             DateTime?
   deletedBy             Int?
   
+  // Review fields (merged from Review model)
+  reviewerId            Int?
+  stage                 String?   // 'admin_validation', 'jury_scoring', 'jury_deliberation', 'final_decision'
+  decision              String?   // 'approve', 'reject', 'request_revision', 'pass_to_jury', 'needs_deliberation'
+  overallComments       String?
+  totalScore            Decimal?  // Total jury score (0-100)
+  deliberationNotes     String?   // Notes from jury deliberation
+  internalNotes         String?
+  validationChecklist   Json?     // Array of validation checklist items
+  
   // Relations
   user                  User @relation(fields: [userId], references: [id])
   group                 Group @relation(fields: [groupId], references: [id])
   currentQuestion       Question? @relation("CurrentQuestion", fields: [currentQuestionId], references: [id])
   responses             QuestionResponse[]
-  review                Review?
+  reviewer              User? @relation("Reviewer", fields: [reviewerId], references: [id])
+  comments              ReviewComment[]
+  juryScores            JuryScore[]
+  statusProgress        StatusProgress[] // Add this relation
   deletedByUser         User? @relation("ResponseSessionDeletedBy", fields: [deletedBy], references: [id])
   
   @@unique([userId, groupId])
   @@index([userId])
   @@index([lastActivityAt])
+  @@index([reviewerId])
+  @@index([stage])
+  @@index([reviewedAt])
 }
 
 model QuestionResponse {
@@ -248,36 +261,9 @@ model QuestionResponse {
   @@index([lastModifiedAt])
 }
 
-model Review {
-  id              Int           @id @default(autoincrement())
-  sessionId       Int
-  reviewerId      Int
-  stage           String        // 'admin_validation', 'jury_scoring', 'jury_deliberation', 'final_decision'
-  decision        String        // 'approve', 'reject', 'request_revision', 'pass_to_jury', 'needs_deliberation'
-  overallComments String?
-  totalScore      Decimal?      // Total jury score (0-100)
-  deliberationNotes String?     // Notes from jury deliberation
-  internalNotes   String?
-  validationChecklist Json?     // Array of validation checklist items
-  reviewedAt      DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  // Relations
-  session         ResponseSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  reviewer        User @relation("Reviewer", fields: [reviewerId], references: [id])
-  comments        ReviewComment[]
-  juryScores      JuryScore[]
-
-  @@unique([sessionId])
-  @@index([reviewerId])
-  @@index([stage])
-  @@index([reviewedAt])
-}
-
 model ReviewComment {
   id          Int      @id @default(autoincrement())
-  reviewId    Int
+  sessionId   Int      // Changed from reviewId to sessionId
   questionId  Int
   comment     String
   isCritical  Boolean  @default(false)
@@ -285,28 +271,28 @@ model ReviewComment {
   createdAt   DateTime @default(now())
 
   // Relations
-  review      Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  session     ResponseSession @relation(fields: [sessionId], references: [id], onDelete: Cascade) // Changed from review to session
   question    Question @relation(fields: [questionId], references: [id])
 
-  @@index([reviewId])
+  @@index([sessionId])
   @@index([questionId])
   @@index([stage])
 }
 
 model JuryScore {
   id          Int      @id @default(autoincrement())
-  reviewId    Int
+  sessionId   Int      // Changed from reviewId to sessionId
   questionId  Int
   score       Decimal  // Score from 0-10
   comments    String?
   createdAt   DateTime @default(now())
 
   // Relations
-  review      Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  session     ResponseSession @relation(fields: [sessionId], references: [id], onDelete: Cascade) // Changed from review to session
   question    Question @relation(fields: [questionId], references: [id])
 
-  @@unique([reviewId, questionId])
-  @@index([reviewId])
+  @@unique([sessionId, questionId])
+  @@index([sessionId])
   @@index([questionId])
 }
 
