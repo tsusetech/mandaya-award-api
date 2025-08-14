@@ -883,6 +883,7 @@ export class AssessmentsService {
     });
 
     return {
+      reviewId: updatedSession.id,
       sessionId: updatedSession.id,
       reviewerId: updatedSession.reviewerId!,
       reviewerName: updatedSession.reviewer?.name || 'Unknown Reviewer',
@@ -892,12 +893,12 @@ export class AssessmentsService {
       totalScore: updatedSession.totalScore ? Number(updatedSession.totalScore) : undefined,
       deliberationNotes: updatedSession.deliberationNotes || undefined,
       internalNotes: updatedSession.internalNotes || undefined,
-      validationChecklist: updatedSession.validationChecklist || undefined,
+      validationChecklist: Array.isArray(updatedSession.validationChecklist) ? (updatedSession.validationChecklist as string[]) : undefined,
       reviewedAt: updatedSession.reviewedAt?.toISOString() || new Date().toISOString(),
-      createdAt: updatedSession.createdAt?.toISOString() || new Date().toISOString(),
-      updatedAt: updatedSession.updatedAt?.toISOString() || new Date().toISOString(),
-      comments: [], // Will be populated separately if needed
-      juryScores: [] // Will be populated separately if needed
+      message: 'Assessment review created successfully',
+      isNewReview: true,
+      totalCommentsAdded: 0,
+      totalScoresAdded: 0
     };
   }
 

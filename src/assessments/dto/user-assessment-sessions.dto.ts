@@ -2,6 +2,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsNumber, IsString, IsOptional, IsDateString, IsBoolean, IsArray, IsEnum, ValidateNested, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 import { AssessmentQuestionDto } from './assessment-question.dto';
+import { PaginationQueryDto } from './pagination.dto';
+import { CombinedStatus } from './combined-status.enum';
 
 export class UserAssessmentSessionDto {
   @ApiProperty({ example: 1 })
@@ -93,25 +95,16 @@ export class UserAssessmentSessionDto {
   reviewComments?: string | null;
 }
 
-export class UserAssessmentSessionsQueryDto {
-  @ApiProperty({ example: 1, required: false })
-  @IsOptional()
-  @IsNumber()
-  page?: number;
-
-  @ApiProperty({ example: 10, required: false })
-  @IsOptional()
-  @IsNumber()
-  limit?: number;
-
+export class UserAssessmentSessionsQueryDto extends PaginationQueryDto {
   @ApiProperty({ 
     example: 'submitted', 
     required: false,
-    description: 'Filter by status'
+    description: 'Filter by status',
+    enum: CombinedStatus
   })
   @IsOptional()
-  @IsString()
-  finalStatus?: string;
+  @IsEnum(CombinedStatus)
+  declare finalStatus?: CombinedStatus;
 }
 
 export enum ReviewStage {
@@ -282,6 +275,12 @@ export class AssessmentReviewResponseDto {
   @ApiProperty({ example: 3 })
   @IsNumber()
   totalScoresAdded: number;
+
+  @ApiProperty({ description: 'Validation checklist items', type: [String], required: false })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  validationChecklist?: string[];
 }
 
 export class BatchAssessmentReviewDto {

@@ -142,21 +142,23 @@ export class ReviewsService {
     });
 
     return {
+      id: updatedSession.id,
       sessionId: updatedSession.id,
       reviewerId: updatedSession.reviewerId!,
       reviewerName: updatedSession.reviewer?.name || 'Unknown Reviewer',
       stage: updatedSession.stage!,
+      status: 'reviewed',
       decision: updatedSession.decision!,
       overallComments: updatedSession.overallComments || undefined,
       totalScore: updatedSession.totalScore ? Number(updatedSession.totalScore) : undefined,
       deliberationNotes: updatedSession.deliberationNotes || undefined,
       internalNotes: updatedSession.internalNotes || undefined,
-      validationChecklist: Array.isArray(updatedSession.validationChecklist) ? updatedSession.validationChecklist : undefined,
+      validationChecklist: Array.isArray(updatedSession.validationChecklist) ? (updatedSession.validationChecklist as string[]) : undefined,
       reviewedAt: updatedSession.reviewedAt || new Date(),
-      createdAt: updatedSession.createdAt || new Date(),
-      updatedAt: updatedSession.updatedAt || new Date(),
-      comments: [], // Will be populated separately if needed
-      juryScores: [] // Will be populated separately if needed
+      questionComments: [], // Will be populated separately if needed
+      juryScores: [], // Will be populated separately if needed
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
   }
 
@@ -295,21 +297,23 @@ export class ReviewsService {
     });
 
     return {
+      id: updatedSession.id,
       sessionId: updatedSession.id,
       reviewerId: updatedSession.reviewerId!,
       reviewerName: updatedSession.reviewer?.name || 'Unknown Reviewer',
       stage: updatedSession.stage!,
+      status: 'reviewed',
       decision: updatedSession.decision!,
       overallComments: updatedSession.overallComments || undefined,
       totalScore: updatedSession.totalScore ? Number(updatedSession.totalScore) : undefined,
       deliberationNotes: updatedSession.deliberationNotes || undefined,
       internalNotes: updatedSession.internalNotes || undefined,
-      validationChecklist: Array.isArray(updatedSession.validationChecklist) ? updatedSession.validationChecklist : undefined,
-      reviewedAt: updatedSession.reviewedAt?.toISOString() || new Date().toISOString(),
-      createdAt: updatedSession.createdAt?.toISOString() || new Date().toISOString(),
-      updatedAt: updatedSession.updatedAt?.toISOString() || new Date().toISOString(),
-      comments: [], // Will be populated separately if needed
-      juryScores: [] // Will be populated separately if needed
+      validationChecklist: Array.isArray(updatedSession.validationChecklist) ? (updatedSession.validationChecklist as string[]) : undefined,
+      reviewedAt: updatedSession.reviewedAt || new Date(),
+      questionComments: [], // Will be populated separately if needed
+      juryScores: [], // Will be populated separately if needed
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
   }
 
@@ -355,36 +359,38 @@ export class ReviewsService {
     });
 
     return {
+      id: session.id,
       sessionId: session.id,
       reviewerId: session.reviewerId,
       reviewerName: session.reviewer?.name || 'Unknown Reviewer',
       stage: session.stage,
+      status: 'reviewed', // Default status for reviewed sessions
       decision: session.decision,
       overallComments: session.overallComments || undefined,
       totalScore: session.totalScore ? Number(session.totalScore) : undefined,
       deliberationNotes: session.deliberationNotes || undefined,
       internalNotes: session.internalNotes || undefined,
-      validationChecklist: session.validationChecklist || undefined,
-      reviewedAt: session.reviewedAt?.toISOString() || new Date().toISOString(),
-      createdAt: session.createdAt?.toISOString() || new Date().toISOString(),
-      updatedAt: session.updatedAt?.toISOString() || new Date().toISOString(),
-      comments: reviewComments.map(comment => ({
+      validationChecklist: Array.isArray(session.validationChecklist) ? (session.validationChecklist as string[]) : undefined,
+      reviewedAt: session.reviewedAt || new Date(),
+      questionComments: reviewComments.map(comment => ({
         id: comment.id,
         questionId: comment.questionId,
         questionText: comment.question.questionText,
         comment: comment.comment,
         isCritical: comment.isCritical,
         stage: comment.stage || undefined,
-        createdAt: comment.createdAt.toISOString()
+        createdAt: comment.createdAt
       })),
       juryScores: juryScores.map(score => ({
         id: score.id,
         questionId: score.questionId,
         questionText: score.question.questionText,
-        score: score.score,
+        score: Number(score.score),
         comments: score.comments || undefined,
-        createdAt: score.createdAt.toISOString()
-      }))
+        createdAt: score.createdAt
+      })),
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
   }
 
@@ -459,16 +465,18 @@ export class ReviewsService {
         return {
           id: session.id,
           sessionId: session.id,
+          userId: session.userId,
           reviewerId: session.reviewerId!,
           reviewerName: session.reviewer?.name || 'Unknown Reviewer',
           stage: session.stage!,
           decision: session.decision!,
           status: currentStatus || 'pending',
-          reviewedAt: session.reviewedAt?.toISOString() || new Date().toISOString(),
-          createdAt: session.createdAt?.toISOString() || new Date().toISOString(),
+          reviewedAt: session.reviewedAt || new Date(),
           userName: session.user.name || 'Unknown User',
           userEmail: session.user.email,
-          groupName: session.group.groupName
+          groupId: session.groupId,
+          groupName: session.group.groupName,
+          submittedAt: session.submittedAt || new Date()
         };
       })
     );
@@ -478,13 +486,10 @@ export class ReviewsService {
     const hasPrev = page > 1;
 
     return {
-      data,
+      reviews: data,
       total,
       page,
-      limit,
-      totalPages,
-      hasNext,
-      hasPrev
+      limit
     };
   }
 
@@ -523,7 +528,7 @@ export class ReviewsService {
           totalScore: null,
           deliberationNotes: null,
           internalNotes: null,
-          validationChecklist: null,
+          validationChecklist: undefined,
           reviewedAt: null
         }
       });
@@ -532,7 +537,7 @@ export class ReviewsService {
       await this.statusProgressService.recordStatusChange(
         sessionId,
         'submitted',
-        null
+        undefined
       );
     });
 
