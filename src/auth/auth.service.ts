@@ -590,6 +590,7 @@ export class AuthService {
       headerRow.eachCell((cell, colNumber) => {
         headers[colNumber] = cell.value?.toString().toLowerCase().trim() || '';
       });
+      console.log('Detected headers:', headers);
 
       // Validate required headers
       const requiredHeaders = ['email', 'username', 'password'];
@@ -604,8 +605,22 @@ export class AuthService {
       }
 
       // Process data rows
+      console.log(`Total rows in worksheet: ${worksheet.rowCount}`);
+      let processedRows = 0;
       worksheet.eachRow((row, rowNumber) => {
         if (rowNumber === 1) return; // Skip header row
+        
+        processedRows++;
+        console.log(`Processing row ${rowNumber}:`, row.values);
+        
+        // Check if row has any data
+        const rowValues = row.values.filter(val => val !== undefined && val !== null && val !== '');
+        console.log(`Row ${rowNumber} has ${rowValues.length} non-empty values:`, rowValues);
+        
+        if (rowValues.length === 0) {
+          console.log(`Skipping empty row ${rowNumber}`);
+          return;
+        }
         
         const userData: Partial<BulkUserDto> = {};
         let hasRequiredFields = true;
@@ -613,6 +628,7 @@ export class AuthService {
         row.eachCell((cell, colNumber) => {
           const header = headers[colNumber];
           const value = cell.value?.toString().trim();
+          console.log(`Row ${rowNumber}, Col ${colNumber}, Header: "${header}", Value: "${value}", Raw:`, cell.value);
           
           if (header.includes('email')) {
             userData.email = value;
@@ -663,13 +679,20 @@ export class AuthService {
         }
 
         // Only add if required fields are present and valid
+        console.log(`Row ${rowNumber} userData:`, userData, 'hasRequiredFields:', hasRequiredFields);
         if (hasRequiredFields && userData.email && userData.username && userData.password) {
           users.push(userData as BulkUserDto);
+          console.log(`Added user from row ${rowNumber}:`, userData);
+        } else {
+          console.log(`Skipped user from row ${rowNumber} - missing required fields`);
         }
       });
 
+      console.log(`Processed ${processedRows} data rows`);
+      console.log(`Final users array length: ${users.length}`);
+      console.log('Final users:', users);
       if (users.length === 0) {
-        throw new BadRequestException('No valid user data found in Excel file');
+        throw new BadRequestException(`No valid user data found in Excel file. Processed ${processedRows} rows but found no valid data.`);
       }
 
       return users;

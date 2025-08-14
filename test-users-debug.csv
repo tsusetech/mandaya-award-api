@@ -1,0 +1,4 @@
+email,username,password,name,role,groupId
+test1@example.com,testuser1,password123,Test User 1,USER,1
+test2@example.com,testuser2,password123,Test User 2,ADMIN,2
+test3@example.com,testuser3,password123,Test User 3,PESERTA,
