@@ -169,11 +169,12 @@ export class AuthController {
     // Validate file type
     const allowedMimeTypes = [
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-      'application/vnd.ms-excel' // .xls
+      'application/vnd.ms-excel', // .xls
+      'application/octet-stream' // Sometimes Excel files are detected as this
     ];
     
     if (!allowedMimeTypes.includes(file.mimetype)) {
-      throw new BadRequestException('Please upload a valid Excel file (.xlsx or .xls)');
+      throw new BadRequestException(`Please upload a valid Excel file (.xlsx or .xls). Received file type: ${file.mimetype}`);
     }
 
     // Validate file size (max 5MB)
@@ -182,10 +183,18 @@ export class AuthController {
       throw new BadRequestException('File size too large. Maximum size is 5MB');
     }
 
+    // Validate file has content
+    if (!file.buffer || file.buffer.length === 0) {
+      throw new BadRequestException('Uploaded file is empty');
+    }
+
     try {
+      console.log(`Processing Excel file: ${file.originalname}, size: ${file.size} bytes, type: ${file.mimetype}`);
       const users = await this.authService.parseExcelFile(file.buffer);
+      console.log(`Parsed ${users.length} users from Excel file`);
       return this.authService.bulkSignup(users);
     } catch (error) {
+      console.error('Excel processing error:', error);
       throw new BadRequestException(`Failed to process Excel file: ${error.message}`);
     }
   }

@@ -375,6 +375,33 @@ export class AuthService {
     const results: UserCreationResult[] = [];
     let successful = 0;
     let failed = 0;
+    const validationErrors: string[] = [];
+
+    // Validate all users first
+    for (let i = 0; i < users.length; i++) {
+      const userData = users[i];
+      const rowNumber = i + 2; // +2 because Excel has header row and we're 0-indexed
+      
+      // Validate email format
+      if (!this.isValidEmail(userData.email)) {
+        validationErrors.push(`Row ${rowNumber}: Invalid email format "${userData.email}"`);
+      }
+      
+      // Validate username length
+      if (userData.username.length < 3) {
+        validationErrors.push(`Row ${rowNumber}: Username "${userData.username}" must be at least 3 characters`);
+      }
+      
+      // Validate password length
+      if (userData.password.length < 6) {
+        validationErrors.push(`Row ${rowNumber}: Password must be at least 6 characters`);
+      }
+      
+      // Validate role if provided
+      if (userData.role && !['USER', 'ADMIN', 'JURY', 'PESERTA'].includes(userData.role.toUpperCase())) {
+        validationErrors.push(`Row ${rowNumber}: Invalid role "${userData.role}". Valid roles are: USER, ADMIN, JURY, PESERTA`);
+      }
+    }
 
     // Process users in batches to avoid memory issues
     const batchSize = 100;
@@ -409,11 +436,14 @@ export class AuthService {
       successful,
       failed,
       results,
+      validationErrors,
     };
   }
 
   private async createSingleUserForBulk(userData: BulkUserDto): Promise<UserCreationResult> {
     try {
+      console.log(`Processing user: ${userData.email} (${userData.username})`);
+      
       // Check if user already exists
       const existingUser = await this.prisma.user.findFirst({
         where: {
@@ -425,6 +455,7 @@ export class AuthService {
       });
 
       if (existingUser) {
+        console.log(`User already exists: ${userData.email}`);
         return {
           email: userData.email,
           username: userData.username,
@@ -435,6 +466,7 @@ export class AuthService {
 
       // Validate group if provided
       if (userData.groupId) {
+        console.log(`Validating group ID: ${userData.groupId}`);
         const group = await this.prisma.group.findFirst({
           where: {
             id: userData.groupId,
@@ -443,6 +475,7 @@ export class AuthService {
         });
 
         if (!group) {
+          console.log(`Group not found: ${userData.groupId}`);
           return {
             email: userData.email,
             username: userData.username,
@@ -450,6 +483,7 @@ export class AuthService {
             error: `Group with ID ${userData.groupId} not found`,
           };
         }
+        console.log(`Group validated: ${group.groupName}`);
       }
 
       const salt = await bcrypt.genSalt();
@@ -470,18 +504,23 @@ export class AuthService {
         });
 
         // Assign role (default to PESERTA if not specified)
-        const roleName = userData.role || 'PESERTA';
+        const roleName = userData.role ? userData.role.toUpperCase() : 'PESERTA';
+        console.log(`Looking for role: ${roleName}`);
         const role = await prisma.role.findUnique({
           where: { name: roleName },
         });
 
         if (role) {
+          console.log(`Role found: ${role.name} (ID: ${role.id})`);
           await prisma.userRole.create({
             data: {
               userId: newUser.id,
               roleId: role.id,
             },
           });
+          console.log(`Role assigned to user: ${newUser.id}`);
+        } else {
+          console.warn(`Role "${roleName}" not found for user ${userData.email}. User created without role assignment.`);
         }
 
         // Assign user to group if provided
@@ -509,8 +548,10 @@ export class AuthService {
       } catch (emailError) {
         // Log the error but don't fail the user creation process
         console.error(`Failed to send welcome email for ${userData.email}:`, emailError);
+        // Note: We don't throw the error here to prevent the entire bulk import from failing
       }
 
+      console.log(`User created successfully: ${userData.email} (ID: ${user.id})`);
       return {
         email: userData.email,
         username: userData.username,
@@ -519,6 +560,7 @@ export class AuthService {
         userId: user.id,
       };
     } catch (error) {
+      console.error(`Failed to create user ${userData.email}:`, error);
       return {
         email: userData.email,
         username: userData.username,
@@ -530,7 +572,6 @@ export class AuthService {
 
   async parseExcelFile(fileBuffer: Buffer): Promise<BulkUserDto[]> {
     try {
-      // Note: You'll need to install exceljs: npm install exceljs @types/exceljs
       const ExcelJS = require('exceljs');
       const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.load(fileBuffer);
@@ -542,6 +583,7 @@ export class AuthService {
 
       const users: BulkUserDto[] = [];
       const headers: string[] = [];
+      const validationErrors: string[] = [];
       
       // Get headers from first row
       const headerRow = worksheet.getRow(1);
@@ -566,6 +608,7 @@ export class AuthService {
         if (rowNumber === 1) return; // Skip header row
         
         const userData: Partial<BulkUserDto> = {};
+        let hasRequiredFields = true;
         
         row.eachCell((cell, colNumber) => {
           const header = headers[colNumber];
@@ -583,15 +626,44 @@ export class AuthService {
             userData.role = value;
           } else if (header.includes('group') || header.includes('groupid')) {
             // Handle groupId - convert to number if it's a valid number
-            const groupId = parseInt(value);
-            if (!isNaN(groupId)) {
-              userData.groupId = groupId;
+            if (value && value !== '') {
+              const groupId = parseInt(value);
+              if (!isNaN(groupId)) {
+                userData.groupId = groupId;
+              } else {
+                validationErrors.push(`Row ${rowNumber}: Invalid groupId "${value}" - must be a number`);
+              }
             }
           }
         });
 
-        // Only add if required fields are present
-        if (userData.email && userData.username && userData.password) {
+        // Validate required fields
+        if (!userData.email) {
+          validationErrors.push(`Row ${rowNumber}: Missing email`);
+          hasRequiredFields = false;
+        } else if (!this.isValidEmail(userData.email)) {
+          validationErrors.push(`Row ${rowNumber}: Invalid email format "${userData.email}"`);
+          hasRequiredFields = false;
+        }
+
+        if (!userData.username) {
+          validationErrors.push(`Row ${rowNumber}: Missing username`);
+          hasRequiredFields = false;
+        } else if (userData.username.length < 3) {
+          validationErrors.push(`Row ${rowNumber}: Username "${userData.username}" must be at least 3 characters`);
+          hasRequiredFields = false;
+        }
+
+        if (!userData.password) {
+          validationErrors.push(`Row ${rowNumber}: Missing password`);
+          hasRequiredFields = false;
+        } else if (userData.password.length < 6) {
+          validationErrors.push(`Row ${rowNumber}: Password must be at least 6 characters`);
+          hasRequiredFields = false;
+        }
+
+        // Only add if required fields are present and valid
+        if (hasRequiredFields && userData.email && userData.username && userData.password) {
           users.push(userData as BulkUserDto);
         }
       });
@@ -605,7 +677,13 @@ export class AuthService {
       if (error instanceof BadRequestException) {
         throw error;
       }
+      console.error('Excel parsing error:', error);
       throw new BadRequestException('Failed to parse Excel file. Please ensure it\'s a valid Excel file.');
     }
+  }
+
+  private isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
   }
 }
