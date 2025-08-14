@@ -627,7 +627,17 @@ export class AuthService {
         
         row.eachCell((cell, colNumber) => {
           const header = headers[colNumber];
-          const value = cell.value?.toString().trim();
+          let value = '';
+          
+          // Handle different cell value types
+          if (cell.value && typeof cell.value === 'object' && 'text' in cell.value) {
+            // Handle hyperlink objects
+            value = cell.value.text?.toString().trim() || '';
+          } else {
+            // Handle regular values
+            value = cell.value?.toString().trim() || '';
+          }
+          
           console.log(`Row ${rowNumber}, Col ${colNumber}, Header: "${header}", Value: "${value}", Raw:`, cell.value);
           
           if (header.includes('email')) {
