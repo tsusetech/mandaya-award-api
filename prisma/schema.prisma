@@ -87,7 +87,6 @@ model Question {
   description           String?               // Add this field
   inputType             String                // e.g. text-open, numeric, checkbox, multiple-choice
   isRequired            Boolean
-  categoryId            Int?                  // Reference to QuestionCategory
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
   deletedAt             DateTime?
@@ -99,10 +98,7 @@ model Question {
   juryScores            JuryScore[]
   currentInSessions     ResponseSession[]     @relation("CurrentQuestion")
   options               QuestionOption[]      // New relation to options
-  category              QuestionCategory?     @relation(fields: [categoryId], references: [id])
   deletedByUser         User?                 @relation("QuestionDeletedBy", fields: [deletedBy], references: [id])
-
-  @@index([categoryId])
 }
 
 model QuestionCategory {
@@ -119,7 +115,7 @@ model QuestionCategory {
   deletedBy   Int?
 
   // Relations
-  questions   Question[]
+  groupQuestions GroupQuestion[]
   deletedByUser User?    @relation("QuestionCategoryDeletedBy", fields: [deletedBy], references: [id])
 
   @@index([deletedAt])
@@ -147,6 +143,7 @@ model GroupQuestion {
   id            Int      @id @default(autoincrement())
   groupId       Int
   questionId    Int
+  categoryId    Int?     // Reference to QuestionCategory
   orderNumber   Int
   sectionTitle  String?
   subsection    String?
@@ -156,11 +153,13 @@ model GroupQuestion {
 
   group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
   question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  category QuestionCategory? @relation(fields: [categoryId], references: [id])
   responses QuestionResponse[]
   questionTahapGroups QuestionTahapGroup[]
 
   @@index([groupId])
   @@index([questionId])
+  @@index([categoryId])
 }
 
 // New model for managing tahap group hierarchies
