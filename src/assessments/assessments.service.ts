@@ -172,12 +172,17 @@ export class AssessmentsService {
       };
     });
 
-    // Calculate progress based on ALL questions in the group (not filtered)
-    const allGroupQuestions = session.group.groupQuestions.length;
-    const answeredQuestions = session.responses.filter(r => r.isComplete).length;
-    const skippedQuestions = session.responses.filter(r => r.isSkipped).length;
-    const progressPercentage = allGroupQuestions > 0 
-      ? Math.round(((answeredQuestions + skippedQuestions) / allGroupQuestions) * 100) 
+    // Calculate progress based on REQUIRED questions only
+    const requiredQuestions = session.group.groupQuestions.filter(gq => gq.question.isRequired);
+    const totalRequiredQuestions = requiredQuestions.length;
+    const answeredRequiredQuestions = session.responses.filter(r => 
+      r.isComplete && requiredQuestions.some(gq => gq.questionId === r.questionId)
+    ).length;
+    const skippedRequiredQuestions = session.responses.filter(r => 
+      r.isSkipped && requiredQuestions.some(gq => gq.questionId === r.questionId)
+    ).length;
+    const progressPercentage = totalRequiredQuestions > 0 
+      ? Math.round(((answeredRequiredQuestions + skippedRequiredQuestions) / totalRequiredQuestions) * 100) 
       : 0;
 
     // Update progress if changed
@@ -228,15 +233,22 @@ export class AssessmentsService {
 
     const allGroupQuestions = await this.prisma.groupQuestion.findMany({
       where: { groupId: session.groupId },
-      select: { id: true }
+      include: {
+        question: true
+      }
     });
 
-    // Calculate progress based on ALL questions in the group
-    const totalQuestionsInGroup = allGroupQuestions.length;
-    const answeredQuestions = session.responses.filter(r => r.isComplete).length;
-    const skippedQuestions = session.responses.filter(r => r.isSkipped).length;
-    const progressPercentage = totalQuestionsInGroup > 0 
-      ? Math.round(((answeredQuestions + skippedQuestions) / totalQuestionsInGroup) * 100) 
+    // Calculate progress based on REQUIRED questions only
+    const requiredQuestions = allGroupQuestions.filter(gq => gq.question.isRequired);
+    const totalRequiredQuestions = requiredQuestions.length;
+    const answeredRequiredQuestions = session.responses.filter(r => 
+      r.isComplete && requiredQuestions.some(gq => gq.questionId === r.questionId)
+    ).length;
+    const skippedRequiredQuestions = session.responses.filter(r => 
+      r.isSkipped && requiredQuestions.some(gq => gq.questionId === r.questionId)
+    ).length;
+    const progressPercentage = totalRequiredQuestions > 0 
+      ? Math.round(((answeredRequiredQuestions + skippedRequiredQuestions) / totalRequiredQuestions) * 100) 
       : 0;
 
     // Update progress if changed
@@ -398,6 +410,9 @@ export class AssessmentsService {
           group: {
             include: {
               groupQuestions: {
+                include: {
+                  question: true
+                },
                 orderBy: [
                   { groupId: 'asc' },
                   { orderNumber: 'asc' },
@@ -413,13 +428,18 @@ export class AssessmentsService {
         throw new NotFoundException('Session not found');
       }
 
-      // Check if all questions are answered or skipped
-      const totalQuestions = session.group.groupQuestions.length;
-      const answeredQuestions = session.responses.filter(r => r.isComplete).length;
-      const skippedQuestions = session.responses.filter(r => r.isSkipped).length;
+      // Check if all required questions are answered or skipped
+      const requiredQuestions = session.group.groupQuestions.filter(gq => gq.question.isRequired);
+      const totalRequiredQuestions = requiredQuestions.length;
+      const answeredRequiredQuestions = session.responses.filter(r => 
+        r.isComplete && requiredQuestions.some(gq => gq.questionId === r.questionId)
+      ).length;
+      const skippedRequiredQuestions = session.responses.filter(r => 
+        r.isSkipped && requiredQuestions.some(gq => gq.questionId === r.questionId)
+      ).length;
 
-      if (answeredQuestions + skippedQuestions < totalQuestions) {
-        throw new BadRequestException('Cannot submit session: not all questions are answered or skipped');
+      if (answeredRequiredQuestions + skippedRequiredQuestions < totalRequiredQuestions) {
+        throw new BadRequestException('Cannot submit session: not all required questions are answered or skipped');
       }
 
       // Mark all draft responses as complete

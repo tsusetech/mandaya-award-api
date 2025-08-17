@@ -348,6 +348,9 @@ export class ResponsesService {
           group: {
             include: {
               groupQuestions: {
+                include: {
+                  question: true
+                },
                 orderBy: [
                   { groupId: 'asc' },
                   { orderNumber: 'asc' },
@@ -363,13 +366,18 @@ export class ResponsesService {
         throw new NotFoundException('Session not found');
       }
 
-      // Check if all questions are answered or skipped
-      const totalQuestions = session.group.groupQuestions.length;
-      const answeredQuestions = session.responses.filter(r => r.isComplete).length;
-      const skippedQuestions = session.responses.filter(r => r.isSkipped).length;
+      // Check if all required questions are answered or skipped
+      const requiredQuestions = session.group.groupQuestions.filter(gq => gq.question.isRequired);
+      const totalRequiredQuestions = requiredQuestions.length;
+      const answeredRequiredQuestions = session.responses.filter(r => 
+        r.isComplete && requiredQuestions.some(gq => gq.questionId === r.questionId)
+      ).length;
+      const skippedRequiredQuestions = session.responses.filter(r => 
+        r.isSkipped && requiredQuestions.some(gq => gq.questionId === r.questionId)
+      ).length;
 
-      if (answeredQuestions + skippedQuestions < totalQuestions) {
-        throw new BadRequestException('Cannot submit session: not all questions are answered or skipped');
+      if (answeredRequiredQuestions + skippedRequiredQuestions < totalRequiredQuestions) {
+        throw new BadRequestException('Cannot submit session: not all required questions are answered or skipped');
       }
 
       // Mark session as submitted
@@ -419,6 +427,9 @@ export class ResponsesService {
         group: {
           include: {
             groupQuestions: {
+              include: {
+                question: true
+              },
               orderBy: [
                 { groupId: 'asc' },
                 { orderNumber: 'asc' },
@@ -441,15 +452,21 @@ export class ResponsesService {
       throw new NotFoundException('Session not found');
     }
 
-    const totalQuestions = session.group.groupQuestions.length;
-    const answeredQuestions = session.responses.filter(r => r.isComplete).length;
-    const skippedQuestions = session.responses.filter(r => r.isSkipped).length;
-    const progressPercentage = totalQuestions > 0 ? Math.round(((answeredQuestions + skippedQuestions) / totalQuestions) * 100) : 0;
+    // Only count required questions for progress
+    const requiredQuestions = session.group.groupQuestions.filter(gq => gq.question.isRequired);
+    const totalRequiredQuestions = requiredQuestions.length;
+    const answeredRequiredQuestions = session.responses.filter(r => 
+      r.isComplete && requiredQuestions.some(gq => gq.questionId === r.questionId)
+    ).length;
+    const skippedRequiredQuestions = session.responses.filter(r => 
+      r.isSkipped && requiredQuestions.some(gq => gq.questionId === r.questionId)
+    ).length;
+    const progressPercentage = totalRequiredQuestions > 0 ? Math.round(((answeredRequiredQuestions + skippedRequiredQuestions) / totalRequiredQuestions) * 100) : 0;
 
     return {
-      totalQuestions,
-      answeredQuestions,
-      skippedQuestions,
+      totalQuestions: totalRequiredQuestions,
+      answeredQuestions: answeredRequiredQuestions,
+      skippedQuestions: skippedRequiredQuestions,
       progressPercentage
     };
   }
