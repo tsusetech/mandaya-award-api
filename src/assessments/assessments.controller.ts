@@ -59,6 +59,44 @@ export class AssessmentsController {
     return this.responseService.success(sessions, 'Sessions retrieved successfully');
   }
 
+  @Get('user-sessions')
+  @Roles('ADMIN', 'SUPERADMIN')
+  @ApiOperation({ 
+    summary: 'Get all assessment sessions (Admin only)',
+    description: 'Retrieves all assessment sessions across all users. Admin and Superadmin access only.'
+  })
+  @ApiQuery({ 
+    name: 'page', 
+    required: false, 
+    type: 'number', 
+    description: 'Page number (starts from 1)',
+    example: 1
+  })
+  @ApiQuery({ 
+    name: 'limit', 
+    required: false, 
+    type: 'number', 
+    description: 'Number of items per page',
+    example: 10
+  })
+  @ApiQuery({ 
+    name: 'finalStatus', 
+    required: false, 
+    type: 'string', 
+    description: 'Filter by final status',
+    example: 'submitted',
+    enum: ['draft', 'in_progress', 'submitted', 'pending_review', 'under_review', 'needs_revision', 'resubmitted', 'approved', 'rejected', 'passed_to_jury', 'jury_scoring', 'jury_deliberation', 'final_decision', 'completed']
+  })
+  @ApiResponse({ status: 200, description: 'All sessions retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  async getAllAssessmentSessions(
+    @Query() query: UserAssessmentSessionsQueryDto
+  ) {
+    const sessions = await this.assessmentsService.getAllAssessmentSessions(query, query.finalStatus);
+    return this.responseService.success(sessions, 'All sessions retrieved successfully');
+  }
+
   @Get('session/:groupId')
   @ApiOperation({ 
     summary: 'Get assessment questions for a group',

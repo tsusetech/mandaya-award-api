@@ -631,6 +631,111 @@ export class AssessmentsService {
     };
   }
 
+  async getAllAssessmentSessions(
+    paginationQuery?: PaginationQueryDto,
+    finalStatus?: string
+  ): Promise<{ data: UserAssessmentSessionDto[]; total: number; page: number; limit: number; totalPages: number; hasNext: boolean; hasPrev: boolean }> {
+    const { page = 1, limit = 10 } = paginationQuery || {};
+    const skip = (page - 1) * limit;
+
+    // Get total count
+    const total = await this.prisma.responseSession.count({
+      where: {
+        deletedAt: null
+      }
+    });
+
+    // Get sessions with review data
+    const sessions = await this.prisma.responseSession.findMany({
+      where: {
+        deletedAt: null
+      },
+      include: {
+        user: {
+          select: {
+            email: true,
+            name: true
+          }
+        },
+        group: {
+          select: {
+            groupName: true
+          }
+        },
+        reviewer: {
+          select: {
+            name: true
+          }
+        }
+      },
+      skip,
+      take: limit,
+      orderBy: {
+        lastActivityAt: 'desc'
+      }
+    });
+
+    // Get status for each session and filter by finalStatus if provided
+    let filteredSessions = await Promise.all(
+      sessions.map(async (session) => {
+        const latestStatus = await this.statusProgressService.getLatestStatus(session.id) || 'draft';
+        
+        return {
+          session,
+          status: latestStatus,
+          matches: !finalStatus || latestStatus === finalStatus
+        };
+      })
+    );
+
+    // Filter by final status if provided
+    if (finalStatus) {
+      filteredSessions = filteredSessions.filter(item => item.matches);
+    }
+
+    // Map to DTO
+    const data: UserAssessmentSessionDto[] = filteredSessions.map((item) => {
+      const session = item.session;
+      
+      return {
+        id: session.id,
+        sessionId: session.id,
+        userId: session.userId,
+        userEmail: session.user.email,
+        userName: session.user.name || 'Unknown User',
+        groupId: session.groupId,
+        groupName: session.group.groupName,
+        status: item.status,
+        progressPercentage: session.progressPercentage,
+        startedAt: session.startedAt.toISOString(),
+        lastActivityAt: session.lastActivityAt.toISOString(),
+        completedAt: session.completedAt?.toISOString(),
+        submittedAt: session.submittedAt?.toISOString(),
+        // Review-related fields
+        reviewStage: session.stage || null,
+        reviewDecision: session.decision || null,
+        reviewScore: session.totalScore ? Number(session.totalScore) : null,
+        reviewedAt: session.reviewedAt?.toISOString() || null,
+        reviewerName: session.reviewer?.name || null,
+        reviewComments: session.overallComments || null
+      };
+    });
+
+    const totalPages = Math.ceil(total / limit);
+    const hasNext = page < totalPages;
+    const hasPrev = page > 1;
+
+    return {
+      data,
+      total: filteredSessions.length,
+      page,
+      limit,
+      totalPages,
+      hasNext,
+      hasPrev
+    };
+  }
+
   async getAssessmentSessionDetail(sessionId: number): Promise<AssessmentSessionDetailDto> {
     const session = await this.prisma.responseSession.findUnique({
       where: { id: sessionId },
