@@ -438,8 +438,20 @@ export class AssessmentsService {
         r.isSkipped && requiredQuestions.some(gq => gq.questionId === r.questionId)
       ).length;
 
+      // Debug logging
+      console.log('=== ASSESSMENT SUBMISSION DEBUG ===');
+      console.log('Total questions in group:', session.group.groupQuestions.length);
+      console.log('Required questions:', totalRequiredQuestions);
+      console.log('Answered required questions:', answeredRequiredQuestions);
+      console.log('Skipped required questions:', skippedRequiredQuestions);
+      console.log('Total responses:', session.responses.length);
+      console.log('Required question IDs:', requiredQuestions.map(gq => gq.questionId));
+      console.log('Response question IDs:', session.responses.map(r => r.questionId));
+      console.log('Complete responses:', session.responses.filter(r => r.isComplete).map(r => r.questionId));
+      console.log('Skipped responses:', session.responses.filter(r => r.isSkipped).map(r => r.questionId));
+
       if (answeredRequiredQuestions + skippedRequiredQuestions < totalRequiredQuestions) {
-        throw new BadRequestException('Cannot submit session: not all required questions are answered or skipped');
+        throw new BadRequestException(`Cannot submit session: not all required questions are answered or skipped. Required: ${totalRequiredQuestions}, Answered: ${answeredRequiredQuestions}, Skipped: ${skippedRequiredQuestions}`);
       }
 
       // Mark all draft responses as complete
