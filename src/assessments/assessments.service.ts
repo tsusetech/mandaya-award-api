@@ -1208,6 +1208,28 @@ export class AssessmentsService {
         return { textValue: value?.toString() || null };
       case 'numeric':
         return { numericValue: value ? parseFloat(value) : null };
+      case 'numeric-open':
+        // Handle complex numeric values with additional data
+        if (typeof value === 'object' && value !== null) {
+          const result: any = {};
+          
+          // Extract numeric value
+          if (value.answer !== undefined) {
+            result.numericValue = parseFloat(value.answer) || null;
+          }
+          
+          // Extract URL or other text data
+          if (value.url !== undefined) {
+            result.textValue = value.url.toString();
+          }
+          
+          // Store the entire object in arrayValue for backup
+          result.arrayValue = value;
+          
+          return result;
+        }
+        // Fallback for simple numeric values
+        return { numericValue: value ? parseFloat(value) : null };
       case 'checkbox':
         return { booleanValue: Boolean(value) };
       case 'multiple-choice':
@@ -1219,6 +1241,15 @@ export class AssessmentsService {
   }
 
   private mapResponseToValue(response: any): any {
+    // For numeric-open type, reconstruct the complex object
+    if (response.arrayValue !== null && typeof response.arrayValue === 'object') {
+      // Check if this looks like a numeric-open response
+      if (response.arrayValue.answer !== undefined || response.arrayValue.url !== undefined) {
+        return response.arrayValue;
+      }
+    }
+    
+    // For other types, return the first non-null value
     if (response.textValue !== null) return response.textValue;
     if (response.numericValue !== null) return response.numericValue;
     if (response.booleanValue !== null) return response.booleanValue;
