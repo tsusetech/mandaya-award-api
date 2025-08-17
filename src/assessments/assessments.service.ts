@@ -53,7 +53,8 @@ export class AssessmentsService {
                       orderBy: { orderNumber: 'asc' }
                     }
                   }
-                }
+                },
+                category: true
               },
               orderBy: { orderNumber: 'asc' }
             }
@@ -94,7 +95,8 @@ export class AssessmentsService {
                         orderBy: { orderNumber: 'asc' }
                       }
                     }
-                  }
+                  },
+                  category: true
                 },
                 orderBy: { orderNumber: 'asc' }
               }
@@ -157,6 +159,15 @@ export class AssessmentsService {
         sectionTitle: gq.sectionTitle || undefined,
         subsection: gq.subsection || undefined,
         isGrouped: gq.isGrouped,
+        category: gq.category ? {
+          id: gq.category.id,
+          name: gq.category.name,
+          description: gq.category.description || undefined,
+          weight: gq.category.weight ? Number(gq.category.weight) : undefined,
+          minValue: gq.category.minValue ? Number(gq.category.minValue) : undefined,
+          maxValue: gq.category.maxValue ? Number(gq.category.maxValue) : undefined,
+          scoreType: gq.category.scoreType
+        } : undefined,
         options: gq.question.options.map(opt => ({
           id: opt.id,
           optionText: opt.optionText,
@@ -814,7 +825,8 @@ export class AssessmentsService {
               orderBy: { orderNumber: 'asc' }
             }
           }
-        }
+        },
+        category: true
       },
       orderBy: [
         { orderNumber: 'asc' }
@@ -836,6 +848,15 @@ export class AssessmentsService {
         sectionTitle: gq.sectionTitle || undefined,
         subsection: gq.subsection || undefined,
         isGrouped: gq.isGrouped,
+        category: gq.category ? {
+          id: gq.category.id,
+          name: gq.category.name,
+          description: gq.category.description || undefined,
+          weight: gq.category.weight ? Number(gq.category.weight) : undefined,
+          minValue: gq.category.minValue ? Number(gq.category.minValue) : undefined,
+          maxValue: gq.category.maxValue ? Number(gq.category.maxValue) : undefined,
+          scoreType: gq.category.scoreType
+        } : undefined,
         options: gq.question.options.map(opt => ({
           id: opt.id,
           optionText: opt.optionText,

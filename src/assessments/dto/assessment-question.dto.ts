@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsString, IsBoolean, IsOptional, IsArray, IsEnum } from 'class-validator';
+import { IsNumber, IsString, IsBoolean, IsOptional, IsArray, IsEnum, IsDecimal } from 'class-validator';
 import { ReviewCommentDto } from './review-comment.dto';
 
 export enum QuestionInputType {
@@ -8,6 +8,37 @@ export enum QuestionInputType {
   CHECKBOX = 'checkbox',
   MULTIPLE_CHOICE = 'multiple-choice',
   FILE_UPLOAD = 'file-upload'
+}
+
+export class QuestionCategoryDto {
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  id: number;
+
+  @ApiProperty({ example: 'Economic Impact' })
+  @IsString()
+  name: string;
+
+  @ApiProperty({ example: 'Questions related to economic impact assessment' })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiProperty({ example: 1.5 })
+  @IsOptional()
+  weight?: number;
+
+  @ApiProperty({ example: 0 })
+  @IsOptional()
+  minValue?: number;
+
+  @ApiProperty({ example: 100 })
+  @IsOptional()
+  maxValue?: number;
+
+  @ApiProperty({ example: 'number' })
+  @IsString()
+  scoreType: string;
 }
 
 export class QuestionOptionDto {
@@ -71,6 +102,14 @@ export class AssessmentQuestionDto {
   @IsOptional()
   @IsString()
   subsection?: string;
+
+  @ApiProperty({ example: false })
+  @IsBoolean()
+  isGrouped: boolean;
+
+  @ApiProperty({ type: QuestionCategoryDto, required: false })
+  @IsOptional()
+  category?: QuestionCategoryDto;
 
   @ApiProperty({ type: [QuestionOptionDto], required: false })
   @IsOptional()
