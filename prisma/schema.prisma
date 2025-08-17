@@ -45,6 +45,7 @@ model User {
   deletedGroups   Group[]           @relation("GroupDeletedBy")
   deletedResponseSessions ResponseSession[] @relation("ResponseSessionDeletedBy")
   deletedCategories Category[]       @relation("CategoryDeletedBy")
+  deletedQuestionCategories QuestionCategory[] @relation("QuestionCategoryDeletedBy")
   statusProgressChanges StatusProgress[] @relation("StatusProgressChangedBy")
 }
 
@@ -86,6 +87,7 @@ model Question {
   description           String?               // Add this field
   inputType             String                // e.g. text-open, numeric, checkbox, multiple-choice
   isRequired            Boolean
+  categoryId            Int?                  // Reference to QuestionCategory
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
   deletedAt             DateTime?
@@ -97,7 +99,31 @@ model Question {
   juryScores            JuryScore[]
   currentInSessions     ResponseSession[]     @relation("CurrentQuestion")
   options               QuestionOption[]      // New relation to options
+  category              QuestionCategory?     @relation(fields: [categoryId], references: [id])
   deletedByUser         User?                 @relation("QuestionDeletedBy", fields: [deletedBy], references: [id])
+
+  @@index([categoryId])
+}
+
+model QuestionCategory {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  description String?
+  weight      Decimal    @default(1.0)  // Weight/score multiplier for this category
+  minValue    Decimal?   // Minimum acceptable value for this category
+  maxValue    Decimal?   // Maximum acceptable value for this category
+  scoreType   String     @default("number") // "number", "percentage", "currency", "rating", "boolean"
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+  deletedBy   Int?
+
+  // Relations
+  questions   Question[]
+  deletedByUser User?    @relation("QuestionCategoryDeletedBy", fields: [deletedBy], references: [id])
+
+  @@index([deletedAt])
+  @@index([scoreType])
 }
 
 model Group {
