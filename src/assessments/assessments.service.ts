@@ -1205,6 +1205,21 @@ export class AssessmentsService {
   private mapValueByQuestionType(value: any, inputType: string) {
     switch (inputType) {
       case 'text-open':
+        // Handle complex text values with additional data
+        if (typeof value === 'object' && value !== null) {
+          const result: any = {};
+          
+          // Extract the main answer text
+          if (value.answer !== undefined) {
+            result.textValue = value.answer.toString();
+          }
+          
+          // Store the entire object in arrayValue for backup
+          result.arrayValue = value;
+          
+          return result;
+        }
+        // Handle simple string values
         return { textValue: value?.toString() || null };
       case 'numeric':
         return { numericValue: value ? parseFloat(value) : null };
@@ -1246,8 +1261,12 @@ export class AssessmentsService {
   }
 
   private mapResponseToValue(response: any): any {
-    // For numeric-open type, reconstruct the complex object
+    // For text-open type with complex objects, reconstruct the object
     if (response.arrayValue !== null && typeof response.arrayValue === 'object') {
+      // Check if this looks like a text-open response with answer and url
+      if (response.arrayValue.answer !== undefined && response.arrayValue.url !== undefined) {
+        return response.arrayValue;
+      }
       // Check if this looks like a numeric-open response
       if (response.arrayValue.answer !== undefined || response.arrayValue.url !== undefined) {
         return response.arrayValue;

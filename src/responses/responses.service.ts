@@ -407,6 +407,21 @@ export class ResponsesService {
   private mapValueByQuestionType(value: any, inputType: string) {
     switch (inputType) {
       case 'text-open':
+        // Handle complex text values with additional data
+        if (typeof value === 'object' && value !== null) {
+          const result: any = {};
+          
+          // Extract the main answer text
+          if (value.answer !== undefined) {
+            result.textValue = value.answer.toString();
+          }
+          
+          // Store the entire object in arrayValue for backup
+          result.arrayValue = value;
+          
+          return result;
+        }
+        // Handle simple string values
         return { textValue: value?.toString() || null };
       case 'numeric':
         return { numericValue: value ? parseFloat(value) : null };
