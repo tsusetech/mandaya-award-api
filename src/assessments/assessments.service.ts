@@ -1231,6 +1231,11 @@ export class AssessmentsService {
         // Fallback for simple numeric values
         return { numericValue: value ? parseFloat(value) : null };
       case 'checkbox':
+        // Handle complex checkbox values (arrays with objects)
+        if (Array.isArray(value)) {
+          return { arrayValue: value };
+        }
+        // Handle simple boolean values
         return { booleanValue: Boolean(value) };
       case 'multiple-choice':
       case 'file-upload':
@@ -1247,6 +1252,11 @@ export class AssessmentsService {
       if (response.arrayValue.answer !== undefined || response.arrayValue.url !== undefined) {
         return response.arrayValue;
       }
+    }
+    
+    // For checkbox type with array values, return the array
+    if (response.arrayValue !== null && Array.isArray(response.arrayValue)) {
+      return response.arrayValue;
     }
     
     // For other types, return the first non-null value

@@ -433,6 +433,11 @@ export class ResponsesService {
         // Fallback for simple numeric values
         return { numericValue: value ? parseFloat(value) : null };
       case 'checkbox':
+        // Handle complex checkbox values (arrays with objects)
+        if (Array.isArray(value)) {
+          return { arrayValue: value };
+        }
+        // Handle simple boolean values
         return { booleanValue: Boolean(value) };
       case 'multiple-choice':
       case 'file-upload':
