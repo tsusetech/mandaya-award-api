@@ -87,3 +87,27 @@ export class AssessmentAnswerDto {
   @IsPositive()
   currentQuestionId?: number;
 }
+
+export class SubmitAssessmentDto {
+  @ApiProperty({
+    example: false,
+    description: 'Whether this is a resubmission after revision',
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isResubmission?: boolean;
+
+  @ApiProperty({
+    example: 100,
+    description: 'Progress percentage at submission time',
+    required: false,
+    minimum: 0,
+    maximum: 100,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  progressPercentage?: number;
+}

@@ -6,7 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { StatusProgressService } from '../common/services/status-progress.service';
 import { PaginationQueryDto } from './dto/pagination.dto';
-import { AssessmentAnswerDto } from './dto/assessment-answer.dto';
+import { AssessmentAnswerDto, SubmitAssessmentDto } from './dto/assessment-answer.dto';
 import { AssessmentQuestionDto } from './dto/assessment-question.dto';
 import { AssessmentSessionDto } from './dto/assessment-session.dto';
 import {
@@ -481,6 +481,7 @@ export class AssessmentsService {
 
   async submitAssessment(
     sessionId: number,
+    submitDto?: SubmitAssessmentDto,
   ): Promise<{ success: boolean; message: string }> {
     return await this.prisma.$transaction(async (tx) => {
       const session = await tx.responseSession.findUnique({
@@ -552,10 +553,14 @@ export class AssessmentsService {
         },
       });
 
+      // Check if this is a resubmission by looking at the previous status or the flag from frontend
+      const previousStatus = await this.statusProgressService.getLatestStatus(sessionId);
+      const isResubmission = submitDto?.isResubmission || previousStatus === 'needs_revision';
+      
       // Record status change in StatusProgress
       await this.statusProgressService.recordStatusChange(
         sessionId,
-        'submitted',
+        isResubmission ? 'resubmitted' : 'submitted',
         session.userId,
       );
 

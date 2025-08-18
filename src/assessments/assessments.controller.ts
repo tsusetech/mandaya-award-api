@@ -26,7 +26,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { AssessmentsService } from './assessments.service';
 import { AssessmentSessionDto } from './dto/assessment-session.dto';
-import { AssessmentAnswerDto } from './dto/assessment-answer.dto';
+import { AssessmentAnswerDto, SubmitAssessmentDto } from './dto/assessment-answer.dto';
 import { BatchAnswerDto } from './dto/batch-answer.dto';
 import { PaginationQueryDto } from './dto/pagination.dto';
 import {
@@ -346,7 +346,7 @@ export class AssessmentsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Submit assessment',
-    description: 'Finalizes the assessment session',
+    description: 'Finalizes the assessment session. Can handle both initial submissions and resubmissions after revision.',
   })
   @ApiParam({
     name: 'sessionId',
@@ -356,12 +356,20 @@ export class AssessmentsController {
   @ApiResponse({
     status: 200,
     description: 'Assessment submitted successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'Session submitted successfully' },
+      },
+    },
   })
   @ApiResponse({ status: 404, description: 'Assessment session not found' })
   async submitAssessment(
     @Param('sessionId', ParseIntPipe) sessionId: number,
+    @Body() submitDto: SubmitAssessmentDto,
   ): Promise<{ success: boolean; message: string }> {
-    return this.assessmentsService.submitAssessment(sessionId);
+    return this.assessmentsService.submitAssessment(sessionId, submitDto);
   }
 
   @Get('session/:groupId/sections')
