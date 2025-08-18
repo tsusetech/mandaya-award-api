@@ -110,14 +110,16 @@ export class AuthService {
           where: { name: 'PESERTA' },
         });
 
-        if (pesertaRole) {
-          await prisma.userRole.create({
-            data: {
-              userId: user.id,
-              roleId: pesertaRole.id,
-            },
-          });
+        if (!pesertaRole) {
+          throw new BadRequestException('Default PESERTA role not found in database');
         }
+
+        await prisma.userRole.create({
+          data: {
+            userId: user.id,
+            roleId: pesertaRole.id,
+          },
+        });
 
         // Assign user to group if provided
         if (signupDto.groupId) {
@@ -191,7 +193,28 @@ export class AuthService {
       ) {
         throw error;
       }
-      throw new BadRequestException('Failed to create user');
+      
+      // Log the actual error for debugging
+      console.error('Signup error:', error);
+      
+      // Check for specific database errors
+      if (error.code === 'P2002') {
+        // Prisma unique constraint violation
+        if (error.meta?.target?.includes('email')) {
+          throw new ConflictException('User with this email already exists');
+        }
+        if (error.meta?.target?.includes('username')) {
+          throw new ConflictException('User with this username already exists');
+        }
+        throw new ConflictException('User with this email or username already exists');
+      }
+      
+      if (error.code === 'P2003') {
+        // Prisma foreign key constraint violation
+        throw new BadRequestException('Invalid group ID or role reference');
+      }
+      
+      throw new BadRequestException(`Failed to create user: ${error.message}`);
     }
   }
 
