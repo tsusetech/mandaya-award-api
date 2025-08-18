@@ -47,6 +47,7 @@ model User {
   deletedCategories Category[]       @relation("CategoryDeletedBy")
   deletedQuestionCategories QuestionCategory[] @relation("QuestionCategoryDeletedBy")
   statusProgressChanges StatusProgress[] @relation("StatusProgressChangedBy")
+  resolvedReviewComments ReviewComment[] @relation("ReviewCommentResolvedBy")
 }
 
 model Role {
@@ -294,14 +295,22 @@ model ReviewComment {
   isCritical  Boolean  @default(false)
   stage       String?  // Which review stage the comment was made
   createdAt   DateTime @default(now())
+  
+  // Revision tracking
+  isResolved  Boolean  @default(false)  // Whether the comment has been addressed
+  resolvedAt  DateTime?  // When the comment was resolved
+  resolvedBy  Int?      // User ID who marked it as resolved
+  revisionNotes String? // Notes about how the revision was made
 
   // Relations
   session     ResponseSession @relation(fields: [sessionId], references: [id], onDelete: Cascade) // Changed from review to session
   question    Question @relation(fields: [questionId], references: [id])
+  resolvedByUser User? @relation("ReviewCommentResolvedBy", fields: [resolvedBy], references: [id])
 
   @@index([sessionId])
   @@index([questionId])
   @@index([stage])
+  @@index([isResolved])
 }
 
 model JuryScore {

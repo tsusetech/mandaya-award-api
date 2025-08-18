@@ -5,7 +5,7 @@ import { PaginationQueryDto } from './dto/pagination.dto';
 import { AssessmentAnswerDto } from './dto/assessment-answer.dto';
 import { AssessmentQuestionDto } from './dto/assessment-question.dto';
 import { AssessmentSessionDto } from './dto/assessment-session.dto';
-import { ReviewCommentDto } from './dto/review-comment.dto';
+import { ReviewCommentDto, ResolveReviewCommentDto } from './dto/review-comment.dto';
 import { AssessmentSessionDetailDto } from './dto/assessment-session.dto';
 import { UserAssessmentSessionDto } from './dto/user-assessment-sessions.dto';
 import { 
@@ -121,7 +121,12 @@ export class AssessmentsService {
     const reviewComments = await this.prisma.reviewComment.findMany({
       where: { sessionId: session.id },
       include: {
-        question: true
+        question: true,
+        resolvedByUser: {
+          select: {
+            name: true
+          }
+        }
       }
     });
 
@@ -139,7 +144,11 @@ export class AssessmentsService {
         isCritical: comment.isCritical,
         stage: comment.stage || undefined,
         createdAt: comment.createdAt.toISOString(),
-        reviewerName: session.reviewer?.name || undefined
+        reviewerName: session.reviewer?.name || undefined,
+        isResolved: comment.isResolved,
+        resolvedAt: comment.resolvedAt?.toISOString(),
+        resolvedByUserName: comment.resolvedByUser?.name || undefined,
+        revisionNotes: comment.revisionNotes || undefined
       });
       return acc;
     }, {} as Record<number, ReviewCommentDto[]>);
@@ -794,7 +803,12 @@ export class AssessmentsService {
     const reviewComments = await this.prisma.reviewComment.findMany({
       where: { sessionId: session.id },
       include: {
-        question: true
+        question: true,
+        resolvedByUser: {
+          select: {
+            name: true
+          }
+        }
       }
     });
 
@@ -809,7 +823,11 @@ export class AssessmentsService {
         isCritical: comment.isCritical,
         stage: comment.stage || undefined,
         createdAt: comment.createdAt.toISOString(),
-        reviewerName: session.reviewer?.name || undefined
+        reviewerName: session.reviewer?.name || undefined,
+        isResolved: comment.isResolved,
+        resolvedAt: comment.resolvedAt?.toISOString(),
+        resolvedByUserName: comment.resolvedByUser?.name || undefined,
+        revisionNotes: comment.revisionNotes || undefined
       });
       return acc;
     }, {} as Record<number, ReviewCommentDto[]>);
@@ -1413,5 +1431,102 @@ export class AssessmentsService {
   }
 
   // Removed getAssessmentReviews method - use reviews service instead
+
+  async resolveReviewComment(
+    sessionId: number,
+    commentId: number,
+    userId: number,
+    resolveDto: ResolveReviewCommentDto
+  ): Promise<{ success: boolean; message: string }> {
+    // Check if session exists
+    const session = await this.prisma.responseSession.findUnique({
+      where: { id: sessionId }
+    });
+
+    if (!session) {
+      throw new NotFoundException('Assessment session not found');
+    }
+
+    // Check if comment exists and belongs to this session
+    const comment = await this.prisma.reviewComment.findFirst({
+      where: {
+        id: commentId,
+        sessionId: sessionId
+      }
+    });
+
+    if (!comment) {
+      throw new NotFoundException('Review comment not found');
+    }
+
+    // Update the comment
+    await this.prisma.reviewComment.update({
+      where: { id: commentId },
+      data: {
+        isResolved: resolveDto.isResolved,
+        resolvedAt: resolveDto.isResolved ? new Date() : null,
+        resolvedBy: resolveDto.isResolved ? userId : null,
+        revisionNotes: resolveDto.revisionNotes || null
+      }
+    });
+
+    return {
+      success: true,
+      message: resolveDto.isResolved ? 'Comment marked as resolved' : 'Comment marked as unresolved'
+    };
+  }
+
+  async resolveAllReviewComments(
+    sessionId: number,
+    userId: number,
+    resolveDto: ResolveReviewCommentDto
+  ): Promise<{ success: boolean; message: string; resolvedCount: number }> {
+    // Check if session exists
+    const session = await this.prisma.responseSession.findUnique({
+      where: { id: sessionId }
+    });
+
+    if (!session) {
+      throw new NotFoundException('Assessment session not found');
+    }
+
+    // Get all unresolved comments for this session
+    const unresolvedComments = await this.prisma.reviewComment.findMany({
+      where: {
+        sessionId: sessionId,
+        isResolved: false
+      }
+    });
+
+    if (unresolvedComments.length === 0) {
+      return {
+        success: true,
+        message: 'No unresolved comments found',
+        resolvedCount: 0
+      };
+    }
+
+    // Update all unresolved comments
+    await this.prisma.reviewComment.updateMany({
+      where: {
+        sessionId: sessionId,
+        isResolved: false
+      },
+      data: {
+        isResolved: resolveDto.isResolved,
+        resolvedAt: resolveDto.isResolved ? new Date() : null,
+        resolvedBy: resolveDto.isResolved ? userId : null,
+        revisionNotes: resolveDto.revisionNotes || null
+      }
+    });
+
+    return {
+      success: true,
+      message: resolveDto.isResolved 
+        ? `${unresolvedComments.length} comments marked as resolved` 
+        : `${unresolvedComments.length} comments marked as unresolved`,
+      resolvedCount: unresolvedComments.length
+    };
+  }
 }
 

@@ -34,6 +34,7 @@ import { PaginatedResponseDto } from './dto/pagination.dto';
 import { AssessmentSessionDetailDto } from './dto/assessment-session.dto';
 import { CreateAssessmentReviewDto, AssessmentReviewResponseDto } from './dto/user-assessment-sessions.dto';
 import { BatchAssessmentReviewDto, BatchAssessmentReviewResponseDto } from './dto/user-assessment-sessions.dto';
+import { ResolveReviewCommentDto } from './dto/review-comment.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { ResponseService } from '../common/services/response.service';
 
@@ -362,4 +363,42 @@ export class AssessmentsController {
   }
 
   // Removed getAssessmentReviews endpoint - use reviews service instead
+
+  @Patch('session/:sessionId/comments/:commentId/resolve')
+  @ApiOperation({ 
+    summary: 'Resolve a review comment',
+    description: 'Mark a specific review comment as resolved or unresolved. This helps track which feedback has been addressed by the user.'
+  })
+  @ApiParam({ name: 'sessionId', description: 'Assessment Session ID', type: 'number' })
+  @ApiParam({ name: 'commentId', description: 'Review Comment ID', type: 'number' })
+  @ApiResponse({ status: 200, description: 'Comment resolved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Session or comment not found' })
+  async resolveReviewComment(
+    @Request() req,
+    @Param('sessionId', ParseIntPipe) sessionId: number,
+    @Param('commentId', ParseIntPipe) commentId: number,
+    @Body() resolveDto: ResolveReviewCommentDto
+  ) {
+    const result = await this.assessmentsService.resolveReviewComment(sessionId, commentId, req.user.userId, resolveDto);
+    return this.responseService.success(result, result.message);
+  }
+
+  @Patch('session/:sessionId/comments/resolve-all')
+  @ApiOperation({ 
+    summary: 'Resolve all review comments',
+    description: 'Mark all unresolved review comments for a session as resolved. Useful when a user has addressed all feedback and wants to mark everything as complete.'
+  })
+  @ApiParam({ name: 'sessionId', description: 'Assessment Session ID', type: 'number' })
+  @ApiResponse({ status: 200, description: 'All comments resolved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Session not found' })
+  async resolveAllReviewComments(
+    @Request() req,
+    @Param('sessionId', ParseIntPipe) sessionId: number,
+    @Body() resolveDto: ResolveReviewCommentDto
+  ) {
+    const result = await this.assessmentsService.resolveAllReviewComments(sessionId, req.user.userId, resolveDto);
+    return this.responseService.success(result, result.message);
+  }
 }
