@@ -44,10 +44,9 @@ export class SignupWithRoleDto extends SignupDto {
   @ApiProperty({
     example: 'JURI',
     description: 'Role name to assign to the user',
-    required: false,
+    required: true,
     enum: ['ADMIN', 'SUPERADMIN', 'PESERTA', 'JURI'],
   })
-  @IsOptional()
   @IsString()
-  roleName?: string;
+  roleName: string;
 }

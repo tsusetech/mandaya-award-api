@@ -57,7 +57,7 @@ export class AuthService {
     };
   }
 
-  async signup(signupDto: SignupDto & { roleName?: string }) {
+  async signup(signupDto: SignupDto & { roleName: string }) {
     try {
       // Check if user already exists
       const existingUser = await this.prisma.user.findFirst({
@@ -105,8 +105,8 @@ export class AuthService {
           },
         });
 
-        // Assign role: use provided roleName if present; otherwise default to PESERTA for backward compat
-        const roleNameToAssign = (signupDto.roleName || 'PESERTA').toUpperCase();
+        // Assign role from request (required)
+        const roleNameToAssign = signupDto.roleName.toUpperCase();
         const selectedRole = await prisma.role.findUnique({
           where: { name: roleNameToAssign },
         });
