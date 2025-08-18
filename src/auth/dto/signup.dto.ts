@@ -38,3 +38,16 @@ export class SignupDto {
   @IsInt()
   groupId?: number;
 }
+
+// Optional role selection for signup (admin UI can set this)
+export class SignupWithRoleDto extends SignupDto {
+  @ApiProperty({
+    example: 'JURI',
+    description: 'Role name to assign to the user',
+    required: false,
+    enum: ['ADMIN', 'SUPERADMIN', 'PESERTA', 'JURI'],
+  })
+  @IsOptional()
+  @IsString()
+  roleName?: string;
+}

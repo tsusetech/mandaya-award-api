@@ -21,7 +21,7 @@ import {
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthService } from './auth.service';
-import { SignupDto } from './dto/signup.dto';
+import { SignupDto, SignupWithRoleDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import {
   LoginResponseDto,
@@ -59,8 +59,8 @@ export class AuthController {
     status: HttpStatus.CONFLICT,
     description: 'User already exists',
   })
-  @ApiBody({ type: SignupDto })
-  async signup(@Body() signupDto: SignupDto): Promise<SignupResponseDto> {
+  @ApiBody({ type: SignupWithRoleDto })
+  async signup(@Body() signupDto: SignupWithRoleDto): Promise<SignupResponseDto> {
     return this.authService.signup(signupDto);
   }
 

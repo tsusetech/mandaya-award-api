@@ -57,7 +57,7 @@ export class AuthService {
     };
   }
 
-  async signup(signupDto: SignupDto) {
+  async signup(signupDto: SignupDto & { roleName?: string }) {
     try {
       // Check if user already exists
       const existingUser = await this.prisma.user.findFirst({
@@ -105,19 +105,20 @@ export class AuthService {
           },
         });
 
-        // Assign default PESERTA role
-        const pesertaRole = await prisma.role.findUnique({
-          where: { name: 'PESERTA' },
+        // Assign role: use provided roleName if present; otherwise default to PESERTA for backward compat
+        const roleNameToAssign = (signupDto.roleName || 'PESERTA').toUpperCase();
+        const selectedRole = await prisma.role.findUnique({
+          where: { name: roleNameToAssign },
         });
 
-        if (!pesertaRole) {
-          throw new BadRequestException('Default PESERTA role not found in database');
+        if (!selectedRole) {
+          throw new BadRequestException(`Role '${roleNameToAssign}' not found in database`);
         }
 
         await prisma.userRole.create({
           data: {
             userId: user.id,
-            roleId: pesertaRole.id,
+            roleId: selectedRole.id,
           },
         });
 
