@@ -117,7 +117,7 @@ export enum ReviewStage {
 export enum ReviewDecision {
   APPROVE = 'approve',
   REJECT = 'reject',
-  REQUEST_REVISION = 'request_revision',
+  NEEDS_REVISION = 'needs_revision',
   PASS_TO_JURY = 'pass_to_jury',
   NEEDS_DELIBERATION = 'needs_deliberation'
 }

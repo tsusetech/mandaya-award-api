@@ -950,7 +950,7 @@ export class AssessmentsService {
       case ReviewDecision.REJECT:
         status = 'rejected';
         break;
-      case ReviewDecision.REQUEST_REVISION:
+      case ReviewDecision.NEEDS_REVISION:
         status = 'needs_revision';
         break;
       case ReviewDecision.PASS_TO_JURY:
@@ -1317,7 +1317,7 @@ export class AssessmentsService {
         return 'approved';
       case ReviewDecision.REJECT:
         return 'rejected';
-      case ReviewDecision.REQUEST_REVISION:
+      case ReviewDecision.NEEDS_REVISION:
         return 'needs_revision';
       case ReviewDecision.PASS_TO_JURY:
         return 'in_progress';
