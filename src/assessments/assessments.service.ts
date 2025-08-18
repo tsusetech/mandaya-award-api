@@ -564,9 +564,25 @@ export class AssessmentsService {
         session.userId,
       );
 
+      // If this is a resubmission, automatically resolve all review comments
+      if (isResubmission) {
+        await tx.reviewComment.updateMany({
+          where: {
+            sessionId: sessionId,
+            isResolved: false,
+          },
+          data: {
+            isResolved: true,
+            resolvedAt: new Date(),
+            resolvedBy: session.userId,
+            revisionNotes: 'Automatically resolved on resubmission',
+          },
+        });
+      }
+
       return {
         success: true,
-        message: 'Session submitted successfully',
+        message: isResubmission ? 'Session resubmitted successfully' : 'Session submitted successfully',
       };
     });
   }
