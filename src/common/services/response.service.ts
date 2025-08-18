@@ -3,7 +3,11 @@ import { ApiResponse } from '../interfaces/api-response.interface';
 
 @Injectable()
 export class ResponseService {
-  success<T>(data: T, message: string = 'Success', path: string = ''): ApiResponse<T> {
+  success<T>(
+    data: T,
+    message: string = 'Success',
+    path: string = '',
+  ): ApiResponse<T> {
     return {
       success: true,
       message,
@@ -22,4 +26,4 @@ export class ResponseService {
       path,
     };
   }
-} 
+}

@@ -1,4 +1,8 @@
-import { Injectable, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -15,7 +19,7 @@ export class AuthService {
   ) {}
 
   async validateUser(email: string, pass: string): Promise<any> {
-    const user = await this.prisma.user.findUnique({ 
+    const user = await this.prisma.user.findUnique({
       where: { email },
       include: {
         userRoles: {
@@ -25,7 +29,7 @@ export class AuthService {
         },
       },
     });
-    
+
     // Check if user exists and has a password (not OAuth user)
     if (user && user.password && (await bcrypt.compare(pass, user.password))) {
       const { password: _, ...result } = user;
@@ -36,16 +40,16 @@ export class AuthService {
 
   async login(user: any) {
     // Extract role names for JWT payload
-    const roles = user.userRoles?.map(ur => ur.role.name) || [];
-    
-    const payload = { 
-      email: user.email, 
+    const roles = user.userRoles?.map((ur) => ur.role.name) || [];
+
+    const payload = {
+      email: user.email,
       sub: user.id,
-      roles: roles // Include roles array in JWT
+      roles: roles, // Include roles array in JWT
     };
-    
+
     const { password: _, updatedAt: __, ...userResponse } = user;
-    
+
     return {
       message: 'Login successful',
       accessToken: this.jwtService.sign(payload),
@@ -58,15 +62,14 @@ export class AuthService {
       // Check if user already exists
       const existingUser = await this.prisma.user.findFirst({
         where: {
-          OR: [
-            { email: signupDto.email },
-            { username: signupDto.username },
-          ],
+          OR: [{ email: signupDto.email }, { username: signupDto.username }],
         },
       });
 
       if (existingUser) {
-        throw new ConflictException('User with this email or username already exists');
+        throw new ConflictException(
+          'User with this email or username already exists',
+        );
       }
 
       // Validate group if provided
@@ -79,13 +82,15 @@ export class AuthService {
         });
 
         if (!group) {
-          throw new BadRequestException(`Group with ID ${signupDto.groupId} not found`);
+          throw new BadRequestException(
+            `Group with ID ${signupDto.groupId} not found`,
+          );
         }
       }
 
       const salt = await bcrypt.genSalt();
       const hashedPassword = await bcrypt.hash(signupDto.password, salt);
-      
+
       // Create user with group assignment in a transaction
       const result = await this.prisma.$transaction(async (prisma) => {
         // Create user
@@ -156,9 +161,9 @@ export class AuthService {
         },
       });
 
-      const userResponse = { 
-        ...userWithRoles!, 
-        name: userWithRoles!.name ?? undefined 
+      const userResponse = {
+        ...userWithRoles!,
+        name: userWithRoles!.name ?? undefined,
       };
 
       // Send welcome email with credentials
@@ -168,7 +173,7 @@ export class AuthService {
           username: signupDto.username,
           email: signupDto.email,
           password: signupDto.password, // Send the plain text password
-          loginUrl: process.env.FRONTEND_URL || 'http://localhost:3000'
+          loginUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
         });
       } catch (emailError) {
         // Log the error but don't fail the signup process
@@ -180,7 +185,10 @@ export class AuthService {
         user: userResponse,
       };
     } catch (error) {
-      if (error instanceof ConflictException || error instanceof BadRequestException) {
+      if (
+        error instanceof ConflictException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throw new BadRequestException('Failed to create user');
@@ -246,8 +254,10 @@ export class AuthService {
 
     if (!user) {
       // Create new user with default group assignment if configured
-      const defaultGroupId = process.env.DEFAULT_GROUP_ID ? parseInt(process.env.DEFAULT_GROUP_ID) : null;
-      
+      const defaultGroupId = process.env.DEFAULT_GROUP_ID
+        ? parseInt(process.env.DEFAULT_GROUP_ID)
+        : null;
+
       // Validate default group if configured
       if (defaultGroupId) {
         const group = await this.prisma.group.findFirst({
@@ -258,7 +268,9 @@ export class AuthService {
         });
 
         if (!group) {
-          console.warn(`Default group with ID ${defaultGroupId} not found, creating user without group assignment`);
+          console.warn(
+            `Default group with ID ${defaultGroupId} not found, creating user without group assignment`,
+          );
         }
       }
 
@@ -363,7 +375,7 @@ export class AuthService {
 
     return {
       message: 'Users retrieved successfully',
-      users: users.map(user => ({
+      users: users.map((user) => ({
         ...user,
         name: user.name ?? undefined,
       })),
@@ -381,34 +393,47 @@ export class AuthService {
     for (let i = 0; i < users.length; i++) {
       const userData = users[i];
       const rowNumber = i + 2; // +2 because Excel has header row and we're 0-indexed
-      
+
       // Validate email format
       if (!this.isValidEmail(userData.email)) {
-        validationErrors.push(`Row ${rowNumber}: Invalid email format "${userData.email}"`);
+        validationErrors.push(
+          `Row ${rowNumber}: Invalid email format "${userData.email}"`,
+        );
       }
-      
+
       // Validate username length
       if (userData.username.length < 3) {
-        validationErrors.push(`Row ${rowNumber}: Username "${userData.username}" must be at least 3 characters`);
+        validationErrors.push(
+          `Row ${rowNumber}: Username "${userData.username}" must be at least 3 characters`,
+        );
       }
-      
+
       // Validate password length
       if (userData.password.length < 6) {
-        validationErrors.push(`Row ${rowNumber}: Password must be at least 6 characters`);
+        validationErrors.push(
+          `Row ${rowNumber}: Password must be at least 6 characters`,
+        );
       }
-      
+
       // Validate role if provided
-      if (userData.role && !['USER', 'ADMIN', 'JURY', 'PESERTA'].includes(userData.role.toUpperCase())) {
-        validationErrors.push(`Row ${rowNumber}: Invalid role "${userData.role}". Valid roles are: USER, ADMIN, JURY, PESERTA`);
+      if (
+        userData.role &&
+        !['USER', 'ADMIN', 'JURY', 'PESERTA'].includes(
+          userData.role.toUpperCase(),
+        )
+      ) {
+        validationErrors.push(
+          `Row ${rowNumber}: Invalid role "${userData.role}". Valid roles are: USER, ADMIN, JURY, PESERTA`,
+        );
       }
     }
 
     // Process users in batches to avoid memory issues
     const batchSize = 100;
-    
+
     for (let i = 0; i < users.length; i += batchSize) {
       const batch = users.slice(i, i + batchSize);
-      
+
       for (const userData of batch) {
         try {
           const result = await this.createSingleUserForBulk(userData);
@@ -440,17 +465,16 @@ export class AuthService {
     };
   }
 
-  private async createSingleUserForBulk(userData: BulkUserDto): Promise<UserCreationResult> {
+  private async createSingleUserForBulk(
+    userData: BulkUserDto,
+  ): Promise<UserCreationResult> {
     try {
       console.log(`Processing user: ${userData.email} (${userData.username})`);
-      
+
       // Check if user already exists
       const existingUser = await this.prisma.user.findFirst({
         where: {
-          OR: [
-            { email: userData.email },
-            { username: userData.username },
-          ],
+          OR: [{ email: userData.email }, { username: userData.username }],
         },
       });
 
@@ -488,7 +512,7 @@ export class AuthService {
 
       const salt = await bcrypt.genSalt();
       const hashedPassword = await bcrypt.hash(userData.password, salt);
-      
+
       // Create user with role and group assignment in a transaction
       const user = await this.prisma.$transaction(async (prisma) => {
         // Create user
@@ -504,7 +528,9 @@ export class AuthService {
         });
 
         // Assign role (default to PESERTA if not specified)
-        const roleName = userData.role ? userData.role.toUpperCase() : 'PESERTA';
+        const roleName = userData.role
+          ? userData.role.toUpperCase()
+          : 'PESERTA';
         console.log(`Looking for role: ${roleName}`);
         const role = await prisma.role.findUnique({
           where: { name: roleName },
@@ -520,7 +546,9 @@ export class AuthService {
           });
           console.log(`Role assigned to user: ${newUser.id}`);
         } else {
-          console.warn(`Role "${roleName}" not found for user ${userData.email}. User created without role assignment.`);
+          console.warn(
+            `Role "${roleName}" not found for user ${userData.email}. User created without role assignment.`,
+          );
         }
 
         // Assign user to group if provided
@@ -543,15 +571,20 @@ export class AuthService {
           username: userData.username,
           email: userData.email,
           password: userData.password, // Send the plain text password
-          loginUrl: process.env.FRONTEND_URL || 'http://localhost:3000'
+          loginUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
         });
       } catch (emailError) {
         // Log the error but don't fail the user creation process
-        console.error(`Failed to send welcome email for ${userData.email}:`, emailError);
+        console.error(
+          `Failed to send welcome email for ${userData.email}:`,
+          emailError,
+        );
         // Note: We don't throw the error here to prevent the entire bulk import from failing
       }
 
-      console.log(`User created successfully: ${userData.email} (ID: ${user.id})`);
+      console.log(
+        `User created successfully: ${userData.email} (ID: ${user.id})`,
+      );
       return {
         email: userData.email,
         username: userData.username,
@@ -575,7 +608,7 @@ export class AuthService {
       const ExcelJS = require('exceljs');
       const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.load(fileBuffer);
-      
+
       const worksheet = workbook.getWorksheet(1); // Get first worksheet
       if (!worksheet) {
         throw new BadRequestException('No worksheet found in Excel file');
@@ -584,7 +617,7 @@ export class AuthService {
       const users: BulkUserDto[] = [];
       const headers: string[] = [];
       const validationErrors: string[] = [];
-      
+
       // Get headers from first row
       const headerRow = worksheet.getRow(1);
       headerRow.eachCell((cell, colNumber) => {
@@ -594,13 +627,13 @@ export class AuthService {
 
       // Validate required headers
       const requiredHeaders = ['email', 'username', 'password'];
-      const missingHeaders = requiredHeaders.filter(header => 
-        !headers.some(h => h.includes(header))
+      const missingHeaders = requiredHeaders.filter(
+        (header) => !headers.some((h) => h.includes(header)),
       );
-      
+
       if (missingHeaders.length > 0) {
         throw new BadRequestException(
-          `Missing required columns: ${missingHeaders.join(', ')}. Required columns are: email, username, password`
+          `Missing required columns: ${missingHeaders.join(', ')}. Required columns are: email, username, password`,
         );
       }
 
@@ -609,37 +642,49 @@ export class AuthService {
       let processedRows = 0;
       worksheet.eachRow((row, rowNumber) => {
         if (rowNumber === 1) return; // Skip header row
-        
+
         processedRows++;
         console.log(`Processing row ${rowNumber}:`, row.values);
-        
+
         // Check if row has any data
-        const rowValues = row.values.filter(val => val !== undefined && val !== null && val !== '');
-        console.log(`Row ${rowNumber} has ${rowValues.length} non-empty values:`, rowValues);
-        
+        const rowValues = row.values.filter(
+          (val) => val !== undefined && val !== null && val !== '',
+        );
+        console.log(
+          `Row ${rowNumber} has ${rowValues.length} non-empty values:`,
+          rowValues,
+        );
+
         if (rowValues.length === 0) {
           console.log(`Skipping empty row ${rowNumber}`);
           return;
         }
-        
+
         const userData: Partial<BulkUserDto> = {};
         let hasRequiredFields = true;
-        
+
         row.eachCell((cell, colNumber) => {
           const header = headers[colNumber];
           let value = '';
-          
+
           // Handle different cell value types
-          if (cell.value && typeof cell.value === 'object' && 'text' in cell.value) {
+          if (
+            cell.value &&
+            typeof cell.value === 'object' &&
+            'text' in cell.value
+          ) {
             // Handle hyperlink objects
             value = cell.value.text?.toString().trim() || '';
           } else {
             // Handle regular values
             value = cell.value?.toString().trim() || '';
           }
-          
-          console.log(`Row ${rowNumber}, Col ${colNumber}, Header: "${header}", Value: "${value}", Raw:`, cell.value);
-          
+
+          console.log(
+            `Row ${rowNumber}, Col ${colNumber}, Header: "${header}", Value: "${value}", Raw:`,
+            cell.value,
+          );
+
           if (header.includes('email')) {
             userData.email = value;
           } else if (header.includes('username')) {
@@ -657,7 +702,9 @@ export class AuthService {
               if (!isNaN(groupId)) {
                 userData.groupId = groupId;
               } else {
-                validationErrors.push(`Row ${rowNumber}: Invalid groupId "${value}" - must be a number`);
+                validationErrors.push(
+                  `Row ${rowNumber}: Invalid groupId "${value}" - must be a number`,
+                );
               }
             }
           }
@@ -668,7 +715,9 @@ export class AuthService {
           validationErrors.push(`Row ${rowNumber}: Missing email`);
           hasRequiredFields = false;
         } else if (!this.isValidEmail(userData.email)) {
-          validationErrors.push(`Row ${rowNumber}: Invalid email format "${userData.email}"`);
+          validationErrors.push(
+            `Row ${rowNumber}: Invalid email format "${userData.email}"`,
+          );
           hasRequiredFields = false;
         }
 
@@ -676,7 +725,9 @@ export class AuthService {
           validationErrors.push(`Row ${rowNumber}: Missing username`);
           hasRequiredFields = false;
         } else if (userData.username.length < 3) {
-          validationErrors.push(`Row ${rowNumber}: Username "${userData.username}" must be at least 3 characters`);
+          validationErrors.push(
+            `Row ${rowNumber}: Username "${userData.username}" must be at least 3 characters`,
+          );
           hasRequiredFields = false;
         }
 
@@ -684,17 +735,31 @@ export class AuthService {
           validationErrors.push(`Row ${rowNumber}: Missing password`);
           hasRequiredFields = false;
         } else if (userData.password.length < 6) {
-          validationErrors.push(`Row ${rowNumber}: Password must be at least 6 characters`);
+          validationErrors.push(
+            `Row ${rowNumber}: Password must be at least 6 characters`,
+          );
           hasRequiredFields = false;
         }
 
         // Only add if required fields are present and valid
-        console.log(`Row ${rowNumber} userData:`, userData, 'hasRequiredFields:', hasRequiredFields);
-        if (hasRequiredFields && userData.email && userData.username && userData.password) {
+        console.log(
+          `Row ${rowNumber} userData:`,
+          userData,
+          'hasRequiredFields:',
+          hasRequiredFields,
+        );
+        if (
+          hasRequiredFields &&
+          userData.email &&
+          userData.username &&
+          userData.password
+        ) {
           users.push(userData as BulkUserDto);
           console.log(`Added user from row ${rowNumber}:`, userData);
         } else {
-          console.log(`Skipped user from row ${rowNumber} - missing required fields`);
+          console.log(
+            `Skipped user from row ${rowNumber} - missing required fields`,
+          );
         }
       });
 
@@ -702,7 +767,9 @@ export class AuthService {
       console.log(`Final users array length: ${users.length}`);
       console.log('Final users:', users);
       if (users.length === 0) {
-        throw new BadRequestException(`No valid user data found in Excel file. Processed ${processedRows} rows but found no valid data.`);
+        throw new BadRequestException(
+          `No valid user data found in Excel file. Processed ${processedRows} rows but found no valid data.`,
+        );
       }
 
       return users;
@@ -711,7 +778,9 @@ export class AuthService {
         throw error;
       }
       console.error('Excel parsing error:', error);
-      throw new BadRequestException('Failed to parse Excel file. Please ensure it\'s a valid Excel file.');
+      throw new BadRequestException(
+        "Failed to parse Excel file. Please ensure it's a valid Excel file.",
+      );
     }
   }
 

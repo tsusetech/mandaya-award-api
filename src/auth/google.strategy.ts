@@ -21,7 +21,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   ): Promise<any> {
     const { name, emails, photos } = profile;
     const email = emails[0].value;
-    
+
     // Find or create user in database
     const user = await this.authService.findOrCreateGoogleUser({
       email,
@@ -31,7 +31,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       picture: photos[0].value,
       googleId: profile.id,
     });
-    
+
     return user;
   }
-} 
+}

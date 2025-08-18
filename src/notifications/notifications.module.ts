@@ -10,4 +10,4 @@ import { CommonModule } from '../common/common.module';
   controllers: [NotificationsController],
   exports: [NotificationsService, EmailService],
 })
-export class NotificationsModule {} 
+export class NotificationsModule {}

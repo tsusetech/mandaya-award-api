@@ -10,20 +10,26 @@ export class CategoryGroupResponseDto {
   @ApiProperty({ example: 1, description: 'Group ID' })
   groupId: number;
 
-  @ApiProperty({ example: '2024-01-15T10:30:00Z', description: 'Creation timestamp' })
+  @ApiProperty({
+    example: '2024-01-15T10:30:00Z',
+    description: 'Creation timestamp',
+  })
   createdAt: Date;
 
-  @ApiProperty({ example: '2024-01-15T10:30:00Z', description: 'Last update timestamp' })
+  @ApiProperty({
+    example: '2024-01-15T10:30:00Z',
+    description: 'Last update timestamp',
+  })
   updatedAt: Date;
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: {
       id: 1,
       name: 'Pemerintah Daerah Pendukung Pemberdayaan',
-      description: 'Category for local government supporting empowerment'
+      description: 'Category for local government supporting empowerment',
     },
     description: 'Category information',
-    required: false
+    required: false,
   })
   category?: {
     id: number;
@@ -31,14 +37,14 @@ export class CategoryGroupResponseDto {
     description: string | null;
   };
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: {
       id: 1,
       groupName: 'Provinsi',
-      description: 'Province level group'
+      description: 'Province level group',
     },
     description: 'Group information',
-    required: false
+    required: false,
   })
   group?: {
     id: number;

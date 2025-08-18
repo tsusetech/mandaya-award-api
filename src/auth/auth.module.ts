@@ -20,7 +20,13 @@ import { NotificationsModule } from '../notifications/notifications.module';
       signOptions: { expiresIn: '24h' },
     }),
   ],
-  providers: [AuthService, GoogleStrategy, LocalStrategy, JwtStrategy, RolesGuard],
+  providers: [
+    AuthService,
+    GoogleStrategy,
+    LocalStrategy,
+    JwtStrategy,
+    RolesGuard,
+  ],
   controllers: [AuthController],
   exports: [RolesGuard],
 })

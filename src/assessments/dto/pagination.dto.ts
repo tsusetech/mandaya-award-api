@@ -1,14 +1,22 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsNumber, IsString, IsPositive, Min, Max, IsEnum } from 'class-validator';
+import {
+  IsOptional,
+  IsNumber,
+  IsString,
+  IsPositive,
+  Min,
+  Max,
+  IsEnum,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { CombinedStatus } from './combined-status.enum';
 
 export class PaginationQueryDto {
-  @ApiProperty({ 
-    example: 1, 
+  @ApiProperty({
+    example: 1,
     description: 'Page number (starts from 1)',
     required: false,
-    default: 1
+    default: 1,
   })
   @IsOptional()
   @Type(() => Number)
@@ -16,13 +24,13 @@ export class PaginationQueryDto {
   @IsPositive()
   page?: number = 1;
 
-  @ApiProperty({ 
-    example: 10, 
+  @ApiProperty({
+    example: 10,
     description: 'Number of items per page',
     required: false,
     default: 10,
     minimum: 1,
-    maximum: 100
+    maximum: 100,
   })
   @IsOptional()
   @Type(() => Number)
@@ -31,29 +39,30 @@ export class PaginationQueryDto {
   @Max(100)
   limit?: number = 10;
 
-  @ApiProperty({ 
-    example: 'Personal Information', 
+  @ApiProperty({
+    example: 'Personal Information',
     description: 'Filter by section title',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsString()
   sectionTitle?: string;
 
-  @ApiProperty({ 
-    example: 'Basic Info', 
+  @ApiProperty({
+    example: 'Basic Info',
     description: 'Filter by subsection',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsString()
   subsection?: string;
 
-  @ApiProperty({ 
-    example: 'submitted', 
-    description: 'Filter by final status (combines session and review statuses)',
+  @ApiProperty({
+    example: 'submitted',
+    description:
+      'Filter by final status (combines session and review statuses)',
     required: false,
-    enum: CombinedStatus
+    enum: CombinedStatus,
   })
   @IsOptional()
   @IsEnum(CombinedStatus)

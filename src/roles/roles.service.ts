@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SoftDeleteService } from '../common/services/soft-delete.service';
 import { ResponseService } from '../common/services/response.service';
@@ -26,16 +30,16 @@ export class RolesService {
         },
       },
     });
-    
+
     return this.responseService.success(roles, 'Roles retrieved successfully');
   }
 
   async createRole(createRoleDto: CreateRoleDto) {
     // Check if role already exists
     const existingRole = await this.prisma.role.findFirst({
-      where: { 
+      where: {
         name: createRoleDto.name.toUpperCase(),
-        ...this.softDeleteService.getActiveRecordsWhere()
+        ...this.softDeleteService.getActiveRecordsWhere(),
       },
     });
 
@@ -56,9 +60,9 @@ export class RolesService {
   async updateRole(id: number, updateRoleDto: UpdateRoleDto) {
     // Check if role exists
     const existingRole = await this.prisma.role.findFirst({
-      where: { 
+      where: {
         id,
-        ...this.softDeleteService.getActiveRecordsWhere()
+        ...this.softDeleteService.getActiveRecordsWhere(),
       },
     });
 
@@ -69,38 +73,43 @@ export class RolesService {
     // Check if new name conflicts with existing role (if name is being updated)
     if (updateRoleDto.name) {
       const roleWithSameName = await this.prisma.role.findFirst({
-        where: { 
+        where: {
           name: updateRoleDto.name.toUpperCase(),
           id: { not: id },
-          ...this.softDeleteService.getActiveRecordsWhere()
+          ...this.softDeleteService.getActiveRecordsWhere(),
         },
       });
-      
+
       if (roleWithSameName) {
         throw new BadRequestException('Role with this name already exists');
       }
     }
 
     const updatedRole = await this.prisma.role.update({
-      where: { 
+      where: {
         id,
-        ...this.softDeleteService.getActiveRecordsWhere()
+        ...this.softDeleteService.getActiveRecordsWhere(),
       },
       data: {
         ...(updateRoleDto.name && { name: updateRoleDto.name.toUpperCase() }),
-        ...(updateRoleDto.description !== undefined && { description: updateRoleDto.description }),
+        ...(updateRoleDto.description !== undefined && {
+          description: updateRoleDto.description,
+        }),
       },
     });
 
-    return this.responseService.success(updatedRole, 'Role updated successfully');
+    return this.responseService.success(
+      updatedRole,
+      'Role updated successfully',
+    );
   }
 
   async deleteRole(id: number, deletedBy?: number) {
     // Check if role exists
     const existingRole = await this.prisma.role.findFirst({
-      where: { 
+      where: {
         id,
-        ...this.softDeleteService.getActiveRecordsWhere()
+        ...this.softDeleteService.getActiveRecordsWhere(),
       },
       include: {
         userRoles: true,
@@ -113,7 +122,9 @@ export class RolesService {
 
     // Check if role is assigned to any users
     if (existingRole.userRoles.length > 0) {
-      throw new BadRequestException('Cannot delete role that is assigned to users');
+      throw new BadRequestException(
+        'Cannot delete role that is assigned to users',
+      );
     }
 
     await this.softDeleteService.softDeleteRole(id, { deletedBy });
@@ -123,9 +134,9 @@ export class RolesService {
 
   async getRoleById(id: number) {
     const role = await this.prisma.role.findFirst({
-      where: { 
+      where: {
         id,
-        ...this.softDeleteService.getActiveRecordsWhere()
+        ...this.softDeleteService.getActiveRecordsWhere(),
       },
       include: {
         userRoles: {
@@ -281,7 +292,10 @@ export class RolesService {
       },
     });
 
-    return this.responseService.success(userRoles, 'User roles retrieved successfully');
+    return this.responseService.success(
+      userRoles,
+      'User roles retrieved successfully',
+    );
   }
 
   async getUsersWithRole(roleName: string) {
@@ -306,21 +320,32 @@ export class RolesService {
       },
     });
 
-    return this.responseService.success(usersWithRole, `Users with role '${roleName}' retrieved successfully`);
+    return this.responseService.success(
+      usersWithRole,
+      `Users with role '${roleName}' retrieved successfully`,
+    );
   }
 
   // Soft Delete Management Methods
   async getSoftDeletedRoles() {
     const roles = await this.softDeleteService.getSoftDeletedRoles();
-    
-    return this.responseService.success(roles, 'Soft deleted roles retrieved successfully');
+
+    return this.responseService.success(
+      roles,
+      'Soft deleted roles retrieved successfully',
+    );
   }
 
   async restoreRole(id: number, restoredBy?: number) {
     try {
-      const restoredRole = await this.softDeleteService.restoreRole(id, { restoredBy });
-      
-      return this.responseService.success(restoredRole, 'Role restored successfully');
+      const restoredRole = await this.softDeleteService.restoreRole(id, {
+        restoredBy,
+      });
+
+      return this.responseService.success(
+        restoredRole,
+        'Role restored successfully',
+      );
     } catch (error) {
       throw new NotFoundException('Soft deleted role not found');
     }
@@ -329,8 +354,11 @@ export class RolesService {
   async permanentlyDeleteRole(id: number) {
     try {
       await this.softDeleteService.permanentlyDeleteRole(id);
-      
-      return this.responseService.success(null, 'Role permanently deleted successfully');
+
+      return this.responseService.success(
+        null,
+        'Role permanently deleted successfully',
+      );
     } catch (error) {
       throw new NotFoundException('Soft deleted role not found');
     }

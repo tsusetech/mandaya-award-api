@@ -1,9 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNumber, IsOptional, IsDateString, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsDateString,
+  IsEnum,
+} from 'class-validator';
 
 export enum EntityType {
   RESPONSE_SESSION = 'response_session',
-  REVIEW = 'review'
+  REVIEW = 'review',
 }
 
 export class StatusProgressDto {
@@ -23,7 +29,10 @@ export class StatusProgressDto {
   @IsString()
   status: string;
 
-  @ApiProperty({ example: 1, description: 'Version number (1 for latest, 2 for previous, etc.)' })
+  @ApiProperty({
+    example: 1,
+    description: 'Version number (1 for latest, 2 for previous, etc.)',
+  })
   @IsNumber()
   version: number;
 
@@ -46,7 +55,11 @@ export class StatusProgressDto {
   @IsDateString()
   changedAt: string;
 
-  @ApiProperty({ example: { action: 'submit_session' }, required: false, nullable: true })
+  @ApiProperty({
+    example: { action: 'submit_session' },
+    required: false,
+    nullable: true,
+  })
   @IsOptional()
   metadata?: any;
 }

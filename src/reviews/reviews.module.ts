@@ -8,6 +8,6 @@ import { CommonModule } from '../common/common.module';
   imports: [PrismaModule, CommonModule],
   controllers: [ReviewsController],
   providers: [ReviewsService],
-  exports: [ReviewsService]
+  exports: [ReviewsService],
 })
 export class ReviewsModule {}

@@ -5,6 +5,3 @@ export class CategoryResponseDto {
   createdAt: Date;
   updatedAt: Date;
 }
-
-
-

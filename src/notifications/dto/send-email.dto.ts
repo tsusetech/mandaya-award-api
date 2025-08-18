@@ -2,50 +2,50 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsString, IsOptional, IsArray } from 'class-validator';
 
 export class SendEmailDto {
-  @ApiProperty({ 
+  @ApiProperty({
     example: 'user@example.com',
-    description: 'Recipient email address'
+    description: 'Recipient email address',
   })
   @IsEmail()
   to: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: 'Welcome to Mandaya Awards',
-    description: 'Email subject'
+    description: 'Email subject',
   })
   @IsString()
   subject: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: 'Thank you for joining our platform!',
-    description: 'Email content in plain text'
+    description: 'Email content in plain text',
   })
   @IsString()
   @IsOptional()
   text?: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: '<h1>Welcome!</h1><p>Thank you for joining our platform!</p>',
-    description: 'Email content in HTML format'
+    description: 'Email content in HTML format',
   })
   @IsString()
   @IsOptional()
   html?: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: ['user2@example.com', 'user3@example.com'],
     description: 'Additional recipients (CC)',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsArray()
   @IsEmail({}, { each: true })
   cc?: string[];
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: ['user4@example.com'],
     description: 'Hidden recipients (BCC)',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsArray()
@@ -54,49 +54,49 @@ export class SendEmailDto {
 }
 
 export class BulkEmailDto {
-  @ApiProperty({ 
+  @ApiProperty({
     type: [SendEmailDto],
-    description: 'Array of emails to send'
+    description: 'Array of emails to send',
   })
   @IsArray()
   emails: SendEmailDto[];
 }
 
 export class WelcomeEmailDto {
-  @ApiProperty({ 
+  @ApiProperty({
     example: 'user@example.com',
-    description: 'Recipient email address'
+    description: 'Recipient email address',
   })
   @IsEmail()
   to: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: 'john_doe',
-    description: 'Username of the new user'
+    description: 'Username of the new user',
   })
   @IsString()
   username: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: 'user@example.com',
-    description: 'Email address of the new user'
+    description: 'Email address of the new user',
   })
   @IsEmail()
   email: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: 'mypassword123',
-    description: 'Plain text password for the new user'
+    description: 'Plain text password for the new user',
   })
   @IsString()
   password: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     example: 'https://myproject.com/login',
     description: 'Login URL for the application',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsString()
   loginUrl?: string;
-} 
+}

@@ -1,18 +1,26 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsString, IsOptional, IsArray, ArrayMinSize, IsBoolean, IsEnum } from 'class-validator';
+import {
+  IsInt,
+  IsString,
+  IsOptional,
+  IsArray,
+  ArrayMinSize,
+  IsBoolean,
+  IsEnum,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum CalculationType {
   DELTA = 'delta',
   AVERAGE = 'average',
   SUM = 'sum',
-  CUSTOM = 'custom'
+  CUSTOM = 'custom',
 }
 
 export enum TahapGroup {
   TAHAP_1_DELTA = 'Tahap 1 Delta',
   TAHAP_2 = 'Tahap 2',
-  TAHAP_3 = 'Tahap 3'
+  TAHAP_3 = 'Tahap 3',
 }
 
 export class BindQuestionToGroupDto {
@@ -20,53 +28,64 @@ export class BindQuestionToGroupDto {
   @IsInt()
   questionId: number;
 
-  @ApiProperty({ example: 1, description: 'Order number for the question in the group' })
+  @ApiProperty({
+    example: 1,
+    description: 'Order number for the question in the group',
+  })
   @IsInt()
   orderNumber: number;
 
-  @ApiProperty({ example: 'Section 1: Basic Information', description: 'Section title', required: false })
+  @ApiProperty({
+    example: 'Section 1: Basic Information',
+    description: 'Section title',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   sectionTitle?: string;
 
-  @ApiProperty({ example: 'Personal Details', description: 'Subsection', required: false })
+  @ApiProperty({
+    example: 'Personal Details',
+    description: 'Subsection',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   subsection?: string;
 
-  @ApiProperty({ 
-    example: 'Tahap 1 Delta', 
-    description: 'Tahap group for calculation purposes', 
+  @ApiProperty({
+    example: 'Tahap 1 Delta',
+    description: 'Tahap group for calculation purposes',
     required: false,
-    enum: TahapGroup
+    enum: TahapGroup,
   })
   @IsEnum(TahapGroup)
   @IsOptional()
   tahapGroup?: TahapGroup;
 
-  @ApiProperty({ 
-    example: 'delta', 
-    description: 'Type of calculation for this group', 
+  @ApiProperty({
+    example: 'delta',
+    description: 'Type of calculation for this group',
     required: false,
-    enum: CalculationType
+    enum: CalculationType,
   })
   @IsEnum(CalculationType)
   @IsOptional()
   calculationType?: CalculationType;
 
-  @ApiProperty({ 
-    example: 'poverty_metrics', 
-    description: 'Identifier for grouping related questions across subsections', 
-    required: false 
+  @ApiProperty({
+    example: 'poverty_metrics',
+    description: 'Identifier for grouping related questions across subsections',
+    required: false,
   })
   @IsString()
   @IsOptional()
   groupIdentifier?: string;
 
-  @ApiProperty({ 
-    example: true, 
-    description: 'Whether this question is part of a calculation group', 
-    required: false 
+  @ApiProperty({
+    example: true,
+    description: 'Whether this question is part of a calculation group',
+    required: false,
   })
   @IsBoolean()
   @IsOptional()
@@ -74,78 +93,78 @@ export class BindQuestionToGroupDto {
 }
 
 export class BindMultipleQuestionsToGroupDto {
-  @ApiProperty({ 
+  @ApiProperty({
     example: [
       {
         questionId: 1,
         orderNumber: 1,
         sectionTitle: 'Section 1: Basic Information',
-        subsection: 'Personal Details'
+        subsection: 'Personal Details',
       },
       {
         questionId: 2,
         orderNumber: 2,
         sectionTitle: 'Section 1: Basic Information',
-        subsection: 'Personal Details'
-      }
-    ], 
-    description: 'Array of questions to bind to the group' 
+        subsection: 'Personal Details',
+      },
+    ],
+    description: 'Array of questions to bind to the group',
   })
   @IsArray()
   @ArrayMinSize(1)
   questions: BindQuestionToGroupDto[];
 
-  @ApiProperty({ 
-    example: 'Section 1: Basic Information', 
-    description: 'Default section title for all questions (optional)', 
-    required: false 
+  @ApiProperty({
+    example: 'Section 1: Basic Information',
+    description: 'Default section title for all questions (optional)',
+    required: false,
   })
   @IsString()
   @IsOptional()
   defaultSectionTitle?: string;
 
-  @ApiProperty({ 
-    example: 'Personal Details', 
-    description: 'Default subsection for all questions (optional)', 
-    required: false 
+  @ApiProperty({
+    example: 'Personal Details',
+    description: 'Default subsection for all questions (optional)',
+    required: false,
   })
   @IsString()
   @IsOptional()
   defaultSubsection?: string;
 
-  @ApiProperty({ 
-    example: 'Tahap 1 Delta', 
-    description: 'Default tahap group for all questions (optional)', 
+  @ApiProperty({
+    example: 'Tahap 1 Delta',
+    description: 'Default tahap group for all questions (optional)',
     required: false,
-    enum: TahapGroup
+    enum: TahapGroup,
   })
   @IsEnum(TahapGroup)
   @IsOptional()
   defaultTahapGroup?: TahapGroup;
 
-  @ApiProperty({ 
-    example: 'delta', 
-    description: 'Default calculation type for all questions (optional)', 
+  @ApiProperty({
+    example: 'delta',
+    description: 'Default calculation type for all questions (optional)',
     required: false,
-    enum: CalculationType
+    enum: CalculationType,
   })
   @IsEnum(CalculationType)
   @IsOptional()
   defaultCalculationType?: CalculationType;
 
-  @ApiProperty({ 
-    example: 'poverty_metrics', 
-    description: 'Default group identifier for all questions (optional)', 
-    required: false 
+  @ApiProperty({
+    example: 'poverty_metrics',
+    description: 'Default group identifier for all questions (optional)',
+    required: false,
   })
   @IsString()
   @IsOptional()
   defaultGroupIdentifier?: string;
 
-  @ApiProperty({ 
-    example: true, 
-    description: 'Default grouped status for all questions (optional)', 
-    required: false 
+  @ApiProperty({
+    example: true,
+    description: 'Default grouped status for all questions (optional)',
+    required: false,
   })
   @IsBoolean()
   @IsOptional()
@@ -153,54 +172,66 @@ export class BindMultipleQuestionsToGroupDto {
 }
 
 export class UpdateGroupQuestionDto {
-  @ApiProperty({ example: 2, description: 'New order number for the question', required: false })
+  @ApiProperty({
+    example: 2,
+    description: 'New order number for the question',
+    required: false,
+  })
   @IsInt()
   @IsOptional()
   orderNumber?: number;
 
-  @ApiProperty({ example: 'Section 2: Updated Section', description: 'Updated section title', required: false })
+  @ApiProperty({
+    example: 'Section 2: Updated Section',
+    description: 'Updated section title',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   sectionTitle?: string;
 
-  @ApiProperty({ example: 'Updated Subsection', description: 'Updated subsection', required: false })
+  @ApiProperty({
+    example: 'Updated Subsection',
+    description: 'Updated subsection',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   subsection?: string;
 
-  @ApiProperty({ 
-    example: 'Tahap 2', 
-    description: 'Updated tahap group', 
+  @ApiProperty({
+    example: 'Tahap 2',
+    description: 'Updated tahap group',
     required: false,
-    enum: TahapGroup
+    enum: TahapGroup,
   })
   @IsEnum(TahapGroup)
   @IsOptional()
   tahapGroup?: TahapGroup;
 
-  @ApiProperty({ 
-    example: 'average', 
-    description: 'Updated calculation type', 
+  @ApiProperty({
+    example: 'average',
+    description: 'Updated calculation type',
     required: false,
-    enum: CalculationType
+    enum: CalculationType,
   })
   @IsEnum(CalculationType)
   @IsOptional()
   calculationType?: CalculationType;
 
-  @ApiProperty({ 
-    example: 'expenditure_metrics', 
-    description: 'Updated group identifier', 
-    required: false 
+  @ApiProperty({
+    example: 'expenditure_metrics',
+    description: 'Updated group identifier',
+    required: false,
   })
   @IsString()
   @IsOptional()
   groupIdentifier?: string;
 
-  @ApiProperty({ 
-    example: false, 
-    description: 'Updated grouped status', 
-    required: false 
+  @ApiProperty({
+    example: false,
+    description: 'Updated grouped status',
+    required: false,
   })
   @IsBoolean()
   @IsOptional()
@@ -208,12 +239,12 @@ export class UpdateGroupQuestionDto {
 }
 
 export class ReorderQuestionsDto {
-  @ApiProperty({ 
+  @ApiProperty({
     example: [
       { groupQuestionId: 1, orderNumber: 1 },
-      { groupQuestionId: 2, orderNumber: 2 }
-    ], 
-    description: 'Array of group question IDs with their new order numbers' 
+      { groupQuestionId: 2, orderNumber: 2 },
+    ],
+    description: 'Array of group question IDs with their new order numbers',
   })
   @IsArray()
   @ArrayMinSize(1)
@@ -279,27 +310,27 @@ export class CreateTahapGroupDto {
   @IsString()
   description: string;
 
-  @ApiProperty({ 
-    example: [1, 2, 3], 
-    description: 'Array of question IDs to include in this group' 
+  @ApiProperty({
+    example: [1, 2, 3],
+    description: 'Array of question IDs to include in this group',
   })
   @IsArray()
   @ArrayMinSize(1)
   questionIds: number[];
 
-  @ApiProperty({ 
-    example: 1, 
+  @ApiProperty({
+    example: 1,
     description: 'Parent tahap group ID (for hierarchical relationships)',
-    required: false 
+    required: false,
   })
   @IsOptional()
   @IsInt()
   parentGroupId?: number;
 
-  @ApiProperty({ 
-    example: 1, 
+  @ApiProperty({
+    example: 1,
     description: 'Hierarchy level (1, 2, 3, etc.)',
-    required: false 
+    required: false,
   })
   @IsOptional()
   @IsInt()
@@ -307,14 +338,14 @@ export class CreateTahapGroupDto {
 }
 
 export class CreateHierarchicalTahapGroupDto {
-  @ApiProperty({ 
+  @ApiProperty({
     example: [
       {
         tahapGroup: 'Tahap 1 Delta',
         groupIdentifier: 'poverty_metrics',
         calculationType: 'delta',
         description: 'Poverty metrics delta calculation',
-        questionIds: [1, 2, 3]
+        questionIds: [1, 2, 3],
       },
       {
         tahapGroup: 'Tahap 2',
@@ -322,9 +353,9 @@ export class CreateHierarchicalTahapGroupDto {
         calculationType: 'average',
         description: 'Average from P0-P2 poverty indices',
         questionIds: [13, 14, 15, 16, 17, 18],
-        parentGroupId: 1
-      }
-    ]
+        parentGroupId: 1,
+      },
+    ],
   })
   @IsArray()
   @ArrayMinSize(1)
@@ -352,22 +383,30 @@ export class UpdateTahapGroupDto {
   @IsOptional()
   description?: string;
 
-  @ApiProperty({ 
-    example: [4, 5, 6], 
-    description: 'Updated array of question IDs', 
-    required: false 
+  @ApiProperty({
+    example: [4, 5, 6],
+    description: 'Updated array of question IDs',
+    required: false,
   })
   @IsArray()
   @IsOptional()
   questionIds?: number[];
 
   // Add these two fields:
-  @ApiProperty({ example: 1, required: false, description: 'Parent tahap group ID (for hierarchical relationships)' })
+  @ApiProperty({
+    example: 1,
+    required: false,
+    description: 'Parent tahap group ID (for hierarchical relationships)',
+  })
   @IsOptional()
   @IsInt()
   parentGroupId?: number;
 
-  @ApiProperty({ example: 2, required: false, description: 'Hierarchy level (1, 2, 3, etc.)' })
+  @ApiProperty({
+    example: 2,
+    required: false,
+    description: 'Hierarchy level (1, 2, 3, etc.)',
+  })
   @IsOptional()
   @IsInt()
   level?: number;

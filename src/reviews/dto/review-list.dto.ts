@@ -50,4 +50,4 @@ export class ReviewListResponseDto {
 
   @ApiProperty()
   limit: number;
-} 
+}

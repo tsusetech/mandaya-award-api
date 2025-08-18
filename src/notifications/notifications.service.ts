@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EmailService } from './services/email.service';
 import { SendEmailDto, WelcomeEmailDto } from './dto/send-email.dto';
-import { NotificationResponseDto, BulkEmailResponseDto } from './dto/notification-response.dto';
+import {
+  NotificationResponseDto,
+  BulkEmailResponseDto,
+} from './dto/notification-response.dto';
 
 @Injectable()
 export class NotificationsService {
@@ -12,7 +15,9 @@ export class NotificationsService {
   /**
    * Send a single email notification
    */
-  async sendEmailNotification(emailDto: SendEmailDto): Promise<NotificationResponseDto> {
+  async sendEmailNotification(
+    emailDto: SendEmailDto,
+  ): Promise<NotificationResponseDto> {
     this.logger.log(`Processing email notification for: ${emailDto.to}`);
     return await this.emailService.sendEmail(emailDto);
   }
@@ -20,26 +25,33 @@ export class NotificationsService {
   /**
    * Send bulk email notifications
    */
-  async sendBulkEmailNotifications(emails: SendEmailDto[]): Promise<BulkEmailResponseDto> {
-    this.logger.log(`Processing bulk email notifications for ${emails.length} recipients`);
-    
+  async sendBulkEmailNotifications(
+    emails: SendEmailDto[],
+  ): Promise<BulkEmailResponseDto> {
+    this.logger.log(
+      `Processing bulk email notifications for ${emails.length} recipients`,
+    );
+
     const results = await this.emailService.sendBulkEmails(emails);
-    
-    const totalSent = results.filter(r => r.status === 'sent').length;
-    const failed = results.filter(r => r.status === 'failed').length;
+
+    const totalSent = results.filter((r) => r.status === 'sent').length;
+    const failed = results.filter((r) => r.status === 'failed').length;
 
     return {
       message: 'Bulk email operation completed',
       totalSent,
       failed,
-      results
+      results,
     };
   }
 
   /**
    * Send welcome email to new user
    */
-  async sendWelcomeEmail(userEmail: string, userName?: string): Promise<NotificationResponseDto> {
+  async sendWelcomeEmail(
+    userEmail: string,
+    userName?: string,
+  ): Promise<NotificationResponseDto> {
     const emailDto: SendEmailDto = {
       to: userEmail,
       subject: 'Welcome to Mandaya Awards Platform',
@@ -69,7 +81,7 @@ export class NotificationsService {
           </div>
         </div>
       `,
-      text: `Welcome to Mandaya Awards! Hello ${userName || 'there'}, thank you for joining our platform. You can now access all the features and participate in awards and competitions. Best regards, The Mandaya Awards Team`
+      text: `Welcome to Mandaya Awards! Hello ${userName || 'there'}, thank you for joining our platform. You can now access all the features and participate in awards and competitions. Best regards, The Mandaya Awards Team`,
     };
 
     return this.sendEmailNotification(emailDto);
@@ -78,9 +90,14 @@ export class NotificationsService {
   /**
    * Send welcome email with credentials to new user
    */
-  async sendWelcomeEmailWithCredentials(welcomeEmailDto: WelcomeEmailDto): Promise<NotificationResponseDto> {
-    const loginUrl = welcomeEmailDto.loginUrl || process.env.FRONTEND_URL || 'http://localhost:3000';
-    
+  async sendWelcomeEmailWithCredentials(
+    welcomeEmailDto: WelcomeEmailDto,
+  ): Promise<NotificationResponseDto> {
+    const loginUrl =
+      welcomeEmailDto.loginUrl ||
+      process.env.FRONTEND_URL ||
+      'http://localhost:3000';
+
     const emailDto: SendEmailDto = {
       to: welcomeEmailDto.to,
       subject: 'Welcome to Mandaya Awards Platform - Your Account Details',
@@ -149,7 +166,7 @@ export class NotificationsService {
           </div>
         </div>
       `,
-      text: `Welcome to Mandaya Awards! Hello ${welcomeEmailDto.username}, thank you for joining our platform. Your account details: Username: ${welcomeEmailDto.username}, Email: ${welcomeEmailDto.email}, Password: ${welcomeEmailDto.password}. Login at: ${loginUrl}/login. Please keep your credentials secure and consider changing your password after first login. Best regards, The Mandaya Awards Team`
+      text: `Welcome to Mandaya Awards! Hello ${welcomeEmailDto.username}, thank you for joining our platform. Your account details: Username: ${welcomeEmailDto.username}, Email: ${welcomeEmailDto.email}, Password: ${welcomeEmailDto.password}. Login at: ${loginUrl}/login. Please keep your credentials secure and consider changing your password after first login. Best regards, The Mandaya Awards Team`,
     };
 
     return this.sendEmailNotification(emailDto);
@@ -158,9 +175,12 @@ export class NotificationsService {
   /**
    * Send password reset email
    */
-  async sendPasswordResetEmail(userEmail: string, resetToken: string): Promise<NotificationResponseDto> {
+  async sendPasswordResetEmail(
+    userEmail: string,
+    resetToken: string,
+  ): Promise<NotificationResponseDto> {
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
-    
+
     const emailDto: SendEmailDto = {
       to: userEmail,
       subject: 'Password Reset Request - Mandaya Awards',
@@ -205,7 +225,7 @@ export class NotificationsService {
           </div>
         </div>
       `,
-      text: `Password reset requested for your Mandaya Awards account. Visit: ${resetUrl} - This link will expire in 1 hour. If you didn't request this, please ignore this email.`
+      text: `Password reset requested for your Mandaya Awards account. Visit: ${resetUrl} - This link will expire in 1 hour. If you didn't request this, please ignore this email.`,
     };
 
     return this.sendEmailNotification(emailDto);
@@ -218,10 +238,15 @@ export class NotificationsService {
     to: string,
     templateName: string,
     templateData: Record<string, any>,
-    subject?: string
+    subject?: string,
   ): Promise<NotificationResponseDto> {
     this.logger.log(`Sending template email: ${templateName} to: ${to}`);
-    return await this.emailService.sendTemplateEmail(to, templateName, templateData, subject);
+    return await this.emailService.sendTemplateEmail(
+      to,
+      templateName,
+      templateData,
+      subject,
+    );
   }
 
   /**
@@ -231,4 +256,4 @@ export class NotificationsService {
     this.logger.log(`Getting email stats for last ${days} days`);
     return await this.emailService.getEmailStats(days);
   }
-} 
+}

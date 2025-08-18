@@ -1,51 +1,58 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNumber, IsBoolean, IsOptional, IsNotEmpty } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsBoolean,
+  IsOptional,
+  IsNotEmpty,
+} from 'class-validator';
 
 export class CreateQuestionOptionDto {
-  @ApiProperty({ 
-    example: 1, 
-    description: 'The ID of the question this option belongs to' 
+  @ApiProperty({
+    example: 1,
+    description: 'The ID of the question this option belongs to',
   })
   @IsNumber()
   @IsNotEmpty()
   questionId: number;
 
-  @ApiProperty({ 
-    example: 'Sangat Setuju', 
-    description: 'The display text for the option' 
+  @ApiProperty({
+    example: 'Sangat Setuju',
+    description: 'The display text for the option',
   })
   @IsString()
   @IsNotEmpty()
   optionText: string;
 
-  @ApiProperty({ 
-    example: 'very_agree', 
-    description: 'The value that will be stored when this option is selected' 
+  @ApiProperty({
+    example: 'very_agree',
+    description: 'The value that will be stored when this option is selected',
   })
   @IsString()
   @IsNotEmpty()
   optionValue: string;
 
-  @ApiProperty({ 
-    example: 1, 
-    description: 'Order number for maintaining the sequence of options' 
+  @ApiProperty({
+    example: 1,
+    description: 'Order number for maintaining the sequence of options',
   })
   @IsNumber()
   orderNumber: number;
 
-  @ApiProperty({ 
-    example: true, 
-    description: 'Indicates if this option is part of a multiple choice question',
-    required: false 
+  @ApiProperty({
+    example: true,
+    description:
+      'Indicates if this option is part of a multiple choice question',
+    required: false,
   })
   @IsOptional()
   @IsBoolean()
   isMultipleChoice?: boolean;
 
-  @ApiProperty({ 
-    example: true, 
+  @ApiProperty({
+    example: true,
     description: 'Indicates if this option should be rendered as a checkbox',
-    required: false 
+    required: false,
   })
   @IsOptional()
   @IsBoolean()
@@ -53,55 +60,56 @@ export class CreateQuestionOptionDto {
 }
 
 export class UpdateQuestionOptionDto {
-  @ApiProperty({ 
-    example: 'Sangat Setuju', 
+  @ApiProperty({
+    example: 'Sangat Setuju',
     description: 'The display text for the option',
-    required: false 
+    required: false,
   })
   @IsOptional()
   @IsString()
   optionText?: string;
 
-  @ApiProperty({ 
-    example: 'very_agree', 
+  @ApiProperty({
+    example: 'very_agree',
     description: 'The value that will be stored when this option is selected',
-    required: false 
+    required: false,
   })
   @IsOptional()
   @IsString()
   optionValue?: string;
 
-  @ApiProperty({ 
-    example: 1, 
+  @ApiProperty({
+    example: 1,
     description: 'Order number for maintaining the sequence of options',
-    required: false 
+    required: false,
   })
   @IsOptional()
   @IsNumber()
   orderNumber?: number;
 
-  @ApiProperty({ 
-    example: true, 
-    description: 'Indicates if this option is part of a multiple choice question',
-    required: false 
+  @ApiProperty({
+    example: true,
+    description:
+      'Indicates if this option is part of a multiple choice question',
+    required: false,
   })
   @IsOptional()
   @IsBoolean()
   isMultipleChoice?: boolean;
 
-  @ApiProperty({ 
-    example: true, 
+  @ApiProperty({
+    example: true,
     description: 'Indicates if this option should be rendered as a checkbox',
-    required: false 
+    required: false,
   })
   @IsOptional()
   @IsBoolean()
   isCheckBox?: boolean;
 
-  @ApiProperty({ 
-    example: true, 
+  @ApiProperty({
+    example: true,
     description: 'Whether the option is active',
-    required: false 
+    required: false,
   })
   @IsOptional()
   @IsBoolean()
@@ -138,4 +146,4 @@ export class QuestionOptionResponseDto {
 
   @ApiProperty({ example: '2024-01-01T00:00:00.000Z' })
   updatedAt: Date;
-} 
+}

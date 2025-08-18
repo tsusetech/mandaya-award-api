@@ -22,7 +22,9 @@ export class NotificationResponseDto {
   @ApiProperty({ example: 'Email sent successfully' })
   message: string;
 
-  @ApiProperty({ example: '<20151025002517.117282.79817@sandbox-123.mailgun.org>' })
+  @ApiProperty({
+    example: '<20151025002517.117282.79817@sandbox-123.mailgun.org>',
+  })
   mailgunId?: string;
 }
 
@@ -36,9 +38,9 @@ export class BulkEmailResponseDto {
   @ApiProperty({ example: 0 })
   failed: number;
 
-  @ApiProperty({ 
+  @ApiProperty({
     type: [NotificationResponseDto],
-    description: 'Details of each email sent'
+    description: 'Details of each email sent',
   })
   results: NotificationResponseDto[];
-} 
+}

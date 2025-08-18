@@ -8,12 +8,12 @@ export class StatusProgressService {
   async recordStatusChange(
     sessionId: number,
     newStatus: string,
-    changedBy?: number
+    changedBy?: number,
   ): Promise<void> {
     // Get the current status for this session
     const currentStatus = await this.prisma.statusProgress.findFirst({
       where: { sessionId },
-      orderBy: { changedAt: 'desc' }
+      orderBy: { changedAt: 'desc' },
     });
 
     const previousStatus = currentStatus?.status || null;
@@ -24,23 +24,25 @@ export class StatusProgressService {
         sessionId,
         status: newStatus,
         previousStatus,
-        changedBy
-      }
+        changedBy,
+      },
     });
   }
 
-  async getStatusHistory(sessionId: number): Promise<Array<{
-    id: number;
-    sessionId: number;
-    status: string;
-    previousStatus?: string | null;
-    changedBy?: number | null;
-    changedAt: Date;
-    changedByUser?: {
-      name: string | null;
-      email: string;
-    } | null;
-  }>> {
+  async getStatusHistory(sessionId: number): Promise<
+    Array<{
+      id: number;
+      sessionId: number;
+      status: string;
+      previousStatus?: string | null;
+      changedBy?: number | null;
+      changedAt: Date;
+      changedByUser?: {
+        name: string | null;
+        email: string;
+      } | null;
+    }>
+  > {
     return await this.prisma.statusProgress.findMany({
       where: { sessionId },
       orderBy: { changedAt: 'desc' },
@@ -48,10 +50,10 @@ export class StatusProgressService {
         changedByUser: {
           select: {
             name: true,
-            email: true
-          }
-        }
-      }
+            email: true,
+          },
+        },
+      },
     });
   }
 
@@ -64,8 +66,8 @@ export class StatusProgressService {
       orderBy: { changedAt: 'desc' },
       select: {
         status: true,
-        changedAt: true
-      }
+        changedAt: true,
+      },
     });
 
     return result;
@@ -79,7 +81,7 @@ export class StatusProgressService {
   async updateStatus(
     sessionId: number,
     newStatus: string,
-    changedBy?: number
+    changedBy?: number,
   ): Promise<void> {
     await this.recordStatusChange(sessionId, newStatus, changedBy);
   }
@@ -93,9 +95,9 @@ export class StatusProgressService {
     const sessions = await this.prisma.statusProgress.findMany({
       where: { status },
       select: { sessionId: true },
-      distinct: ['sessionId']
+      distinct: ['sessionId'],
     });
-    
-    return sessions.map(s => s.sessionId);
+
+    return sessions.map((s) => s.sessionId);
   }
 }

@@ -7,9 +7,9 @@ export class AutoSaveDto {
   @IsPositive()
   questionId: number;
 
-  @ApiProperty({ 
-    example: 'Soekarno', 
-    description: 'Response value (can be string, number, boolean, or array)' 
+  @ApiProperty({
+    example: 'Soekarno',
+    description: 'Response value (can be string, number, boolean, or array)',
   })
   value: any;
 
@@ -17,22 +17,37 @@ export class AutoSaveDto {
   @IsBoolean()
   isDraft: boolean;
 
-  @ApiProperty({ example: false, description: 'Whether this response is complete', required: false })
+  @ApiProperty({
+    example: false,
+    description: 'Whether this response is complete',
+    required: false,
+  })
   @IsOptional()
   @IsBoolean()
   isComplete?: boolean;
 
-  @ApiProperty({ example: 30, description: 'Time spent on question in seconds', required: false })
+  @ApiProperty({
+    example: 30,
+    description: 'Time spent on question in seconds',
+    required: false,
+  })
   @IsOptional()
   @IsNumber()
   timeSpent?: number;
 }
 
 export class BatchAutoSaveDto {
-  @ApiProperty({ type: [AutoSaveDto], description: 'Array of responses to save' })
+  @ApiProperty({
+    type: [AutoSaveDto],
+    description: 'Array of responses to save',
+  })
   responses: AutoSaveDto[];
 
-  @ApiProperty({ example: 2, description: 'Current question ID', required: false })
+  @ApiProperty({
+    example: 2,
+    description: 'Current question ID',
+    required: false,
+  })
   @IsOptional()
   @IsNumber()
   @IsPositive()
@@ -49,7 +64,10 @@ export class AutoSaveResultDto {
   @ApiProperty({ example: '2024-01-01T00:05:00.000Z' })
   lastSaved: Date;
 
-  @ApiProperty({ example: false, description: 'Whether the response is complete' })
+  @ApiProperty({
+    example: false,
+    description: 'Whether the response is complete',
+  })
   isComplete: boolean;
 }
 

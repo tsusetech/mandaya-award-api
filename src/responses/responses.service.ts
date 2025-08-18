@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StatusProgressService } from '../common/services/status-progress.service';
 import { CreateSessionDto } from './dto/create-session.dto';
@@ -6,23 +11,30 @@ import { AutoSaveDto, BatchAutoSaveDto } from './dto/auto-save.dto';
 import { UpdatePositionDto } from './dto/update-position.dto';
 import { ResponseSessionDto } from './dto/response-session.dto';
 import { QuestionResponseDto } from './dto/question-response.dto';
-import { AutoSaveResultDto, BatchAutoSaveResultDto, ProgressResultDto } from './dto/auto-save-result.dto';
+import {
+  AutoSaveResultDto,
+  BatchAutoSaveResultDto,
+  ProgressResultDto,
+} from './dto/auto-save-result.dto';
 import { ProgressSummaryDto } from './dto/progress-summary.dto';
 
 @Injectable()
 export class ResponsesService {
   constructor(
     private prisma: PrismaService,
-    private statusProgressService: StatusProgressService
+    private statusProgressService: StatusProgressService,
   ) {}
 
   // Session Management
-  async createOrResumeSession(userId: number, createSessionDto: CreateSessionDto): Promise<ResponseSessionDto> {
+  async createOrResumeSession(
+    userId: number,
+    createSessionDto: CreateSessionDto,
+  ): Promise<ResponseSessionDto> {
     const { groupId } = createSessionDto;
 
     // Check if user has access to this group
     const userGroup = await this.prisma.userGroup.findUnique({
-      where: { userId_groupId: { userId, groupId } }
+      where: { userId_groupId: { userId, groupId } },
     });
 
     if (!userGroup) {
@@ -36,10 +48,10 @@ export class ResponsesService {
         responses: {
           include: {
             question: true,
-            groupQuestion: true
-          }
-        }
-      }
+            groupQuestion: true,
+          },
+        },
+      },
     });
 
     if (session) {
@@ -47,15 +59,15 @@ export class ResponsesService {
       await this.prisma.responseSession.update({
         where: { id: session.id },
         data: {
-          lastActivityAt: new Date()
-        }
+          lastActivityAt: new Date(),
+        },
       });
 
       // Record status change in StatusProgress
       await this.statusProgressService.recordStatusChange(
         session.id,
         'in_progress',
-        userId
+        userId,
       );
 
       // Update session object for response
@@ -67,28 +79,30 @@ export class ResponsesService {
           userId,
           groupId,
           progressPercentage: 0,
-          autoSaveEnabled: true
+          autoSaveEnabled: true,
         },
         include: {
           responses: {
             include: {
               question: true,
-              groupQuestion: true
-            }
-          }
-        }
+              groupQuestion: true,
+            },
+          },
+        },
       });
 
       // Record initial status in StatusProgress
       await this.statusProgressService.recordStatusChange(
         session.id,
         'draft',
-        userId
+        userId,
       );
     }
 
     // Get current status from StatusProgress (for DTO mapping)
-    const currentStatus = await this.statusProgressService.getCurrentStatus(session.id);
+    const currentStatus = await this.statusProgressService.getCurrentStatus(
+      session.id,
+    );
 
     return await this.mapSessionToDto(session);
   }
@@ -100,10 +114,10 @@ export class ResponsesService {
         responses: {
           include: {
             question: true,
-            groupQuestion: true
-          }
-        }
-      }
+            groupQuestion: true,
+          },
+        },
+      },
     });
 
     if (!session) {
@@ -111,64 +125,79 @@ export class ResponsesService {
     }
 
     // Get current status from StatusProgress (for DTO mapping)
-    const currentStatus = await this.statusProgressService.getCurrentStatus(sessionId);
+    const currentStatus =
+      await this.statusProgressService.getCurrentStatus(sessionId);
 
     return await this.mapSessionToDto(session);
   }
 
-  async pauseSession(sessionId: number): Promise<{ message: string; lastSaved: Date }> {
+  async pauseSession(
+    sessionId: number,
+  ): Promise<{ message: string; lastSaved: Date }> {
     const session = await this.prisma.responseSession.update({
       where: { id: sessionId },
       data: {
-        lastActivityAt: new Date()
-      }
+        lastActivityAt: new Date(),
+      },
     });
 
     // Record status change in StatusProgress
     await this.statusProgressService.recordStatusChange(
       sessionId,
       'paused',
-      session.userId
+      session.userId,
     );
 
     return {
       message: 'Session paused successfully',
-      lastSaved: session.lastActivityAt
+      lastSaved: session.lastActivityAt,
     };
   }
 
-  async resumeSession(sessionId: number): Promise<{ message: string; currentQuestion?: any }> {
+  async resumeSession(
+    sessionId: number,
+  ): Promise<{ message: string; currentQuestion?: any }> {
     const session = await this.prisma.responseSession.update({
       where: { id: sessionId },
       data: {
-        lastActivityAt: new Date()
+        lastActivityAt: new Date(),
       },
       include: {
-        currentQuestion: true
-      }
+        currentQuestion: true,
+      },
     });
 
     // Record status change in StatusProgress
     await this.statusProgressService.recordStatusChange(
       sessionId,
       'in_progress',
-      session.userId
+      session.userId,
     );
 
     return {
       message: 'Session resumed successfully',
-      currentQuestion: session.currentQuestion
+      currentQuestion: session.currentQuestion,
     };
   }
 
   // Auto-Save Methods
-  async autoSaveResponse(sessionId: number, autoSaveDto: AutoSaveDto): Promise<AutoSaveResultDto> {
-    const { questionId, value, isDraft, isComplete = false, isSkipped = false, timeSpent = 0 } = autoSaveDto;
+  async autoSaveResponse(
+    sessionId: number,
+    autoSaveDto: AutoSaveDto,
+  ): Promise<AutoSaveResultDto> {
+    const {
+      questionId,
+      value,
+      isDraft,
+      isComplete = false,
+      isSkipped = false,
+      timeSpent = 0,
+    } = autoSaveDto;
 
     return await this.prisma.$transaction(async (tx) => {
       // Get group question ID
       const session = await tx.responseSession.findUnique({
-        where: { id: sessionId }
+        where: { id: sessionId },
       });
 
       if (!session) {
@@ -178,8 +207,8 @@ export class ResponsesService {
       const groupQuestion = await tx.groupQuestion.findFirst({
         where: {
           groupId: session.groupId,
-          questionId: questionId
-        }
+          questionId: questionId,
+        },
       });
 
       if (!groupQuestion) {
@@ -188,19 +217,22 @@ export class ResponsesService {
 
       // Get question type for proper value mapping
       const question = await tx.question.findUnique({
-        where: { id: questionId }
+        where: { id: questionId },
       });
 
       if (!question) {
         throw new NotFoundException('Question not found');
       }
 
-      const mappedValue = this.mapValueByQuestionType(value, question.inputType);
+      const mappedValue = this.mapValueByQuestionType(
+        value,
+        question.inputType,
+      );
 
       // Upsert response
       const response = await tx.questionResponse.upsert({
         where: {
-          sessionId_questionId: { sessionId, questionId }
+          sessionId_questionId: { sessionId, questionId },
         },
         update: {
           ...mappedValue,
@@ -210,7 +242,7 @@ export class ResponsesService {
           timeSpentSeconds: { increment: timeSpent },
           autoSaveVersion: { increment: 1 },
           lastModifiedAt: new Date(),
-          ...(isComplete && { finalizedAt: new Date() })
+          ...(isComplete && { finalizedAt: new Date() }),
         },
         create: {
           sessionId,
@@ -223,15 +255,15 @@ export class ResponsesService {
           timeSpentSeconds: timeSpent,
           autoSaveVersion: 1,
           firstAnsweredAt: new Date(),
-          ...(isComplete && { finalizedAt: new Date() })
-        }
+          ...(isComplete && { finalizedAt: new Date() }),
+        },
       });
 
       // Update session activity and progress if response is complete or skipped
       const updateData: any = {
         lastAutoSaveAt: new Date(),
         lastActivityAt: new Date(),
-        status: 'in_progress'
+        status: 'in_progress',
       };
 
       if (isComplete || isSkipped) {
@@ -241,7 +273,7 @@ export class ResponsesService {
 
       await tx.responseSession.update({
         where: { id: sessionId },
-        data: updateData
+        data: updateData,
       });
 
       return {
@@ -249,17 +281,20 @@ export class ResponsesService {
         autoSaveVersion: response.autoSaveVersion,
         lastSaved: response.lastModifiedAt,
         isComplete: response.isComplete,
-        isSkipped: response.isSkipped
+        isSkipped: response.isSkipped,
       };
     });
   }
 
-  async batchAutoSave(sessionId: number, batchDto: BatchAutoSaveDto): Promise<BatchAutoSaveResultDto> {
+  async batchAutoSave(
+    sessionId: number,
+    batchDto: BatchAutoSaveDto,
+  ): Promise<BatchAutoSaveResultDto> {
     const { responses, currentQuestionId } = batchDto;
 
     return await this.prisma.$transaction(async (tx) => {
       let savedCount = 0;
-      let lastSaved = new Date();
+      const lastSaved = new Date();
 
       for (const responseDto of responses) {
         try {
@@ -267,7 +302,10 @@ export class ResponsesService {
           savedCount++;
         } catch (error) {
           // Log error but continue with other responses
-          console.error(`Failed to save response for question ${responseDto.questionId}:`, error);
+          console.error(
+            `Failed to save response for question ${responseDto.questionId}:`,
+            error,
+          );
         }
       }
 
@@ -277,21 +315,24 @@ export class ResponsesService {
           where: { id: sessionId },
           data: {
             currentQuestionId,
-            lastActivityAt: new Date()
-          }
+            lastActivityAt: new Date(),
+          },
         });
       }
 
       return {
         success: true,
         savedCount,
-        lastSaved
+        lastSaved,
       };
     });
   }
 
   // Navigation Methods
-  async updatePosition(sessionId: number, updatePositionDto: UpdatePositionDto): Promise<ProgressResultDto> {
+  async updatePosition(
+    sessionId: number,
+    updatePositionDto: UpdatePositionDto,
+  ): Promise<ProgressResultDto> {
     const { currentQuestionId, previousQuestionId } = updatePositionDto;
 
     return await this.prisma.$transaction(async (tx) => {
@@ -301,12 +342,12 @@ export class ResponsesService {
           where: {
             sessionId,
             questionId: previousQuestionId,
-            isDraft: true
+            isDraft: true,
           },
           data: {
             isDraft: false,
-            finalizedAt: new Date()
-          }
+            finalizedAt: new Date(),
+          },
         });
       }
 
@@ -315,13 +356,13 @@ export class ResponsesService {
         where: { id: sessionId },
         data: {
           currentQuestionId,
-          lastActivityAt: new Date()
-        }
+          lastActivityAt: new Date(),
+        },
       });
 
       // Get next question info
       const nextQuestion = await tx.question.findUnique({
-        where: { id: currentQuestionId }
+        where: { id: currentQuestionId },
       });
 
       // Calculate progress
@@ -330,7 +371,7 @@ export class ResponsesService {
       return {
         success: true,
         progressPercentage: progress.progressPercentage,
-        nextQuestion
+        nextQuestion,
       };
     });
   }
@@ -339,7 +380,9 @@ export class ResponsesService {
     return await this.calculateProgress(sessionId);
   }
 
-  async submitSession(sessionId: number): Promise<{ success: boolean; message: string }> {
+  async submitSession(
+    sessionId: number,
+  ): Promise<{ success: boolean; message: string }> {
     return await this.prisma.$transaction(async (tx) => {
       const session = await tx.responseSession.findUnique({
         where: { id: sessionId },
@@ -349,17 +392,14 @@ export class ResponsesService {
             include: {
               groupQuestions: {
                 include: {
-                  question: true
+                  question: true,
                 },
-                orderBy: [
-                  { groupId: 'asc' },
-                  { orderNumber: 'asc' },
-                ],
-              }
-            }
+                orderBy: [{ groupId: 'asc' }, { orderNumber: 'asc' }],
+              },
+            },
           },
-          responses: true
-        }
+          responses: true,
+        },
       });
 
       if (!session) {
@@ -367,17 +407,28 @@ export class ResponsesService {
       }
 
       // Check if all required questions are answered or skipped
-      const requiredQuestions = session.group.groupQuestions.filter(gq => gq.question.isRequired);
+      const requiredQuestions = session.group.groupQuestions.filter(
+        (gq) => gq.question.isRequired,
+      );
       const totalRequiredQuestions = requiredQuestions.length;
-      const answeredRequiredQuestions = session.responses.filter(r => 
-        r.isComplete && requiredQuestions.some(gq => gq.questionId === r.questionId)
+      const answeredRequiredQuestions = session.responses.filter(
+        (r) =>
+          r.isComplete &&
+          requiredQuestions.some((gq) => gq.questionId === r.questionId),
       ).length;
-      const skippedRequiredQuestions = session.responses.filter(r => 
-        r.isSkipped && requiredQuestions.some(gq => gq.questionId === r.questionId)
+      const skippedRequiredQuestions = session.responses.filter(
+        (r) =>
+          r.isSkipped &&
+          requiredQuestions.some((gq) => gq.questionId === r.questionId),
       ).length;
 
-      if (answeredRequiredQuestions + skippedRequiredQuestions < totalRequiredQuestions) {
-        throw new BadRequestException('Cannot submit session: not all required questions are answered or skipped');
+      if (
+        answeredRequiredQuestions + skippedRequiredQuestions <
+        totalRequiredQuestions
+      ) {
+        throw new BadRequestException(
+          'Cannot submit session: not all required questions are answered or skipped',
+        );
       }
 
       // Mark session as submitted
@@ -385,20 +436,20 @@ export class ResponsesService {
         where: { id: sessionId },
         data: {
           submittedAt: new Date(),
-          lastActivityAt: new Date()
-        }
+          lastActivityAt: new Date(),
+        },
       });
 
       // Record status change in StatusProgress
       await this.statusProgressService.recordStatusChange(
         sessionId,
         'submitted',
-        session.userId
+        session.userId,
       );
 
       return {
         success: true,
-        message: 'Session submitted successfully'
+        message: 'Session submitted successfully',
       };
     });
   }
@@ -410,15 +461,15 @@ export class ResponsesService {
         // Handle complex text values with additional data
         if (typeof value === 'object' && value !== null) {
           const result: any = {};
-          
+
           // Extract the main answer text
           if (value.answer !== undefined) {
             result.textValue = value.answer.toString();
           }
-          
+
           // Store the entire object in arrayValue for backup
           result.arrayValue = value;
-          
+
           return result;
         }
         // Handle simple string values
@@ -429,20 +480,20 @@ export class ResponsesService {
         // Handle complex numeric values with additional data
         if (typeof value === 'object' && value !== null) {
           const result: any = {};
-          
+
           // Extract numeric value
           if (value.answer !== undefined) {
             result.numericValue = parseFloat(value.answer) || null;
           }
-          
+
           // Extract URL or other text data
           if (value.url !== undefined) {
             result.textValue = value.url.toString();
           }
-          
+
           // Store the entire object in arrayValue for backup
           result.arrayValue = value;
-          
+
           return result;
         }
         // Fallback for simple numeric values
@@ -462,7 +513,9 @@ export class ResponsesService {
     }
   }
 
-  private async calculateProgress(sessionId: number): Promise<ProgressSummaryDto> {
+  private async calculateProgress(
+    sessionId: number,
+  ): Promise<ProgressSummaryDto> {
     const session = await this.prisma.responseSession.findUnique({
       where: { id: sessionId },
       include: {
@@ -470,24 +523,18 @@ export class ResponsesService {
           include: {
             groupQuestions: {
               include: {
-                question: true
+                question: true,
               },
-              orderBy: [
-                { groupId: 'asc' },
-                { orderNumber: 'asc' },
-              ],
-            }
-          }
+              orderBy: [{ groupId: 'asc' }, { orderNumber: 'asc' }],
+            },
+          },
         },
         responses: {
           where: {
-            OR: [
-              { isComplete: true },
-              { isSkipped: true }
-            ]
-          }
-        }
-      }
+            OR: [{ isComplete: true }, { isSkipped: true }],
+          },
+        },
+      },
     });
 
     if (!session) {
@@ -495,28 +542,43 @@ export class ResponsesService {
     }
 
     // Only count required questions for progress
-    const requiredQuestions = session.group.groupQuestions.filter(gq => gq.question.isRequired);
+    const requiredQuestions = session.group.groupQuestions.filter(
+      (gq) => gq.question.isRequired,
+    );
     const totalRequiredQuestions = requiredQuestions.length;
-    const answeredRequiredQuestions = session.responses.filter(r => 
-      r.isComplete && requiredQuestions.some(gq => gq.questionId === r.questionId)
+    const answeredRequiredQuestions = session.responses.filter(
+      (r) =>
+        r.isComplete &&
+        requiredQuestions.some((gq) => gq.questionId === r.questionId),
     ).length;
-    const skippedRequiredQuestions = session.responses.filter(r => 
-      r.isSkipped && requiredQuestions.some(gq => gq.questionId === r.questionId)
+    const skippedRequiredQuestions = session.responses.filter(
+      (r) =>
+        r.isSkipped &&
+        requiredQuestions.some((gq) => gq.questionId === r.questionId),
     ).length;
-    const progressPercentage = totalRequiredQuestions > 0 ? Math.round(((answeredRequiredQuestions + skippedRequiredQuestions) / totalRequiredQuestions) * 100) : 0;
+    const progressPercentage =
+      totalRequiredQuestions > 0
+        ? Math.round(
+            ((answeredRequiredQuestions + skippedRequiredQuestions) /
+              totalRequiredQuestions) *
+              100,
+          )
+        : 0;
 
     return {
       totalQuestions: totalRequiredQuestions,
       answeredQuestions: answeredRequiredQuestions,
       skippedQuestions: skippedRequiredQuestions,
-      progressPercentage
+      progressPercentage,
     };
   }
 
   private async mapSessionToDto(session: any): Promise<ResponseSessionDto> {
     // Get current status from StatusProgress
-    const currentStatus = await this.statusProgressService.getCurrentStatus(session.id);
-    
+    const currentStatus = await this.statusProgressService.getCurrentStatus(
+      session.id,
+    );
+
     return {
       id: session.id,
       userId: session.userId,
@@ -530,7 +592,7 @@ export class ResponsesService {
       lastActivityAt: session.lastActivityAt,
       completedAt: session.completedAt,
       submittedAt: session.submittedAt,
-      responses: session.responses?.map(this.mapResponseToDto)
+      responses: session.responses?.map(this.mapResponseToDto),
     };
   }
 
@@ -553,7 +615,7 @@ export class ResponsesService {
       firstAnsweredAt: response.firstAnsweredAt,
       finalizedAt: response.finalizedAt,
       validationErrors: response.validationErrors,
-      metadata: response.metadata
+      metadata: response.metadata,
     };
   }
 }

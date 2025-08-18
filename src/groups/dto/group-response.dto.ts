@@ -27,7 +27,10 @@ export class GroupResponseDto {
   @ApiProperty({ example: 'Quiz Indonesia' })
   groupName: string;
 
-  @ApiProperty({ example: 'Quiz tentang pengetahuan umum Indonesia', required: false })
+  @ApiProperty({
+    example: 'Quiz tentang pengetahuan umum Indonesia',
+    required: false,
+  })
   description?: string;
 
   @ApiProperty({ example: '2024-01-01T00:00:00.000Z' })

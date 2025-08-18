@@ -1,5 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsString, IsOptional, IsDateString, IsBoolean, IsArray, IsEnum, ValidateNested, Min, Max } from 'class-validator';
+import {
+  IsNumber,
+  IsString,
+  IsOptional,
+  IsDateString,
+  IsBoolean,
+  IsArray,
+  IsEnum,
+  ValidateNested,
+  Min,
+  Max,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { AssessmentQuestionDto } from './assessment-question.dto';
 import { PaginationQueryDto } from './pagination.dto';
@@ -10,9 +21,10 @@ export class UserAssessmentSessionDto {
   @IsNumber()
   id: number;
 
-  @ApiProperty({ 
-    example: 1, 
-    description: 'Session ID to use for getting detailed information via /assessments/session/{sessionId}/detail'
+  @ApiProperty({
+    example: 1,
+    description:
+      'Session ID to use for getting detailed information via /assessments/session/{sessionId}/detail',
   })
   @IsNumber()
   sessionId: number;
@@ -53,12 +65,20 @@ export class UserAssessmentSessionDto {
   @IsDateString()
   lastActivityAt: string;
 
-  @ApiProperty({ example: '2024-01-01T00:00:00Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2024-01-01T00:00:00Z',
+    required: false,
+    nullable: true,
+  })
   @IsOptional()
   @IsDateString()
   completedAt?: string | null;
 
-  @ApiProperty({ example: '2024-01-01T00:00:00Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2024-01-01T00:00:00Z',
+    required: false,
+    nullable: true,
+  })
   @IsOptional()
   @IsDateString()
   submittedAt?: string | null;
@@ -79,7 +99,11 @@ export class UserAssessmentSessionDto {
   @IsNumber()
   reviewScore?: number | null;
 
-  @ApiProperty({ example: '2024-01-01T00:00:00Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2024-01-01T00:00:00Z',
+    required: false,
+    nullable: true,
+  })
   @IsOptional()
   @IsDateString()
   reviewedAt?: string | null;
@@ -96,11 +120,11 @@ export class UserAssessmentSessionDto {
 }
 
 export class UserAssessmentSessionsQueryDto extends PaginationQueryDto {
-  @ApiProperty({ 
-    example: 'submitted', 
+  @ApiProperty({
+    example: 'submitted',
     required: false,
     description: 'Filter by status',
-    enum: CombinedStatus
+    enum: CombinedStatus,
   })
   @IsOptional()
   @IsEnum(CombinedStatus)
@@ -111,7 +135,7 @@ export enum ReviewStage {
   ADMIN_VALIDATION = 'admin_validation',
   JURY_SCORING = 'jury_scoring',
   JURY_DELIBERATION = 'jury_deliberation',
-  FINAL_DECISION = 'final_decision'
+  FINAL_DECISION = 'final_decision',
 }
 
 export enum ReviewDecision {
@@ -119,7 +143,7 @@ export enum ReviewDecision {
   REJECT = 'reject',
   NEEDS_REVISION = 'needs_revision',
   PASS_TO_JURY = 'pass_to_jury',
-  NEEDS_DELIBERATION = 'needs_deliberation'
+  NEEDS_DELIBERATION = 'needs_deliberation',
 }
 
 export class AssessmentReviewCommentDto {
@@ -131,12 +155,18 @@ export class AssessmentReviewCommentDto {
   @IsString()
   comment: string;
 
-  @ApiProperty({ description: 'Whether this is a critical issue', default: false })
+  @ApiProperty({
+    description: 'Whether this is a critical issue',
+    default: false,
+  })
   @IsOptional()
   @IsBoolean()
   isCritical?: boolean;
 
-  @ApiProperty({ description: 'Review stage when comment was made', enum: ReviewStage })
+  @ApiProperty({
+    description: 'Review stage when comment was made',
+    enum: ReviewStage,
+  })
   @IsEnum(ReviewStage)
   @IsOptional()
   stage?: ReviewStage;
@@ -173,14 +203,20 @@ export class CreateAssessmentReviewDto {
   @IsOptional()
   overallComments?: string;
 
-  @ApiProperty({ description: 'Specific comments for questions', type: [AssessmentReviewCommentDto] })
+  @ApiProperty({
+    description: 'Specific comments for questions',
+    type: [AssessmentReviewCommentDto],
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => AssessmentReviewCommentDto)
   @IsOptional()
   questionComments?: AssessmentReviewCommentDto[];
 
-  @ApiProperty({ description: 'Jury scores for questions', type: [AssessmentJuryScoreDto] })
+  @ApiProperty({
+    description: 'Jury scores for questions',
+    type: [AssessmentJuryScoreDto],
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => AssessmentJuryScoreDto)
@@ -276,7 +312,11 @@ export class AssessmentReviewResponseDto {
   @IsNumber()
   totalScoresAdded: number;
 
-  @ApiProperty({ description: 'Validation checklist items', type: [String], required: false })
+  @ApiProperty({
+    description: 'Validation checklist items',
+    type: [String],
+    required: false,
+  })
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
@@ -297,14 +337,20 @@ export class BatchAssessmentReviewDto {
   @IsOptional()
   overallComments?: string;
 
-  @ApiProperty({ description: 'Specific comments for questions', type: [AssessmentReviewCommentDto] })
+  @ApiProperty({
+    description: 'Specific comments for questions',
+    type: [AssessmentReviewCommentDto],
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => AssessmentReviewCommentDto)
   @IsOptional()
   questionComments?: AssessmentReviewCommentDto[];
 
-  @ApiProperty({ description: 'Jury scores for questions', type: [AssessmentJuryScoreDto] })
+  @ApiProperty({
+    description: 'Jury scores for questions',
+    type: [AssessmentJuryScoreDto],
+  })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => AssessmentJuryScoreDto)
@@ -334,9 +380,9 @@ export class BatchAssessmentReviewDto {
   @IsOptional()
   validationChecklist?: string[];
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Whether to update existing review or create new one',
-    default: false 
+    default: false,
   })
   @IsOptional()
   @IsBoolean()
@@ -364,7 +410,10 @@ export class BatchAssessmentReviewResponseDto {
   @IsString()
   decision: string;
 
-  @ApiProperty({ example: 'Overall assessment is well-structured', required: false })
+  @ApiProperty({
+    example: 'Overall assessment is well-structured',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   overallComments?: string;

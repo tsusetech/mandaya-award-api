@@ -25,8 +25,12 @@ export class EmailService {
     const region = this.configService.get<string>('MAILGUN_REGION') || 'US'; // US or EU
 
     if (!apiKey || !domain || !fromEmail) {
-      this.logger.warn('Mailgun configuration missing. Email service will not work properly.');
-      this.logger.warn('Required env variables: MAILGUN_API_KEY, MAILGUN_DOMAIN, MAILGUN_FROM_EMAIL');
+      this.logger.warn(
+        'Mailgun configuration missing. Email service will not work properly.',
+      );
+      this.logger.warn(
+        'Required env variables: MAILGUN_API_KEY, MAILGUN_DOMAIN, MAILGUN_FROM_EMAIL',
+      );
       this.logger.warn('Example values:');
       this.logger.warn('MAILGUN_API_KEY=your-mailgun-api-key');
       this.logger.warn('MAILGUN_DOMAIN=your-domain.com');
@@ -40,7 +44,7 @@ export class EmailService {
     try {
       // Initialize Mailgun with form-data using require() - this approach works better
       const mailgun = new Mailgun(formData);
-      
+
       // Configure for EU region if specified
       const clientOptions: any = {
         username: 'api',
@@ -53,7 +57,9 @@ export class EmailService {
       }
 
       this.mailgunClient = mailgun.client(clientOptions);
-      this.logger.log(`Mailgun initialized successfully for domain: ${domain} (${region} region)`);
+      this.logger.log(
+        `Mailgun initialized successfully for domain: ${domain} (${region} region)`,
+      );
     } catch (error) {
       this.logger.error('Failed to initialize Mailgun client:', error.message);
       this.logger.error('Stack trace:', error.stack);
@@ -97,7 +103,10 @@ export class EmailService {
       }
 
       // Send email via Mailgun
-      const response = await this.mailgunClient.messages.create(this.domain, emailData);
+      const response = await this.mailgunClient.messages.create(
+        this.domain,
+        emailData,
+      );
 
       const notificationResponse: NotificationResponseDto = {
         id: `email_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`,
@@ -107,15 +116,14 @@ export class EmailService {
         status: 'sent',
         sentAt: new Date().toISOString(),
         message: 'Email sent successfully via Mailgun',
-        mailgunId: response.id
+        mailgunId: response.id,
       };
 
       this.logger.log(`Email sent successfully: ${response.id}`);
       return notificationResponse;
-
     } catch (error) {
       this.logger.error(`Failed to send email via Mailgun: ${error.message}`);
-      
+
       const errorResponse: NotificationResponseDto = {
         id: `email_failed_${Date.now()}`,
         type: 'email',
@@ -123,7 +131,7 @@ export class EmailService {
         subject: emailDto.subject,
         status: 'failed',
         sentAt: new Date().toISOString(),
-        message: `Failed to send email: ${error.message}`
+        message: `Failed to send email: ${error.message}`,
       };
 
       return errorResponse;
@@ -133,15 +141,17 @@ export class EmailService {
   /**
    * Send multiple emails
    */
-  async sendBulkEmails(emails: SendEmailDto[]): Promise<NotificationResponseDto[]> {
+  async sendBulkEmails(
+    emails: SendEmailDto[],
+  ): Promise<NotificationResponseDto[]> {
     const results: NotificationResponseDto[] = [];
 
     for (const emailDto of emails) {
       const result = await this.sendEmail(emailDto);
       results.push(result);
-      
+
       // Add small delay between emails to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
     return results;
@@ -154,20 +164,22 @@ export class EmailService {
     to: string,
     templateName: string,
     templateVariables: Record<string, any>,
-    subject?: string
+    subject?: string,
   ): Promise<NotificationResponseDto> {
     if (!this.mailgunClient) {
       throw new BadRequestException('Email service is not properly configured');
     }
 
     try {
-      this.logger.log(`Sending template email to: ${to} using template: ${templateName}`);
+      this.logger.log(
+        `Sending template email to: ${to} using template: ${templateName}`,
+      );
 
       const emailData: any = {
         from: this.fromEmail,
         to: [to],
         template: templateName,
-        'h:X-Mailgun-Variables': JSON.stringify(templateVariables)
+        'h:X-Mailgun-Variables': JSON.stringify(templateVariables),
       };
 
       // Override subject if provided
@@ -175,7 +187,10 @@ export class EmailService {
         emailData.subject = subject;
       }
 
-      const response = await this.mailgunClient.messages.create(this.domain, emailData);
+      const response = await this.mailgunClient.messages.create(
+        this.domain,
+        emailData,
+      );
 
       const notificationResponse: NotificationResponseDto = {
         id: `template_email_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`,
@@ -185,15 +200,16 @@ export class EmailService {
         status: 'sent',
         sentAt: new Date().toISOString(),
         message: 'Template email sent successfully via Mailgun',
-        mailgunId: response.id
+        mailgunId: response.id,
       };
 
       this.logger.log(`Template email sent successfully: ${response.id}`);
       return notificationResponse;
-
     } catch (error) {
-      this.logger.error(`Failed to send template email via Mailgun: ${error.message}`);
-      
+      this.logger.error(
+        `Failed to send template email via Mailgun: ${error.message}`,
+      );
+
       const errorResponse: NotificationResponseDto = {
         id: `template_email_failed_${Date.now()}`,
         type: 'template_email',
@@ -201,7 +217,7 @@ export class EmailService {
         subject: subject || `Template: ${templateName}`,
         status: 'failed',
         sentAt: new Date().toISOString(),
-        message: `Failed to send template email: ${error.message}`
+        message: `Failed to send template email: ${error.message}`,
       };
 
       return errorResponse;
@@ -225,13 +241,15 @@ export class EmailService {
         event: ['delivered', 'failed', 'opened', 'clicked'],
         start: startDate.toISOString(),
         end: endDate.toISOString(),
-        resolution: 'day'
+        resolution: 'day',
       });
 
       return stats;
     } catch (error) {
       this.logger.error(`Failed to get email stats: ${error.message}`);
-      throw new BadRequestException(`Failed to get email stats: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to get email stats: ${error.message}`,
+      );
     }
   }
-} 
+}

@@ -7,7 +7,10 @@ export class RoleResponseDto {
   @ApiProperty({ example: 'ADMIN' })
   name: string;
 
-  @ApiProperty({ example: 'Administrator role with full permissions', required: false })
+  @ApiProperty({
+    example: 'Administrator role with full permissions',
+    required: false,
+  })
   description?: string;
 
   @ApiProperty({ example: '2024-01-01T00:00:00.000Z' })
@@ -30,14 +33,14 @@ export class UserRoleResponseDto {
   @ApiProperty({ type: RoleResponseDto })
   role: RoleResponseDto;
 
-  @ApiProperty({ 
+  @ApiProperty({
     type: 'object',
     properties: {
       id: { type: 'number', example: 1 },
       email: { type: 'string', example: 'user@example.com' },
       username: { type: 'string', example: 'username' },
-      name: { type: 'string', example: 'Full Name' }
-    }
+      name: { type: 'string', example: 'Full Name' },
+    },
   })
   user: {
     id: number;

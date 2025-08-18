@@ -1,5 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsBoolean, IsOptional, IsPositive, IsString, IsEnum, Min, Max } from 'class-validator';
+import {
+  IsNumber,
+  IsBoolean,
+  IsOptional,
+  IsPositive,
+  IsString,
+  IsEnum,
+  Min,
+  Max,
+} from 'class-validator';
 import { QuestionInputType } from './assessment-question.dto';
 
 export class AssessmentAnswerDto {
@@ -8,17 +17,17 @@ export class AssessmentAnswerDto {
   @IsPositive()
   questionId: number;
 
-  @ApiProperty({ 
-    example: 'Soekarno', 
-    description: 'Response value (can be string, number, boolean, or array)' 
+  @ApiProperty({
+    example: 'Soekarno',
+    description: 'Response value (can be string, number, boolean, or array)',
   })
   value: any;
 
-  @ApiProperty({ 
-    enum: QuestionInputType, 
+  @ApiProperty({
+    enum: QuestionInputType,
     example: QuestionInputType.TEXT_OPEN,
     description: 'Question input type',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsEnum(QuestionInputType)
@@ -28,27 +37,39 @@ export class AssessmentAnswerDto {
   @IsBoolean()
   isDraft: boolean;
 
-  @ApiProperty({ example: true, description: 'Whether this response is complete', required: false })
+  @ApiProperty({
+    example: true,
+    description: 'Whether this response is complete',
+    required: false,
+  })
   @IsOptional()
   @IsBoolean()
   isComplete?: boolean;
 
-  @ApiProperty({ example: false, description: 'Whether this question is skipped', required: false })
+  @ApiProperty({
+    example: false,
+    description: 'Whether this question is skipped',
+    required: false,
+  })
   @IsOptional()
   @IsBoolean()
   isSkipped?: boolean;
 
-  @ApiProperty({ example: 30, description: 'Time spent on question in seconds', required: false })
+  @ApiProperty({
+    example: 30,
+    description: 'Time spent on question in seconds',
+    required: false,
+  })
   @IsOptional()
   @IsNumber()
   timeSpent?: number;
 
-  @ApiProperty({ 
-    example: 25, 
-    description: 'Calculated progress percentage (0-100)', 
+  @ApiProperty({
+    example: 25,
+    description: 'Calculated progress percentage (0-100)',
     required: false,
     minimum: 0,
-    maximum: 100
+    maximum: 100,
   })
   @IsOptional()
   @IsNumber()
@@ -56,10 +77,10 @@ export class AssessmentAnswerDto {
   @Max(100)
   progressPercentage?: number;
 
-  @ApiProperty({ 
-    example: 5, 
-    description: 'Current question ID being viewed/answered', 
-    required: false 
+  @ApiProperty({
+    example: 5,
+    description: 'Current question ID being viewed/answered',
+    required: false,
   })
   @IsOptional()
   @IsNumber()

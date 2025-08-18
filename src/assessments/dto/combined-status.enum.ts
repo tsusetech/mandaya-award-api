@@ -4,7 +4,7 @@ export enum CombinedStatus {
   DRAFT = 'draft',
   IN_PROGRESS = 'in_progress',
   SUBMITTED = 'submitted',
-  
+
   // Review statuses
   PENDING_REVIEW = 'pending_review',
   UNDER_REVIEW = 'under_review',
@@ -16,5 +16,5 @@ export enum CombinedStatus {
   JURY_SCORING = 'jury_scoring',
   JURY_DELIBERATION = 'jury_deliberation',
   FINAL_DECISION = 'final_decision',
-  COMPLETED = 'completed'
+  COMPLETED = 'completed',
 }

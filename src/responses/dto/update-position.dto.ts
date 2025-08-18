@@ -7,7 +7,11 @@ export class UpdatePositionDto {
   @IsPositive()
   currentQuestionId: number;
 
-  @ApiProperty({ example: 1, description: 'Previous question ID', required: false })
+  @ApiProperty({
+    example: 1,
+    description: 'Previous question ID',
+    required: false,
+  })
   @IsOptional()
   @IsNumber()
   @IsPositive()

@@ -15,7 +15,12 @@ export class OAuth2Strategy extends PassportStrategy(Strategy, 'oauth2') {
     });
   }
 
-  async validate(accessToken: string, refreshToken: string, profile: any, done: Function) {
+  async validate(
+    accessToken: string,
+    refreshToken: string,
+    profile: any,
+    done: Function,
+  ) {
     // This is where you would find or create a user in your database.
     // The `profile` object contains user information from the OAuth provider.
     // For now, we'll just return the profile.
@@ -25,4 +30,4 @@ export class OAuth2Strategy extends PassportStrategy(Strategy, 'oauth2') {
     };
     done(null, user);
   }
-} 
+}

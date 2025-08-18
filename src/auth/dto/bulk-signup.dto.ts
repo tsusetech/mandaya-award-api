@@ -1,9 +1,20 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsEmail, IsOptional, IsString, MinLength, ValidateNested, IsInt } from 'class-validator';
+import {
+  IsArray,
+  IsEmail,
+  IsOptional,
+  IsString,
+  MinLength,
+  ValidateNested,
+  IsInt,
+} from 'class-validator';
 
 export class BulkUserDto {
-  @ApiProperty({ example: 'john.doe@example.com', description: 'User email address' })
+  @ApiProperty({
+    example: 'john.doe@example.com',
+    description: 'User email address',
+  })
   @IsEmail()
   email: string;
 
@@ -12,25 +23,36 @@ export class BulkUserDto {
   @MinLength(3)
   username: string;
 
-  @ApiProperty({ example: 'John Doe', description: 'Full name', required: false })
+  @ApiProperty({
+    example: 'John Doe',
+    description: 'Full name',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   name?: string;
 
-  @ApiProperty({ example: 'password123', description: 'Password (minimum 6 characters)' })
+  @ApiProperty({
+    example: 'password123',
+    description: 'Password (minimum 6 characters)',
+  })
   @IsString()
   @MinLength(6)
   password: string;
 
-  @ApiProperty({ example: 'PESERTA', description: 'User role', required: false })
+  @ApiProperty({
+    example: 'PESERTA',
+    description: 'User role',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   role?: string;
 
-  @ApiProperty({ 
-    example: 1, 
+  @ApiProperty({
+    example: 1,
     description: 'Group ID to assign the user to',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsInt()
@@ -38,8 +60,8 @@ export class BulkUserDto {
 }
 
 export class BulkSignupDto {
-  @ApiProperty({ 
-    type: [BulkUserDto], 
+  @ApiProperty({
+    type: [BulkUserDto],
     description: 'Array of users to register',
     example: [
       {
@@ -48,16 +70,16 @@ export class BulkSignupDto {
         name: 'User One',
         password: 'password123',
         role: 'PESERTA',
-        groupId: 1
+        groupId: 1,
       },
       {
         email: 'user2@example.com',
         username: 'user2',
         name: 'User Two',
         password: 'password123',
-        groupId: 2
-      }
-    ]
+        groupId: 2,
+      },
+    ],
   })
   @IsArray()
   @ValidateNested({ each: true })
@@ -101,6 +123,12 @@ export class BulkSignupResponseDto {
   @ApiProperty({ type: [UserCreationResult] })
   results: UserCreationResult[];
 
-  @ApiProperty({ example: ['Password too short for user3@example.com', 'Invalid email format for row 5'], required: false })
+  @ApiProperty({
+    example: [
+      'Password too short for user3@example.com',
+      'Invalid email format for row 5',
+    ],
+    required: false,
+  })
   validationErrors?: string[];
-} 
+}

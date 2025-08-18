@@ -1,37 +1,44 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StatusProgressService } from '../common/services/status-progress.service';
 import { PaginationQueryDto } from './dto/pagination.dto';
 import { AssessmentAnswerDto } from './dto/assessment-answer.dto';
 import { AssessmentQuestionDto } from './dto/assessment-question.dto';
 import { AssessmentSessionDto } from './dto/assessment-session.dto';
-import { ReviewCommentDto, ResolveReviewCommentDto } from './dto/review-comment.dto';
+import {
+  ReviewCommentDto,
+  ResolveReviewCommentDto,
+} from './dto/review-comment.dto';
 import { AssessmentSessionDetailDto } from './dto/assessment-session.dto';
 import { UserAssessmentSessionDto } from './dto/user-assessment-sessions.dto';
-import { 
+import {
   CreateAssessmentReviewDto,
   AssessmentReviewResponseDto,
-  BatchAssessmentReviewDto, 
+  BatchAssessmentReviewDto,
   BatchAssessmentReviewResponseDto,
   ReviewStage,
-  ReviewDecision
+  ReviewDecision,
 } from './dto/user-assessment-sessions.dto';
 
 @Injectable()
 export class AssessmentsService {
   constructor(
     private prisma: PrismaService,
-    private statusProgressService: StatusProgressService
+    private statusProgressService: StatusProgressService,
   ) {}
 
   async getAssessmentQuestions(
-    userId: number, 
-    groupId: number, 
-    paginationQuery?: PaginationQueryDto
+    userId: number,
+    groupId: number,
+    paginationQuery?: PaginationQueryDto,
   ): Promise<AssessmentSessionDto> {
     // Check if user has access to this group
     const userGroup = await this.prisma.userGroup.findUnique({
-      where: { userId_groupId: { userId, groupId } }
+      where: { userId_groupId: { userId, groupId } },
     });
 
     if (!userGroup) {
@@ -50,28 +57,28 @@ export class AssessmentsService {
                   include: {
                     options: {
                       where: { isActive: true },
-                      orderBy: { orderNumber: 'asc' }
-                    }
-                  }
+                      orderBy: { orderNumber: 'asc' },
+                    },
+                  },
                 },
-                category: true
+                category: true,
               },
-              orderBy: { orderNumber: 'asc' }
-            }
-          }
+              orderBy: { orderNumber: 'asc' },
+            },
+          },
         },
         responses: {
           include: {
             question: true,
-            groupQuestion: true
-          }
+            groupQuestion: true,
+          },
         },
         reviewer: {
           select: {
-            name: true
-          }
-        }
-      }
+            name: true,
+          },
+        },
+      },
     });
 
     if (!session) {
@@ -81,7 +88,7 @@ export class AssessmentsService {
           userId,
           groupId,
           progressPercentage: 0,
-          autoSaveEnabled: true
+          autoSaveEnabled: true,
         },
         include: {
           group: {
@@ -92,28 +99,28 @@ export class AssessmentsService {
                     include: {
                       options: {
                         where: { isActive: true },
-                        orderBy: { orderNumber: 'asc' }
-                      }
-                    }
+                        orderBy: { orderNumber: 'asc' },
+                      },
+                    },
                   },
-                  category: true
+                  category: true,
                 },
-                orderBy: { orderNumber: 'asc' }
-              }
-            }
+                orderBy: { orderNumber: 'asc' },
+              },
+            },
           },
           responses: {
             include: {
               question: true,
-              groupQuestion: true
-            }
+              groupQuestion: true,
+            },
           },
           reviewer: {
             select: {
-              name: true
-            }
-          }
-        }
+              name: true,
+            },
+          },
+        },
       });
     }
 
@@ -124,92 +131,120 @@ export class AssessmentsService {
         question: true,
         resolvedByUser: {
           select: {
-            name: true
-          }
-        }
-      }
+            name: true,
+          },
+        },
+      },
     });
 
     // Get the latest status from StatusProgress
-    const latestStatus = await this.statusProgressService.getLatestStatus(session.id) || 'draft';
+    const latestStatus =
+      (await this.statusProgressService.getLatestStatus(session.id)) || 'draft';
 
     // Group review comments by question ID for easy lookup
-    const reviewCommentsByQuestion = reviewComments.reduce((acc, comment) => {
-      if (!acc[comment.questionId]) {
-        acc[comment.questionId] = [];
-      }
-      acc[comment.questionId].push({
-        id: comment.id,
-        comment: comment.comment,
-        isCritical: comment.isCritical,
-        stage: comment.stage || undefined,
-        createdAt: comment.createdAt.toISOString(),
-        reviewerName: session.reviewer?.name || undefined,
-        isResolved: comment.isResolved,
-        resolvedAt: comment.resolvedAt?.toISOString(),
-        resolvedByUserName: comment.resolvedByUser?.name || undefined,
-        revisionNotes: comment.revisionNotes || undefined
-      });
-      return acc;
-    }, {} as Record<number, ReviewCommentDto[]>);
+    const reviewCommentsByQuestion = reviewComments.reduce(
+      (acc, comment) => {
+        if (!acc[comment.questionId]) {
+          acc[comment.questionId] = [];
+        }
+        acc[comment.questionId].push({
+          id: comment.id,
+          comment: comment.comment,
+          isCritical: comment.isCritical,
+          stage: comment.stage || undefined,
+          createdAt: comment.createdAt.toISOString(),
+          reviewerName: session.reviewer?.name || undefined,
+          isResolved: comment.isResolved,
+          resolvedAt: comment.resolvedAt?.toISOString(),
+          resolvedByUserName: comment.resolvedByUser?.name || undefined,
+          revisionNotes: comment.revisionNotes || undefined,
+        });
+        return acc;
+      },
+      {} as Record<number, ReviewCommentDto[]>,
+    );
 
     // Map questions WITH responses (if they exist) and review comments
-    const questions: AssessmentQuestionDto[] = session.group.groupQuestions.map(gq => {
-      const response = session.responses.find(r => r.questionId === gq.question.id);
-      const questionReviewComments = reviewCommentsByQuestion[gq.question.id] || [];
+    const questions: AssessmentQuestionDto[] = session.group.groupQuestions.map(
+      (gq) => {
+        const response = session.responses.find(
+          (r) => r.questionId === gq.question.id,
+        );
+        const questionReviewComments =
+          reviewCommentsByQuestion[gq.question.id] || [];
 
-      return {
-        id: gq.question.id,
-        questionText: gq.question.questionText,
-        description: gq.question.description || undefined,
-        inputType: gq.question.inputType as any, // Type assertion to fix inputType error
-        isRequired: gq.question.isRequired,
-        orderNumber: gq.orderNumber,
-        sectionTitle: gq.sectionTitle || undefined,
-        subsection: gq.subsection || undefined,
-        isGrouped: gq.isGrouped,
-        category: gq.category ? {
-          id: gq.category.id,
-          name: gq.category.name,
-          description: gq.category.description || undefined,
-          weight: gq.category.weight ? Number(gq.category.weight) : undefined,
-          minValue: gq.category.minValue ? Number(gq.category.minValue) : undefined,
-          maxValue: gq.category.maxValue ? Number(gq.category.maxValue) : undefined,
-          scoreType: gq.category.scoreType
-        } : undefined,
-        options: gq.question.options.map(opt => ({
-          id: opt.id,
-          optionText: opt.optionText,
-          optionValue: opt.optionValue,
-          orderNumber: opt.orderNumber,
-          isMultipleChoice: opt.isMultipleChoice || false,
-          isCheckBox: opt.isCheckBox || false
-        })),
-        response: response ? this.mapResponseToValue(response) : undefined,
-        isAnswered: response ? response.isComplete : false,
-        isSkipped: response ? response.isSkipped : false,
-        reviewComments: questionReviewComments
-      };
-    });
+        return {
+          id: gq.question.id,
+          questionText: gq.question.questionText,
+          description: gq.question.description || undefined,
+          inputType: gq.question.inputType as any, // Type assertion to fix inputType error
+          isRequired: gq.question.isRequired,
+          orderNumber: gq.orderNumber,
+          sectionTitle: gq.sectionTitle || undefined,
+          subsection: gq.subsection || undefined,
+          isGrouped: gq.isGrouped,
+          category: gq.category
+            ? {
+                id: gq.category.id,
+                name: gq.category.name,
+                description: gq.category.description || undefined,
+                weight: gq.category.weight
+                  ? Number(gq.category.weight)
+                  : undefined,
+                minValue: gq.category.minValue
+                  ? Number(gq.category.minValue)
+                  : undefined,
+                maxValue: gq.category.maxValue
+                  ? Number(gq.category.maxValue)
+                  : undefined,
+                scoreType: gq.category.scoreType,
+              }
+            : undefined,
+          options: gq.question.options.map((opt) => ({
+            id: opt.id,
+            optionText: opt.optionText,
+            optionValue: opt.optionValue,
+            orderNumber: opt.orderNumber,
+            isMultipleChoice: opt.isMultipleChoice || false,
+            isCheckBox: opt.isCheckBox || false,
+          })),
+          response: response ? this.mapResponseToValue(response) : undefined,
+          isAnswered: response ? response.isComplete : false,
+          isSkipped: response ? response.isSkipped : false,
+          reviewComments: questionReviewComments,
+        };
+      },
+    );
 
     // Calculate progress based on REQUIRED questions only
-    const requiredQuestions = session.group.groupQuestions.filter(gq => gq.question.isRequired);
+    const requiredQuestions = session.group.groupQuestions.filter(
+      (gq) => gq.question.isRequired,
+    );
     const totalRequiredQuestions = requiredQuestions.length;
-    const answeredRequiredQuestions = session.responses.filter(r => 
-      r.isComplete && requiredQuestions.some(gq => gq.questionId === r.questionId)
+    const answeredRequiredQuestions = session.responses.filter(
+      (r) =>
+        r.isComplete &&
+        requiredQuestions.some((gq) => gq.questionId === r.questionId),
     ).length;
-    const skippedRequiredQuestions = session.responses.filter(r => 
-      r.isSkipped && requiredQuestions.some(gq => gq.questionId === r.questionId)
+    const skippedRequiredQuestions = session.responses.filter(
+      (r) =>
+        r.isSkipped &&
+        requiredQuestions.some((gq) => gq.questionId === r.questionId),
     ).length;
-    const progressPercentage = totalRequiredQuestions > 0 
-      ? Math.round(((answeredRequiredQuestions + skippedRequiredQuestions) / totalRequiredQuestions) * 100) 
-      : 0;
+    const progressPercentage =
+      totalRequiredQuestions > 0
+        ? Math.round(
+            ((answeredRequiredQuestions + skippedRequiredQuestions) /
+              totalRequiredQuestions) *
+              100,
+          )
+        : 0;
 
     // Update progress if changed
     if (session.progressPercentage !== progressPercentage) {
       await this.prisma.responseSession.update({
         where: { id: session.id },
-        data: { progressPercentage }
+        data: { progressPercentage },
       });
     }
 
@@ -234,7 +269,7 @@ export class AssessmentsService {
       reviewScore: session.totalScore ? Number(session.totalScore) : undefined,
       reviewedAt: session.reviewedAt?.toISOString(),
       reviewerName: session.reviewer?.name || undefined,
-      reviewComments: session.overallComments || undefined
+      reviewComments: session.overallComments || undefined,
     };
   }
 
@@ -243,8 +278,8 @@ export class AssessmentsService {
     const session = await this.prisma.responseSession.findUnique({
       where: { id: sessionId },
       include: {
-        responses: true
-      }
+        responses: true,
+      },
     });
 
     if (!session) {
@@ -254,40 +289,54 @@ export class AssessmentsService {
     const allGroupQuestions = await this.prisma.groupQuestion.findMany({
       where: { groupId: session.groupId },
       include: {
-        question: true
-      }
+        question: true,
+      },
     });
 
     // Calculate progress based on REQUIRED questions only
-    const requiredQuestions = allGroupQuestions.filter(gq => gq.question.isRequired);
+    const requiredQuestions = allGroupQuestions.filter(
+      (gq) => gq.question.isRequired,
+    );
     const totalRequiredQuestions = requiredQuestions.length;
-    const answeredRequiredQuestions = session.responses.filter(r => 
-      r.isComplete && requiredQuestions.some(gq => gq.questionId === r.questionId)
+    const answeredRequiredQuestions = session.responses.filter(
+      (r) =>
+        r.isComplete &&
+        requiredQuestions.some((gq) => gq.questionId === r.questionId),
     ).length;
-    const skippedRequiredQuestions = session.responses.filter(r => 
-      r.isSkipped && requiredQuestions.some(gq => gq.questionId === r.questionId)
+    const skippedRequiredQuestions = session.responses.filter(
+      (r) =>
+        r.isSkipped &&
+        requiredQuestions.some((gq) => gq.questionId === r.questionId),
     ).length;
-    const progressPercentage = totalRequiredQuestions > 0 
-      ? Math.round(((answeredRequiredQuestions + skippedRequiredQuestions) / totalRequiredQuestions) * 100) 
-      : 0;
+    const progressPercentage =
+      totalRequiredQuestions > 0
+        ? Math.round(
+            ((answeredRequiredQuestions + skippedRequiredQuestions) /
+              totalRequiredQuestions) *
+              100,
+          )
+        : 0;
 
     // Update progress if changed
     if (session.progressPercentage !== progressPercentage) {
       await this.prisma.responseSession.update({
         where: { id: sessionId },
-        data: { progressPercentage }
+        data: { progressPercentage },
       });
     }
   }
 
-  async submitAnswer(sessionId: number, answerDto: AssessmentAnswerDto): Promise<{ success: boolean; message: string }> {
+  async submitAnswer(
+    sessionId: number,
+    answerDto: AssessmentAnswerDto,
+  ): Promise<{ success: boolean; message: string }> {
     const session = await this.prisma.responseSession.findUnique({
       where: { id: sessionId },
       include: {
         responses: {
-          where: { questionId: answerDto.questionId }
-        }
-      }
+          where: { questionId: answerDto.questionId },
+        },
+      },
     });
 
     if (!session) {
@@ -298,8 +347,8 @@ export class AssessmentsService {
     const groupQuestion = await this.prisma.groupQuestion.findFirst({
       where: {
         groupId: session.groupId,
-        questionId: answerDto.questionId
-      }
+        questionId: answerDto.questionId,
+      },
     });
 
     if (!groupQuestion) {
@@ -307,7 +356,10 @@ export class AssessmentsService {
     }
 
     // Map value based on question type
-    const mappedValue = this.mapValueByQuestionType(answerDto.value, answerDto.inputType || 'text-open');
+    const mappedValue = this.mapValueByQuestionType(
+      answerDto.value,
+      answerDto.inputType || 'text-open',
+    );
 
     // Check if response already exists
     const existingResponse = session.responses[0];
@@ -322,8 +374,8 @@ export class AssessmentsService {
           isComplete: answerDto.isComplete ?? !answerDto.isDraft,
           isSkipped: answerDto.isSkipped ?? false,
           timeSpentSeconds: answerDto.timeSpent || 0,
-          lastModifiedAt: new Date()
-        }
+          lastModifiedAt: new Date(),
+        },
       });
     } else {
       // Create new response
@@ -337,8 +389,8 @@ export class AssessmentsService {
           isComplete: answerDto.isComplete ?? !answerDto.isDraft,
           isSkipped: answerDto.isSkipped ?? false,
           timeSpentSeconds: answerDto.timeSpent || 0,
-          lastModifiedAt: new Date()
-        }
+          lastModifiedAt: new Date(),
+        },
       });
     }
 
@@ -347,33 +399,36 @@ export class AssessmentsService {
       // Use frontend-calculated progress percentage
       await this.prisma.responseSession.update({
         where: { id: sessionId },
-        data: { 
+        data: {
           progressPercentage: answerDto.progressPercentage,
-          lastActivityAt: new Date()
-        }
+          lastActivityAt: new Date(),
+        },
       });
     } else {
       // Calculate progress on backend
       await this.updateSessionProgress(sessionId);
-      
+
       // Update session activity
       await this.prisma.responseSession.update({
         where: { id: sessionId },
         data: {
-          lastActivityAt: new Date()
-        }
+          lastActivityAt: new Date(),
+        },
       });
     }
 
     return {
       success: true,
-      message: 'Answer saved successfully'
+      message: 'Answer saved successfully',
     };
   }
 
-  async submitBatchAnswers(sessionId: number, batchDto: any): Promise<{ success: boolean; savedCount: number; message: string }> {
+  async submitBatchAnswers(
+    sessionId: number,
+    batchDto: any,
+  ): Promise<{ success: boolean; savedCount: number; message: string }> {
     const session = await this.prisma.responseSession.findUnique({
-      where: { id: sessionId }
+      where: { id: sessionId },
     });
 
     if (!session) {
@@ -389,7 +444,10 @@ export class AssessmentsService {
           await this.submitAnswer(sessionId, answer);
           savedCount++;
         } catch (error) {
-          console.error(`Failed to save answer for question ${answer.questionId}:`, error);
+          console.error(
+            `Failed to save answer for question ${answer.questionId}:`,
+            error,
+          );
         }
       }
     }
@@ -398,7 +456,7 @@ export class AssessmentsService {
     if (batchDto.currentQuestionId) {
       await this.prisma.responseSession.update({
         where: { id: sessionId },
-        data: { currentQuestionId: batchDto.currentQuestionId }
+        data: { currentQuestionId: batchDto.currentQuestionId },
       });
     }
 
@@ -407,7 +465,7 @@ export class AssessmentsService {
       // Use frontend-calculated progress percentage for the entire batch
       await this.prisma.responseSession.update({
         where: { id: sessionId },
-        data: { progressPercentage: batchDto.progressPercentage }
+        data: { progressPercentage: batchDto.progressPercentage },
       });
     } else {
       // Calculate progress on backend after batch operations
@@ -417,11 +475,13 @@ export class AssessmentsService {
     return {
       success: true,
       savedCount,
-      message: `${savedCount} answers saved successfully`
+      message: `${savedCount} answers saved successfully`,
     };
   }
 
-  async submitAssessment(sessionId: number): Promise<{ success: boolean; message: string }> {
+  async submitAssessment(
+    sessionId: number,
+  ): Promise<{ success: boolean; message: string }> {
     return await this.prisma.$transaction(async (tx) => {
       const session = await tx.responseSession.findUnique({
         where: { id: sessionId },
@@ -431,17 +491,14 @@ export class AssessmentsService {
             include: {
               groupQuestions: {
                 include: {
-                  question: true
+                  question: true,
                 },
-                orderBy: [
-                  { groupId: 'asc' },
-                  { orderNumber: 'asc' },
-                ],
-              }
-            }
+                orderBy: [{ groupId: 'asc' }, { orderNumber: 'asc' }],
+              },
+            },
           },
-          responses: true
-        }
+          responses: true,
+        },
       });
 
       if (!session) {
@@ -449,30 +506,41 @@ export class AssessmentsService {
       }
 
       // Check if all required questions are answered or skipped
-      const requiredQuestions = session.group.groupQuestions.filter(gq => gq.question.isRequired);
+      const requiredQuestions = session.group.groupQuestions.filter(
+        (gq) => gq.question.isRequired,
+      );
       const totalRequiredQuestions = requiredQuestions.length;
-      const answeredRequiredQuestions = session.responses.filter(r => 
-        r.isComplete && requiredQuestions.some(gq => gq.questionId === r.questionId)
+      const answeredRequiredQuestions = session.responses.filter(
+        (r) =>
+          r.isComplete &&
+          requiredQuestions.some((gq) => gq.questionId === r.questionId),
       ).length;
-      const skippedRequiredQuestions = session.responses.filter(r => 
-        r.isSkipped && requiredQuestions.some(gq => gq.questionId === r.questionId)
+      const skippedRequiredQuestions = session.responses.filter(
+        (r) =>
+          r.isSkipped &&
+          requiredQuestions.some((gq) => gq.questionId === r.questionId),
       ).length;
 
-      if (answeredRequiredQuestions + skippedRequiredQuestions < totalRequiredQuestions) {
-        throw new BadRequestException('Cannot submit session: not all required questions are answered or skipped');
+      if (
+        answeredRequiredQuestions + skippedRequiredQuestions <
+        totalRequiredQuestions
+      ) {
+        throw new BadRequestException(
+          'Cannot submit session: not all required questions are answered or skipped',
+        );
       }
 
       // Mark all draft responses as complete
       await tx.questionResponse.updateMany({
         where: {
           sessionId,
-          isDraft: true
+          isDraft: true,
         },
         data: {
           isDraft: false,
           isComplete: true,
-          finalizedAt: new Date()
-        }
+          finalizedAt: new Date(),
+        },
       });
 
       // Mark session as submitted
@@ -480,30 +548,33 @@ export class AssessmentsService {
         where: { id: sessionId },
         data: {
           submittedAt: new Date(),
-          lastActivityAt: new Date()
-        }
+          lastActivityAt: new Date(),
+        },
       });
 
       // Record status change in StatusProgress
       await this.statusProgressService.recordStatusChange(
         sessionId,
         'submitted',
-        session.userId
+        session.userId,
       );
 
       return {
         success: true,
-        message: 'Session submitted successfully'
+        message: 'Session submitted successfully',
       };
     });
   }
 
-  async getAssessmentSections(userId: number, groupId: number): Promise<{
+  async getAssessmentSections(
+    userId: number,
+    groupId: number,
+  ): Promise<{
     sections: Array<{ sectionTitle: string; subsections: string[] }>;
   }> {
     // Check if user has access to this group
     const userGroup = await this.prisma.userGroup.findUnique({
-      where: { userId_groupId: { userId, groupId } }
+      where: { userId_groupId: { userId, groupId } },
     });
 
     if (!userGroup) {
@@ -515,15 +586,15 @@ export class AssessmentsService {
       where: { groupId },
       select: {
         sectionTitle: true,
-        subsection: true
+        subsection: true,
       },
-      distinct: ['sectionTitle', 'subsection']
+      distinct: ['sectionTitle', 'subsection'],
     });
 
     // Group by section title
     const sectionsMap = new Map<string, Set<string>>();
 
-    groupQuestions.forEach(gq => {
+    groupQuestions.forEach((gq) => {
       if (gq.sectionTitle) {
         if (!sectionsMap.has(gq.sectionTitle)) {
           sectionsMap.set(gq.sectionTitle, new Set());
@@ -535,10 +606,12 @@ export class AssessmentsService {
     });
 
     // Convert to array format
-    const sections = Array.from(sectionsMap.entries()).map(([sectionTitle, subsectionsSet]) => ({
-      sectionTitle,
-      subsections: Array.from(subsectionsSet).sort()
-    }));
+    const sections = Array.from(sectionsMap.entries()).map(
+      ([sectionTitle, subsectionsSet]) => ({
+        sectionTitle,
+        subsections: Array.from(subsectionsSet).sort(),
+      }),
+    );
 
     return { sections };
   }
@@ -546,8 +619,16 @@ export class AssessmentsService {
   async getUserAssessmentSessions(
     userId: number,
     paginationQuery?: PaginationQueryDto,
-    finalStatus?: string
-  ): Promise<{ data: UserAssessmentSessionDto[]; total: number; page: number; limit: number; totalPages: number; hasNext: boolean; hasPrev: boolean }> {
+    finalStatus?: string,
+  ): Promise<{
+    data: UserAssessmentSessionDto[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  }> {
     const { page = 1, limit = 10 } = paginationQuery || {};
     const skip = (page - 1) * limit;
 
@@ -555,63 +636,65 @@ export class AssessmentsService {
     const total = await this.prisma.responseSession.count({
       where: {
         userId,
-        deletedAt: null
-      }
+        deletedAt: null,
+      },
     });
 
     // Get sessions with review data
     const sessions = await this.prisma.responseSession.findMany({
       where: {
         userId,
-        deletedAt: null
+        deletedAt: null,
       },
       include: {
         user: {
           select: {
             email: true,
-            name: true
-          }
+            name: true,
+          },
         },
         group: {
           select: {
-            groupName: true
-          }
+            groupName: true,
+          },
         },
         reviewer: {
           select: {
-            name: true
-          }
-        }
+            name: true,
+          },
+        },
       },
       skip,
       take: limit,
       orderBy: {
-        lastActivityAt: 'desc'
-      }
+        lastActivityAt: 'desc',
+      },
     });
 
     // Get status for each session and filter by finalStatus if provided
     let filteredSessions = await Promise.all(
       sessions.map(async (session) => {
-        const latestStatus = await this.statusProgressService.getLatestStatus(session.id) || 'draft';
-        
+        const latestStatus =
+          (await this.statusProgressService.getLatestStatus(session.id)) ||
+          'draft';
+
         return {
           session,
           status: latestStatus,
-          matches: !finalStatus || latestStatus === finalStatus
+          matches: !finalStatus || latestStatus === finalStatus,
         };
-      })
+      }),
     );
 
     // Filter by final status if provided
     if (finalStatus) {
-      filteredSessions = filteredSessions.filter(item => item.matches);
+      filteredSessions = filteredSessions.filter((item) => item.matches);
     }
 
     // Map to DTO
     const data: UserAssessmentSessionDto[] = filteredSessions.map((item) => {
       const session = item.session;
-      
+
       return {
         id: session.id,
         sessionId: session.id,
@@ -632,7 +715,7 @@ export class AssessmentsService {
         reviewScore: session.totalScore ? Number(session.totalScore) : null,
         reviewedAt: session.reviewedAt?.toISOString() || null,
         reviewerName: session.reviewer?.name || null,
-        reviewComments: session.overallComments || null
+        reviewComments: session.overallComments || null,
       };
     });
 
@@ -647,76 +730,86 @@ export class AssessmentsService {
       limit,
       totalPages,
       hasNext,
-      hasPrev
+      hasPrev,
     };
   }
 
   async getAllAssessmentSessions(
     paginationQuery?: PaginationQueryDto,
-    finalStatus?: string
-  ): Promise<{ data: UserAssessmentSessionDto[]; total: number; page: number; limit: number; totalPages: number; hasNext: boolean; hasPrev: boolean }> {
+    finalStatus?: string,
+  ): Promise<{
+    data: UserAssessmentSessionDto[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  }> {
     const { page = 1, limit = 10 } = paginationQuery || {};
     const skip = (page - 1) * limit;
 
     // Get total count
     const total = await this.prisma.responseSession.count({
       where: {
-        deletedAt: null
-      }
+        deletedAt: null,
+      },
     });
 
     // Get sessions with review data
     const sessions = await this.prisma.responseSession.findMany({
       where: {
-        deletedAt: null
+        deletedAt: null,
       },
       include: {
         user: {
           select: {
             email: true,
-            name: true
-          }
+            name: true,
+          },
         },
         group: {
           select: {
-            groupName: true
-          }
+            groupName: true,
+          },
         },
         reviewer: {
           select: {
-            name: true
-          }
-        }
+            name: true,
+          },
+        },
       },
       skip,
       take: limit,
       orderBy: {
-        lastActivityAt: 'desc'
-      }
+        lastActivityAt: 'desc',
+      },
     });
 
     // Get status for each session and filter by finalStatus if provided
     let filteredSessions = await Promise.all(
       sessions.map(async (session) => {
-        const latestStatus = await this.statusProgressService.getLatestStatus(session.id) || 'draft';
-        
+        const latestStatus =
+          (await this.statusProgressService.getLatestStatus(session.id)) ||
+          'draft';
+
         return {
           session,
           status: latestStatus,
-          matches: !finalStatus || latestStatus === finalStatus
+          matches: !finalStatus || latestStatus === finalStatus,
         };
-      })
+      }),
     );
 
     // Filter by final status if provided
     if (finalStatus) {
-      filteredSessions = filteredSessions.filter(item => item.matches);
+      filteredSessions = filteredSessions.filter((item) => item.matches);
     }
 
     // Map to DTO
     const data: UserAssessmentSessionDto[] = filteredSessions.map((item) => {
       const session = item.session;
-      
+
       return {
         id: session.id,
         sessionId: session.id,
@@ -737,7 +830,7 @@ export class AssessmentsService {
         reviewScore: session.totalScore ? Number(session.totalScore) : null,
         reviewedAt: session.reviewedAt?.toISOString() || null,
         reviewerName: session.reviewer?.name || null,
-        reviewComments: session.overallComments || null
+        reviewComments: session.overallComments || null,
       };
     });
 
@@ -752,24 +845,26 @@ export class AssessmentsService {
       limit,
       totalPages,
       hasNext,
-      hasPrev
+      hasPrev,
     };
   }
 
-  async getAssessmentSessionDetail(sessionId: number): Promise<AssessmentSessionDetailDto> {
+  async getAssessmentSessionDetail(
+    sessionId: number,
+  ): Promise<AssessmentSessionDetailDto> {
     const session = await this.prisma.responseSession.findUnique({
       where: { id: sessionId },
       include: {
         user: {
           select: {
             email: true,
-            name: true
-          }
+            name: true,
+          },
         },
         group: {
           select: {
-            groupName: true
-          }
+            groupName: true,
+          },
         },
         responses: {
           include: {
@@ -777,19 +872,19 @@ export class AssessmentsService {
               include: {
                 options: {
                   where: { isActive: true },
-                  orderBy: { orderNumber: 'asc' }
-                }
-              }
+                  orderBy: { orderNumber: 'asc' },
+                },
+              },
             },
-            groupQuestion: true
-          }
+            groupQuestion: true,
+          },
         },
         reviewer: {
           select: {
-            name: true
-          }
-        }
-      }
+            name: true,
+          },
+        },
+      },
     });
 
     if (!session) {
@@ -797,7 +892,8 @@ export class AssessmentsService {
     }
 
     // Get the latest status from StatusProgress
-    const latestStatus = await this.statusProgressService.getLatestStatus(sessionId) || 'draft';
+    const latestStatus =
+      (await this.statusProgressService.getLatestStatus(sessionId)) || 'draft';
 
     // Get review comments for this session
     const reviewComments = await this.prisma.reviewComment.findMany({
@@ -806,31 +902,34 @@ export class AssessmentsService {
         question: true,
         resolvedByUser: {
           select: {
-            name: true
-          }
-        }
-      }
+            name: true,
+          },
+        },
+      },
     });
 
     // Group review comments by question ID for easy lookup
-    const reviewCommentsByQuestion = reviewComments.reduce((acc, comment) => {
-      if (!acc[comment.questionId]) {
-        acc[comment.questionId] = [];
-      }
-      acc[comment.questionId].push({
-        id: comment.id,
-        comment: comment.comment,
-        isCritical: comment.isCritical,
-        stage: comment.stage || undefined,
-        createdAt: comment.createdAt.toISOString(),
-        reviewerName: session.reviewer?.name || undefined,
-        isResolved: comment.isResolved,
-        resolvedAt: comment.resolvedAt?.toISOString(),
-        resolvedByUserName: comment.resolvedByUser?.name || undefined,
-        revisionNotes: comment.revisionNotes || undefined
-      });
-      return acc;
-    }, {} as Record<number, ReviewCommentDto[]>);
+    const reviewCommentsByQuestion = reviewComments.reduce(
+      (acc, comment) => {
+        if (!acc[comment.questionId]) {
+          acc[comment.questionId] = [];
+        }
+        acc[comment.questionId].push({
+          id: comment.id,
+          comment: comment.comment,
+          isCritical: comment.isCritical,
+          stage: comment.stage || undefined,
+          createdAt: comment.createdAt.toISOString(),
+          reviewerName: session.reviewer?.name || undefined,
+          isResolved: comment.isResolved,
+          resolvedAt: comment.resolvedAt?.toISOString(),
+          resolvedByUserName: comment.resolvedByUser?.name || undefined,
+          revisionNotes: comment.revisionNotes || undefined,
+        });
+        return acc;
+      },
+      {} as Record<number, ReviewCommentDto[]>,
+    );
 
     // Get group questions for this group
     const groupQuestions = await this.prisma.groupQuestion.findMany({
@@ -840,21 +939,22 @@ export class AssessmentsService {
           include: {
             options: {
               where: { isActive: true },
-              orderBy: { orderNumber: 'asc' }
-            }
-          }
+              orderBy: { orderNumber: 'asc' },
+            },
+          },
         },
-        category: true
+        category: true,
       },
-      orderBy: [
-        { orderNumber: 'asc' }
-      ]
+      orderBy: [{ orderNumber: 'asc' }],
     });
 
     // Map questions WITH responses (if they exist) and review comments
-    const questions: AssessmentQuestionDto[] = groupQuestions.map(gq => {
-      const response = session.responses.find(r => r.questionId === gq.question.id);
-      const questionReviewComments = reviewCommentsByQuestion[gq.question.id] || [];
+    const questions: AssessmentQuestionDto[] = groupQuestions.map((gq) => {
+      const response = session.responses.find(
+        (r) => r.questionId === gq.question.id,
+      );
+      const questionReviewComments =
+        reviewCommentsByQuestion[gq.question.id] || [];
 
       return {
         id: gq.question.id,
@@ -866,27 +966,35 @@ export class AssessmentsService {
         sectionTitle: gq.sectionTitle || undefined,
         subsection: gq.subsection || undefined,
         isGrouped: gq.isGrouped,
-        category: gq.category ? {
-          id: gq.category.id,
-          name: gq.category.name,
-          description: gq.category.description || undefined,
-          weight: gq.category.weight ? Number(gq.category.weight) : undefined,
-          minValue: gq.category.minValue ? Number(gq.category.minValue) : undefined,
-          maxValue: gq.category.maxValue ? Number(gq.category.maxValue) : undefined,
-          scoreType: gq.category.scoreType
-        } : undefined,
-        options: gq.question.options.map(opt => ({
+        category: gq.category
+          ? {
+              id: gq.category.id,
+              name: gq.category.name,
+              description: gq.category.description || undefined,
+              weight: gq.category.weight
+                ? Number(gq.category.weight)
+                : undefined,
+              minValue: gq.category.minValue
+                ? Number(gq.category.minValue)
+                : undefined,
+              maxValue: gq.category.maxValue
+                ? Number(gq.category.maxValue)
+                : undefined,
+              scoreType: gq.category.scoreType,
+            }
+          : undefined,
+        options: gq.question.options.map((opt) => ({
           id: opt.id,
           optionText: opt.optionText,
           optionValue: opt.optionValue,
           orderNumber: opt.orderNumber,
           isMultipleChoice: opt.isMultipleChoice || false,
-          isCheckBox: opt.isCheckBox || false
+          isCheckBox: opt.isCheckBox || false,
         })),
         response: response ? this.mapResponseToValue(response) : undefined,
         isAnswered: response ? response.isComplete : false,
         isSkipped: response ? response.isSkipped : false,
-        reviewComments: questionReviewComments
+        reviewComments: questionReviewComments,
       };
     });
 
@@ -911,25 +1019,25 @@ export class AssessmentsService {
       reviewScore: session.totalScore ? Number(session.totalScore) : null,
       reviewedAt: session.reviewedAt?.toISOString() || null,
       reviewerName: session.reviewer?.name || null,
-      reviewComments: session.overallComments || null
+      reviewComments: session.overallComments || null,
     };
   }
 
   async createAssessmentReview(
-    reviewerId: number, 
-    sessionId: number, 
-    createReviewDto: CreateAssessmentReviewDto
+    reviewerId: number,
+    sessionId: number,
+    createReviewDto: CreateAssessmentReviewDto,
   ): Promise<AssessmentReviewResponseDto> {
-    const { 
-      stage, 
-      decision, 
-      overallComments, 
-      questionComments, 
-      juryScores, 
-      totalScore, 
-      deliberationNotes, 
-      internalNotes, 
-      validationChecklist 
+    const {
+      stage,
+      decision,
+      overallComments,
+      questionComments,
+      juryScores,
+      totalScore,
+      deliberationNotes,
+      internalNotes,
+      validationChecklist,
     } = createReviewDto;
 
     // Check if session exists and is submitted
@@ -938,10 +1046,10 @@ export class AssessmentsService {
       include: {
         user: {
           select: {
-            name: true
-          }
-        }
-      }
+            name: true,
+          },
+        },
+      },
     });
 
     if (!session) {
@@ -949,14 +1057,19 @@ export class AssessmentsService {
     }
 
     // Check if session is submitted using StatusProgress
-    const sessionStatus = await this.statusProgressService.getResponseSessionStatus(sessionId);
+    const sessionStatus =
+      await this.statusProgressService.getResponseSessionStatus(sessionId);
     if (sessionStatus !== 'submitted' && sessionStatus !== 'resubmitted') {
-      throw new BadRequestException('Session must be submitted or resubmitted before it can be reviewed');
+      throw new BadRequestException(
+        'Session must be submitted or resubmitted before it can be reviewed',
+      );
     }
 
     // Check if review already exists (now checking session review fields)
     if (session.reviewerId || session.stage || session.decision) {
-      throw new BadRequestException('Review already exists for this session. Use update endpoint to modify your review.');
+      throw new BadRequestException(
+        'Review already exists for this session. Use update endpoint to modify your review.',
+      );
     }
 
     // Determine review status based on decision and stage
@@ -995,51 +1108,51 @@ export class AssessmentsService {
           deliberationNotes,
           internalNotes,
           validationChecklist,
-          reviewedAt: new Date()
+          reviewedAt: new Date(),
         },
         include: {
           user: {
             select: {
-              name: true
-            }
+              name: true,
+            },
           },
           reviewer: {
             select: {
-              name: true
-            }
-          }
-        }
+              name: true,
+            },
+          },
+        },
       });
 
       // Record review status in StatusProgress
       await this.statusProgressService.recordStatusChange(
         sessionId,
         status,
-        reviewerId
+        reviewerId,
       );
 
       // Create question comments if provided
       if (questionComments && questionComments.length > 0) {
         await prisma.reviewComment.createMany({
-          data: questionComments.map(comment => ({
+          data: questionComments.map((comment) => ({
             sessionId, // Changed from reviewId to sessionId
             questionId: comment.questionId,
             comment: comment.comment,
             isCritical: comment.isCritical || false,
-            stage: comment.stage || stage
-          }))
+            stage: comment.stage || stage,
+          })),
         });
       }
 
       // Create jury scores if provided
       if (juryScores && juryScores.length > 0) {
         await prisma.juryScore.createMany({
-          data: juryScores.map(score => ({
+          data: juryScores.map((score) => ({
             sessionId, // Changed from reviewId to sessionId
             questionId: score.questionId,
             score: score.score,
-            comments: score.comments
-          }))
+            comments: score.comments,
+          })),
         });
       }
 
@@ -1054,15 +1167,20 @@ export class AssessmentsService {
       stage: updatedSession.stage!,
       decision: updatedSession.decision!,
       overallComments: updatedSession.overallComments || undefined,
-      totalScore: updatedSession.totalScore ? Number(updatedSession.totalScore) : undefined,
+      totalScore: updatedSession.totalScore
+        ? Number(updatedSession.totalScore)
+        : undefined,
       deliberationNotes: updatedSession.deliberationNotes || undefined,
       internalNotes: updatedSession.internalNotes || undefined,
-      validationChecklist: Array.isArray(updatedSession.validationChecklist) ? (updatedSession.validationChecklist as string[]) : undefined,
-      reviewedAt: updatedSession.reviewedAt?.toISOString() || new Date().toISOString(),
+      validationChecklist: Array.isArray(updatedSession.validationChecklist)
+        ? (updatedSession.validationChecklist as string[])
+        : undefined,
+      reviewedAt:
+        updatedSession.reviewedAt?.toISOString() || new Date().toISOString(),
       message: 'Assessment review created successfully',
       isNewReview: true,
       totalCommentsAdded: 0,
-      totalScoresAdded: 0
+      totalScoresAdded: 0,
     };
   }
 
@@ -1070,18 +1188,18 @@ export class AssessmentsService {
     reviewerId: number,
     sessionId: number,
     batchReviewDto: BatchAssessmentReviewDto,
-    updateExisting: boolean = false
+    updateExisting: boolean = false,
   ): Promise<BatchAssessmentReviewResponseDto> {
-    const { 
-      stage, 
-      decision, 
-      overallComments, 
-      questionComments, 
-      juryScores, 
-      totalScore, 
-      deliberationNotes, 
-      internalNotes, 
-      validationChecklist 
+    const {
+      stage,
+      decision,
+      overallComments,
+      questionComments,
+      juryScores,
+      totalScore,
+      deliberationNotes,
+      internalNotes,
+      validationChecklist,
     } = batchReviewDto;
 
     // Check if session exists and is submitted
@@ -1090,10 +1208,10 @@ export class AssessmentsService {
       include: {
         user: {
           select: {
-            name: true
-          }
-        }
-      }
+            name: true,
+          },
+        },
+      },
     });
 
     if (!session) {
@@ -1101,36 +1219,36 @@ export class AssessmentsService {
     }
 
     // Check if session is submitted using StatusProgress
-    const sessionStatus = await this.statusProgressService.getResponseSessionStatus(sessionId);
+    const sessionStatus =
+      await this.statusProgressService.getResponseSessionStatus(sessionId);
     if (sessionStatus !== 'submitted' && sessionStatus !== 'resubmitted') {
-      throw new BadRequestException('Session must be submitted or resubmitted before it can be reviewed');
+      throw new BadRequestException(
+        'Session must be submitted or resubmitted before it can be reviewed',
+      );
     }
 
-    // Check if review already exists (now checking session review fields)
-    if (session.reviewerId || session.stage || session.decision) {
-      if (!updateExisting) {
-        throw new BadRequestException('Review already exists for this session. Use update endpoint to modify your review.');
-      }
-    }
+    // Check if review already exists and handle accordingly
+    const hasExistingReview =
+      session.reviewerId || session.stage || session.decision;
 
     let updatedSession;
     let isNewReview = false;
     let totalCommentsAdded = 0;
     let totalScoresAdded = 0;
 
-    if (session.reviewerId && updateExisting) {
+    if (hasExistingReview && updateExisting) {
       // Update existing review
       updatedSession = await this.updateExistingReview(
         sessionId,
         reviewerId,
-        batchReviewDto
+        batchReviewDto,
       );
     } else {
-      // Create new review
+      // Create new review (allows multiple reviews even if one already exists)
       updatedSession = await this.createNewReview(
         sessionId,
         reviewerId,
-        batchReviewDto
+        batchReviewDto,
       );
       isNewReview = true;
     }
@@ -1150,31 +1268,36 @@ export class AssessmentsService {
       stage: updatedSession.stage!,
       decision: updatedSession.decision!,
       overallComments: updatedSession.overallComments || undefined,
-      totalScore: updatedSession.totalScore ? Number(updatedSession.totalScore) : undefined,
-      reviewedAt: updatedSession.reviewedAt?.toISOString() || new Date().toISOString(),
+      totalScore: updatedSession.totalScore
+        ? Number(updatedSession.totalScore)
+        : undefined,
+      reviewedAt:
+        updatedSession.reviewedAt?.toISOString() || new Date().toISOString(),
       reviewerName: updatedSession.reviewer?.name || 'Unknown Reviewer',
-      message: isNewReview ? 'Assessment review created successfully' : 'Assessment review updated successfully',
+      message: isNewReview
+        ? 'Assessment review created successfully'
+        : 'Assessment review updated successfully',
       isNewReview,
       totalCommentsAdded,
-      totalScoresAdded
+      totalScoresAdded,
     };
   }
 
   private async createNewReview(
     sessionId: number,
     reviewerId: number,
-    batchReviewDto: BatchAssessmentReviewDto
+    batchReviewDto: BatchAssessmentReviewDto,
   ) {
-    const { 
-      stage, 
-      decision, 
-      overallComments, 
-      questionComments, 
-      juryScores, 
-      totalScore, 
-      deliberationNotes, 
-      internalNotes, 
-      validationChecklist 
+    const {
+      stage,
+      decision,
+      overallComments,
+      questionComments,
+      juryScores,
+      totalScore,
+      deliberationNotes,
+      internalNotes,
+      validationChecklist,
     } = batchReviewDto;
 
     // Determine review status based on decision and stage
@@ -1193,47 +1316,59 @@ export class AssessmentsService {
           deliberationNotes,
           internalNotes,
           validationChecklist,
-          reviewedAt: new Date()
+          reviewedAt: new Date(),
         },
         include: {
           reviewer: {
             select: {
-              name: true
-            }
-          }
-        }
+              name: true,
+            },
+          },
+        },
       });
 
       // Record review status in StatusProgress
       await this.statusProgressService.recordStatusChange(
         sessionId,
         status,
-        reviewerId
+        reviewerId,
       );
 
       // Create question comments if provided
       if (questionComments && questionComments.length > 0) {
         await prisma.reviewComment.createMany({
-          data: questionComments.map(comment => ({
+          data: questionComments.map((comment) => ({
             sessionId, // Changed from reviewId to sessionId
             questionId: comment.questionId,
             comment: comment.comment,
             isCritical: comment.isCritical || false,
-            stage: comment.stage || stage
-          }))
+            stage: comment.stage || stage,
+          })),
         });
       }
 
-      // Create jury scores if provided
+      // Create jury scores if provided (will update existing scores due to unique constraint)
       if (juryScores && juryScores.length > 0) {
-        await prisma.juryScore.createMany({
-          data: juryScores.map(score => ({
-            sessionId, // Changed from reviewId to sessionId
-            questionId: score.questionId,
-            score: score.score,
-            comments: score.comments
-          }))
-        });
+        for (const score of juryScores) {
+          await prisma.juryScore.upsert({
+            where: {
+              sessionId_questionId: {
+                sessionId,
+                questionId: score.questionId,
+              },
+            },
+            update: {
+              score: score.score,
+              comments: score.comments,
+            },
+            create: {
+              sessionId,
+              questionId: score.questionId,
+              score: score.score,
+              comments: score.comments,
+            },
+          });
+        }
       }
 
       return updatedSession;
@@ -1243,18 +1378,18 @@ export class AssessmentsService {
   private async updateExistingReview(
     sessionId: number,
     reviewerId: number,
-    batchReviewDto: BatchAssessmentReviewDto
+    batchReviewDto: BatchAssessmentReviewDto,
   ) {
-    const { 
-      stage, 
-      decision, 
-      overallComments, 
-      questionComments, 
-      juryScores, 
-      totalScore, 
-      deliberationNotes, 
-      internalNotes, 
-      validationChecklist 
+    const {
+      stage,
+      decision,
+      overallComments,
+      questionComments,
+      juryScores,
+      totalScore,
+      deliberationNotes,
+      internalNotes,
+      validationChecklist,
     } = batchReviewDto;
 
     // Determine review status based on decision and stage
@@ -1273,56 +1408,64 @@ export class AssessmentsService {
           deliberationNotes,
           internalNotes,
           validationChecklist,
-          reviewedAt: new Date()
+          reviewedAt: new Date(),
         },
         include: {
           reviewer: {
             select: {
-              name: true
-            }
-          }
-        }
+              name: true,
+            },
+          },
+        },
       });
 
       // Record review status in StatusProgress
       await this.statusProgressService.recordStatusChange(
         sessionId,
         status,
-        reviewerId
+        reviewerId,
       );
 
-      // Delete existing comments and scores
+      // Delete existing comments (but keep scores for upsert)
       await prisma.reviewComment.deleteMany({
-        where: { sessionId } // Changed from reviewId to sessionId
-      });
-
-      await prisma.juryScore.deleteMany({
-        where: { sessionId } // Changed from reviewId to sessionId
+        where: { sessionId }, // Changed from reviewId to sessionId
       });
 
       // Create new question comments if provided
       if (questionComments && questionComments.length > 0) {
         await prisma.reviewComment.createMany({
-          data: questionComments.map(comment => ({
+          data: questionComments.map((comment) => ({
             sessionId, // Changed from reviewId to sessionId
             questionId: comment.questionId,
             comment: comment.comment,
             isCritical: comment.isCritical || false,
-            stage: comment.stage || stage
-          }))
+            stage: comment.stage || stage,
+          })),
         });
       }
 
-      // Create new jury scores if provided
+      // Create new jury scores if provided (will update existing scores due to unique constraint)
       if (juryScores && juryScores.length > 0) {
-        await prisma.juryScore.createMany({
-          data: juryScores.map(score => ({
-            sessionId, // Changed from reviewId to sessionId
-            questionId: score.questionId,
-            score: score.score,
-            comments: score.comments
-          }))
-        });
+        for (const score of juryScores) {
+          await prisma.juryScore.upsert({
+            where: {
+              sessionId_questionId: {
+                sessionId,
+                questionId: score.questionId,
+              },
+            },
+            update: {
+              score: score.score,
+              comments: score.comments,
+            },
+            create: {
+              sessionId,
+              questionId: score.questionId,
+              score: score.score,
+              comments: score.comments,
+            },
+          });
+        }
       }
 
       return updatedSession;
@@ -1352,15 +1495,15 @@ export class AssessmentsService {
         // Handle complex text values with additional data
         if (typeof value === 'object' && value !== null) {
           const result: any = {};
-          
+
           // Extract the main answer text
           if (value.answer !== undefined) {
             result.textValue = value.answer.toString();
           }
-          
+
           // Store the entire object in arrayValue for backup
           result.arrayValue = value;
-          
+
           return result;
         }
         // Handle simple string values
@@ -1371,20 +1514,20 @@ export class AssessmentsService {
         // Handle complex numeric values with additional data
         if (typeof value === 'object' && value !== null) {
           const result: any = {};
-          
+
           // Extract numeric value
           if (value.answer !== undefined) {
             result.numericValue = parseFloat(value.answer) || null;
           }
-          
+
           // Extract URL or other text data
           if (value.url !== undefined) {
             result.textValue = value.url.toString();
           }
-          
+
           // Store the entire object in arrayValue for backup
           result.arrayValue = value;
-          
+
           return result;
         }
         // Fallback for simple numeric values
@@ -1406,22 +1549,31 @@ export class AssessmentsService {
 
   private mapResponseToValue(response: any): any {
     // For text-open type with complex objects, reconstruct the object
-    if (response.arrayValue !== null && typeof response.arrayValue === 'object') {
+    if (
+      response.arrayValue !== null &&
+      typeof response.arrayValue === 'object'
+    ) {
       // Check if this looks like a text-open response with answer and url
-      if (response.arrayValue.answer !== undefined && response.arrayValue.url !== undefined) {
+      if (
+        response.arrayValue.answer !== undefined &&
+        response.arrayValue.url !== undefined
+      ) {
         return response.arrayValue;
       }
       // Check if this looks like a numeric-open response
-      if (response.arrayValue.answer !== undefined || response.arrayValue.url !== undefined) {
+      if (
+        response.arrayValue.answer !== undefined ||
+        response.arrayValue.url !== undefined
+      ) {
         return response.arrayValue;
       }
     }
-    
+
     // For checkbox type with array values, return the array
     if (response.arrayValue !== null && Array.isArray(response.arrayValue)) {
       return response.arrayValue;
     }
-    
+
     // For other types, return the first non-null value
     if (response.textValue !== null) return response.textValue;
     if (response.numericValue !== null) return response.numericValue;
@@ -1436,11 +1588,11 @@ export class AssessmentsService {
     sessionId: number,
     commentId: number,
     userId: number,
-    resolveDto: ResolveReviewCommentDto
+    resolveDto: ResolveReviewCommentDto,
   ): Promise<{ success: boolean; message: string }> {
     // Check if session exists
     const session = await this.prisma.responseSession.findUnique({
-      where: { id: sessionId }
+      where: { id: sessionId },
     });
 
     if (!session) {
@@ -1451,8 +1603,8 @@ export class AssessmentsService {
     const comment = await this.prisma.reviewComment.findFirst({
       where: {
         id: commentId,
-        sessionId: sessionId
-      }
+        sessionId: sessionId,
+      },
     });
 
     if (!comment) {
@@ -1466,24 +1618,26 @@ export class AssessmentsService {
         isResolved: resolveDto.isResolved,
         resolvedAt: resolveDto.isResolved ? new Date() : null,
         resolvedBy: resolveDto.isResolved ? userId : null,
-        revisionNotes: resolveDto.revisionNotes || null
-      }
+        revisionNotes: resolveDto.revisionNotes || null,
+      },
     });
 
     return {
       success: true,
-      message: resolveDto.isResolved ? 'Comment marked as resolved' : 'Comment marked as unresolved'
+      message: resolveDto.isResolved
+        ? 'Comment marked as resolved'
+        : 'Comment marked as unresolved',
     };
   }
 
   async resolveAllReviewComments(
     sessionId: number,
     userId: number,
-    resolveDto: ResolveReviewCommentDto
+    resolveDto: ResolveReviewCommentDto,
   ): Promise<{ success: boolean; message: string; resolvedCount: number }> {
     // Check if session exists
     const session = await this.prisma.responseSession.findUnique({
-      where: { id: sessionId }
+      where: { id: sessionId },
     });
 
     if (!session) {
@@ -1494,15 +1648,15 @@ export class AssessmentsService {
     const unresolvedComments = await this.prisma.reviewComment.findMany({
       where: {
         sessionId: sessionId,
-        isResolved: false
-      }
+        isResolved: false,
+      },
     });
 
     if (unresolvedComments.length === 0) {
       return {
         success: true,
         message: 'No unresolved comments found',
-        resolvedCount: 0
+        resolvedCount: 0,
       };
     }
 
@@ -1510,23 +1664,22 @@ export class AssessmentsService {
     await this.prisma.reviewComment.updateMany({
       where: {
         sessionId: sessionId,
-        isResolved: false
+        isResolved: false,
       },
       data: {
         isResolved: resolveDto.isResolved,
         resolvedAt: resolveDto.isResolved ? new Date() : null,
         resolvedBy: resolveDto.isResolved ? userId : null,
-        revisionNotes: resolveDto.revisionNotes || null
-      }
+        revisionNotes: resolveDto.revisionNotes || null,
+      },
     });
 
     return {
       success: true,
-      message: resolveDto.isResolved 
-        ? `${unresolvedComments.length} comments marked as resolved` 
+      message: resolveDto.isResolved
+        ? `${unresolvedComments.length} comments marked as resolved`
         : `${unresolvedComments.length} comments marked as unresolved`,
-      resolvedCount: unresolvedComments.length
+      resolvedCount: unresolvedComments.length,
     };
   }
 }
-

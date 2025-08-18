@@ -1,5 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsString, IsBoolean, IsOptional, IsArray, IsEnum, IsDecimal } from 'class-validator';
+import {
+  IsNumber,
+  IsString,
+  IsBoolean,
+  IsOptional,
+  IsArray,
+  IsEnum,
+  IsDecimal,
+} from 'class-validator';
 import { ReviewCommentDto } from './review-comment.dto';
 
 export enum QuestionInputType {
@@ -7,7 +15,7 @@ export enum QuestionInputType {
   NUMERIC_OPEN = 'numeric-open',
   CHECKBOX = 'checkbox',
   MULTIPLE_CHOICE = 'multiple-choice',
-  FILE_UPLOAD = 'file-upload'
+  FILE_UPLOAD = 'file-upload',
 }
 
 export class QuestionCategoryDto {

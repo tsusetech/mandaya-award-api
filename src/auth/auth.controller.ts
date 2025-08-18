@@ -1,12 +1,38 @@
-import { Controller, Get, Post, Body, UseGuards, Req, HttpStatus, BadRequestException, UseInterceptors, UploadedFile } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  Req,
+  HttpStatus,
+  BadRequestException,
+  UseInterceptors,
+  UploadedFile,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+  ApiBearerAuth,
+  ApiConsumes,
+} from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
-import { LoginResponseDto, SignupResponseDto, ProfileResponseDto } from './dto/auth-response.dto';
-import { BulkUserDto, BulkSignupDto, BulkSignupResponseDto } from './dto/bulk-signup.dto';
+import {
+  LoginResponseDto,
+  SignupResponseDto,
+  ProfileResponseDto,
+} from './dto/auth-response.dto';
+import {
+  BulkUserDto,
+  BulkSignupDto,
+  BulkSignupResponseDto,
+} from './dto/bulk-signup.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -15,22 +41,23 @@ export class AuthController {
 
   // --- Local Auth ---
   @Post('signup')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Register a new user',
-    description: 'Register a new user with optional group assignment. If groupId is provided, the user will be automatically assigned to that group.'
+    description:
+      'Register a new user with optional group assignment. If groupId is provided, the user will be automatically assigned to that group.',
   })
-  @ApiResponse({ 
-    status: HttpStatus.CREATED, 
+  @ApiResponse({
+    status: HttpStatus.CREATED,
     description: 'User successfully created',
-    type: SignupResponseDto 
+    type: SignupResponseDto,
   })
-  @ApiResponse({ 
-    status: HttpStatus.BAD_REQUEST, 
-    description: 'Invalid input data or group not found' 
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid input data or group not found',
   })
-  @ApiResponse({ 
-    status: HttpStatus.CONFLICT, 
-    description: 'User already exists' 
+  @ApiResponse({
+    status: HttpStatus.CONFLICT,
+    description: 'User already exists',
   })
   @ApiBody({ type: SignupDto })
   async signup(@Body() signupDto: SignupDto): Promise<SignupResponseDto> {
@@ -40,14 +67,14 @@ export class AuthController {
   @UseGuards(AuthGuard('local'))
   @Post('login')
   @ApiOperation({ summary: 'Login with email and password' })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
+  @ApiResponse({
+    status: HttpStatus.OK,
     description: 'Login successful',
-    type: LoginResponseDto 
+    type: LoginResponseDto,
   })
-  @ApiResponse({ 
-    status: HttpStatus.UNAUTHORIZED, 
-    description: 'Invalid credentials' 
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid credentials',
   })
   @ApiBody({ type: LoginDto })
   async login(@Req() req): Promise<LoginResponseDto> {
@@ -56,19 +83,20 @@ export class AuthController {
 
   // --- Google OAuth ---
   @Get('google')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Initiate Google OAuth login',
-    description: 'This endpoint redirects to Google OAuth. Cannot be tested directly in Swagger. Use browser instead.'
+    description:
+      'This endpoint redirects to Google OAuth. Cannot be tested directly in Swagger. Use browser instead.',
   })
-  @ApiResponse({ 
-    status: HttpStatus.FOUND, 
+  @ApiResponse({
+    status: HttpStatus.FOUND,
     description: 'Redirects to Google OAuth (302 redirect)',
     headers: {
-      'Location': {
+      Location: {
         description: 'Google OAuth URL',
-        schema: { type: 'string' }
-      }
-    }
+        schema: { type: 'string' },
+      },
+    },
   })
   @UseGuards(AuthGuard('google'))
   async googleAuth(@Req() req) {
@@ -76,14 +104,15 @@ export class AuthController {
   }
 
   @Get('google/callback')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Google OAuth callback',
-    description: 'This endpoint is called by Google after authentication. Not for direct use.'
+    description:
+      'This endpoint is called by Google after authentication. Not for direct use.',
   })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
+  @ApiResponse({
+    status: HttpStatus.OK,
     description: 'Google OAuth successful',
-    type: LoginResponseDto 
+    type: LoginResponseDto,
   })
   @UseGuards(AuthGuard('google'))
   googleAuthRedirect(@Req() req): Promise<LoginResponseDto> {
@@ -97,21 +126,21 @@ export class AuthController {
     return {
       message: 'To test Google OAuth, visit this URL in your browser',
       url: 'http://localhost:3000/auth/google',
-      note: 'This will redirect you to Google login page'
+      note: 'This will redirect you to Google login page',
     };
   }
 
   // --- Protected Routes ---
   @Get('profile')
   @ApiOperation({ summary: 'Get current user profile' })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
+  @ApiResponse({
+    status: HttpStatus.OK,
     description: 'User profile retrieved',
-    type: ProfileResponseDto 
+    type: ProfileResponseDto,
   })
-  @ApiResponse({ 
-    status: HttpStatus.UNAUTHORIZED, 
-    description: 'Invalid or missing token' 
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Invalid or missing token',
   })
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
@@ -120,16 +149,20 @@ export class AuthController {
   }
 
   @Post('bulk-register')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Bulk user registration',
-    description: 'Register multiple users at once by providing an array of user data. Each user can be assigned to a specific group using the groupId field.'
+    description:
+      'Register multiple users at once by providing an array of user data. Each user can be assigned to a specific group using the groupId field.',
   })
-  @ApiResponse({ 
-    status: 201, 
-    description: 'Bulk registration completed', 
-    type: BulkSignupResponseDto 
+  @ApiResponse({
+    status: 201,
+    description: 'Bulk registration completed',
+    type: BulkSignupResponseDto,
   })
-  @ApiResponse({ status: 400, description: 'Invalid user data or group not found' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid user data or group not found',
+  })
   @ApiBody({ type: BulkSignupDto })
   async bulkRegister(@Body() bulkSignupDto: BulkSignupDto) {
     return this.authService.bulkSignup(bulkSignupDto.users);
@@ -137,9 +170,10 @@ export class AuthController {
 
   @Post('bulk-register/excel')
   @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Bulk user registration from Excel file',
-    description: 'Register multiple users by uploading an Excel file. Required columns: email, username, password. Optional columns: name, role, groupId. If groupId column is present, users will be assigned to the specified groups.'
+    description:
+      'Register multiple users by uploading an Excel file. Required columns: email, username, password. Optional columns: name, role, groupId. If groupId column is present, users will be assigned to the specified groups.',
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -150,17 +184,21 @@ export class AuthController {
         file: {
           type: 'string',
           format: 'binary',
-          description: 'Excel file (.xlsx or .xls) with columns: email, username, password, name (optional), role (optional), groupId (optional)'
-        }
-      }
-    }
+          description:
+            'Excel file (.xlsx or .xls) with columns: email, username, password, name (optional), role (optional), groupId (optional)',
+        },
+      },
+    },
   })
-  @ApiResponse({ 
-    status: 201, 
-    description: 'Bulk registration from Excel completed', 
-    type: BulkSignupResponseDto 
+  @ApiResponse({
+    status: 201,
+    description: 'Bulk registration from Excel completed',
+    type: BulkSignupResponseDto,
   })
-  @ApiResponse({ status: 400, description: 'Invalid file, file format, or group not found' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid file, file format, or group not found',
+  })
   async bulkRegisterFromExcel(@UploadedFile() file: any) {
     if (!file) {
       throw new BadRequestException('No file uploaded');
@@ -170,11 +208,13 @@ export class AuthController {
     const allowedMimeTypes = [
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
       'application/vnd.ms-excel', // .xls
-      'application/octet-stream' // Sometimes Excel files are detected as this
+      'application/octet-stream', // Sometimes Excel files are detected as this
     ];
-    
+
     if (!allowedMimeTypes.includes(file.mimetype)) {
-      throw new BadRequestException(`Please upload a valid Excel file (.xlsx or .xls). Received file type: ${file.mimetype}`);
+      throw new BadRequestException(
+        `Please upload a valid Excel file (.xlsx or .xls). Received file type: ${file.mimetype}`,
+      );
     }
 
     // Validate file size (max 5MB)
@@ -189,13 +229,17 @@ export class AuthController {
     }
 
     try {
-      console.log(`Processing Excel file: ${file.originalname}, size: ${file.size} bytes, type: ${file.mimetype}`);
+      console.log(
+        `Processing Excel file: ${file.originalname}, size: ${file.size} bytes, type: ${file.mimetype}`,
+      );
       const users = await this.authService.parseExcelFile(file.buffer);
       console.log(`Parsed ${users.length} users from Excel file`);
       return this.authService.bulkSignup(users);
     } catch (error) {
       console.error('Excel processing error:', error);
-      throw new BadRequestException(`Failed to process Excel file: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to process Excel file: ${error.message}`,
+      );
     }
   }
 }

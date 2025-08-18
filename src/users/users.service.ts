@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SoftDeleteService } from '../common/services/soft-delete.service';
 
@@ -23,7 +27,7 @@ export class UsersService {
 
     return {
       message: 'Users retrieved successfully',
-      users: users.map(user => {
+      users: users.map((user) => {
         const { password, ...userWithoutPassword } = user;
         return userWithoutPassword;
       }),
@@ -33,9 +37,9 @@ export class UsersService {
 
   async getUserById(id: number) {
     const user = await this.prisma.user.findFirst({
-      where: { 
+      where: {
         id,
-        ...this.softDeleteService.getActiveRecordsWhere()
+        ...this.softDeleteService.getActiveRecordsWhere(),
       },
       include: {
         userRoles: {
@@ -57,12 +61,15 @@ export class UsersService {
     };
   }
 
-  async updateUser(id: number, updateData: { name?: string; email?: string; username?: string }) {
+  async updateUser(
+    id: number,
+    updateData: { name?: string; email?: string; username?: string },
+  ) {
     // Check if user exists
     const existingUser = await this.prisma.user.findFirst({
-      where: { 
+      where: {
         id,
-        ...this.softDeleteService.getActiveRecordsWhere()
+        ...this.softDeleteService.getActiveRecordsWhere(),
       },
     });
 
@@ -81,7 +88,7 @@ export class UsersService {
               OR: [
                 updateData.email ? { email: updateData.email } : {},
                 updateData.username ? { username: updateData.username } : {},
-              ].filter(condition => Object.keys(condition).length > 0),
+              ].filter((condition) => Object.keys(condition).length > 0),
             },
           ],
         },
@@ -93,9 +100,9 @@ export class UsersService {
     }
 
     const updatedUser = await this.prisma.user.update({
-      where: { 
+      where: {
         id,
-        ...this.softDeleteService.getActiveRecordsWhere()
+        ...this.softDeleteService.getActiveRecordsWhere(),
       },
       data: {
         ...updateData,
@@ -120,9 +127,9 @@ export class UsersService {
   async deleteUser(id: number, deletedBy?: number) {
     // Check if user exists
     const existingUser = await this.prisma.user.findFirst({
-      where: { 
+      where: {
         id,
-        ...this.softDeleteService.getActiveRecordsWhere()
+        ...this.softDeleteService.getActiveRecordsWhere(),
       },
     });
 
@@ -141,9 +148,9 @@ export class UsersService {
   async getUsersByRole(roleName: string) {
     const usersWithRole = await this.prisma.userRole.findMany({
       where: {
-        role: { 
+        role: {
           name: roleName,
-          ...this.softDeleteService.getActiveRecordsWhere()
+          ...this.softDeleteService.getActiveRecordsWhere(),
         },
         user: this.softDeleteService.getActiveRecordsWhere(),
       },
@@ -162,7 +169,7 @@ export class UsersService {
 
     return {
       message: `Users with role ${roleName} retrieved successfully`,
-      users: usersWithRole.map(ur => {
+      users: usersWithRole.map((ur) => {
         const { password, ...userWithoutPassword } = ur.user;
         return userWithoutPassword;
       }),
@@ -195,7 +202,7 @@ export class UsersService {
 
     return {
       message: 'Search results retrieved successfully',
-      users: users.map(user => {
+      users: users.map((user) => {
         const { password, ...userWithoutPassword } = user;
         return userWithoutPassword;
       }),
@@ -207,7 +214,7 @@ export class UsersService {
     const totalUsers = await this.prisma.user.count({
       where: this.softDeleteService.getActiveRecordsWhere(),
     });
-    
+
     const usersByRole = await this.prisma.role.findMany({
       include: {
         userRoles: {
@@ -218,7 +225,7 @@ export class UsersService {
       },
     });
 
-    const roleStats = usersByRole.map(role => ({
+    const roleStats = usersByRole.map((role) => ({
       roleName: role.name,
       userCount: role.userRoles.length,
     }));
@@ -235,9 +242,9 @@ export class UsersService {
   async getUserGroups(userId: number) {
     // Check if user exists
     const user = await this.prisma.user.findFirst({
-      where: { 
+      where: {
         id: userId,
-        ...this.softDeleteService.getActiveRecordsWhere()
+        ...this.softDeleteService.getActiveRecordsWhere(),
       },
     });
 
@@ -254,10 +261,7 @@ export class UsersService {
               include: {
                 question: true,
               },
-              orderBy: [
-                { groupId: 'asc' },
-                { orderNumber: 'asc' },
-              ],
+              orderBy: [{ groupId: 'asc' }, { orderNumber: 'asc' }],
             },
           },
         },
@@ -273,7 +277,7 @@ export class UsersService {
     return {
       message: 'User groups retrieved successfully',
       user: userWithoutPassword,
-      groups: userGroups.map(ug => ug.group),
+      groups: userGroups.map((ug) => ug.group),
       count: userGroups.length,
     };
   }
@@ -281,10 +285,10 @@ export class UsersService {
   // Soft Delete Management Methods
   async getSoftDeletedUsers() {
     const users = await this.softDeleteService.getSoftDeletedUsers();
-    
+
     return {
       message: 'Soft deleted users retrieved successfully',
-      users: users.map(user => {
+      users: users.map((user) => {
         const { password, ...userWithoutPassword } = user;
         return userWithoutPassword;
       }),
@@ -294,9 +298,11 @@ export class UsersService {
 
   async restoreUser(id: number, restoredBy?: number) {
     try {
-      const restoredUser = await this.softDeleteService.restoreUser(id, { restoredBy });
+      const restoredUser = await this.softDeleteService.restoreUser(id, {
+        restoredBy,
+      });
       const { password, ...userWithoutPassword } = restoredUser;
-      
+
       return {
         message: 'User restored successfully',
         user: userWithoutPassword,
@@ -309,7 +315,7 @@ export class UsersService {
   async permanentlyDeleteUser(id: number) {
     try {
       await this.softDeleteService.permanentlyDeleteUser(id);
-      
+
       return {
         message: 'User permanently deleted successfully',
       };

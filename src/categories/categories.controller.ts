@@ -9,7 +9,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
@@ -39,7 +44,10 @@ export class CategoriesController {
 
   @Get()
   @ApiOperation({ summary: 'Get all categories' })
-  @ApiResponse({ status: 200, description: 'Categories retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Categories retrieved successfully',
+  })
   findAll() {
     return this.categoriesService.findAll();
   }
@@ -59,7 +67,10 @@ export class CategoriesController {
   @ApiResponse({ status: 409, description: 'Category name already exists' })
   @Roles('ADMIN', 'SUPERADMIN')
   @UseGuards(RolesGuard)
-  update(@Param('id') id: string, @Body() updateCategoryDto: UpdateCategoryDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateCategoryDto: UpdateCategoryDto,
+  ) {
     return this.categoriesService.update(+id, updateCategoryDto);
   }
 
@@ -75,10 +86,16 @@ export class CategoriesController {
 
   @Post('assign')
   @ApiOperation({ summary: 'Assign group to category' })
-  @ApiResponse({ status: 201, description: 'Group assigned to category successfully' })
+  @ApiResponse({
+    status: 201,
+    description: 'Group assigned to category successfully',
+  })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 404, description: 'Category or group not found' })
-  @ApiResponse({ status: 409, description: 'Group is already assigned to this category' })
+  @ApiResponse({
+    status: 409,
+    description: 'Group is already assigned to this category',
+  })
   @Roles('ADMIN', 'SUPERADMIN')
   @UseGuards(RolesGuard)
   assignGroupToCategory(@Body() assignDto: AssignGroupToCategoryDto) {
@@ -87,28 +104,43 @@ export class CategoriesController {
 
   @Get('category/:categoryId/groups')
   @ApiOperation({ summary: 'Get groups for a specific category' })
-  @ApiResponse({ status: 200, description: 'Category groups retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Category groups retrieved successfully',
+  })
   getCategoryGroups(@Param('categoryId') categoryId: string) {
     return this.categoriesService.getCategoryGroups(+categoryId);
   }
 
   @Get('group/:groupId/categories')
   @ApiOperation({ summary: 'Get categories for a specific group' })
-  @ApiResponse({ status: 200, description: 'Group categories retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Group categories retrieved successfully',
+  })
   getGroupCategories(@Param('groupId') groupId: string) {
     return this.categoriesService.getGroupCategories(+groupId);
   }
 
   @Delete('category/:categoryId/group/:groupId')
   @ApiOperation({ summary: 'Remove group from category' })
-  @ApiResponse({ status: 200, description: 'Group removed from category successfully' })
-  @ApiResponse({ status: 404, description: 'Category-Group assignment not found' })
+  @ApiResponse({
+    status: 200,
+    description: 'Group removed from category successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Category-Group assignment not found',
+  })
   @Roles('ADMIN', 'SUPERADMIN')
   @UseGuards(RolesGuard)
   removeGroupFromCategory(
     @Param('categoryId') categoryId: string,
     @Param('groupId') groupId: string,
   ) {
-    return this.categoriesService.removeGroupFromCategory(+categoryId, +groupId);
+    return this.categoriesService.removeGroupFromCategory(
+      +categoryId,
+      +groupId,
+    );
   }
 }

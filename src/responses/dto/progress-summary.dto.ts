@@ -13,6 +13,10 @@ export class ProgressSummaryDto {
   @ApiProperty({ example: 75 })
   progressPercentage: number;
 
-  @ApiProperty({ example: 300, description: 'Estimated time remaining in seconds', required: false })
+  @ApiProperty({
+    example: 300,
+    description: 'Estimated time remaining in seconds',
+    required: false,
+  })
   estimatedTimeRemaining?: number;
 }

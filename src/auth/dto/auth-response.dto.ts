@@ -42,4 +42,4 @@ export class ProfileResponseDto {
 
   @ApiProperty({ type: UserResponseDto })
   user: UserResponseDto;
-} 
+}

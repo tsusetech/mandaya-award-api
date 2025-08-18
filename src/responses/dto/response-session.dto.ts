@@ -63,10 +63,10 @@ export class ResponseSessionDto {
   @ApiProperty({ example: '2024-01-01T00:00:00.000Z', required: false })
   reviewedAt?: Date;
 
-  @ApiProperty({ 
-    type: [QuestionResponseDto], 
+  @ApiProperty({
+    type: [QuestionResponseDto],
     required: false,
-    description: 'Array of user responses to questions'
+    description: 'Array of user responses to questions',
   })
   responses?: QuestionResponseDto[];
 }

@@ -8,7 +8,10 @@ export class AssignUserToGroupDto {
 }
 
 export class AssignUsersToGroupDto {
-  @ApiProperty({ example: [1, 2, 3], description: 'Array of user IDs to assign to group' })
+  @ApiProperty({
+    example: [1, 2, 3],
+    description: 'Array of user IDs to assign to group',
+  })
   @IsArray()
   @ArrayMinSize(1)
   @IsInt({ each: true })

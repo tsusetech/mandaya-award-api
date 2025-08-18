@@ -3,7 +3,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SoftDeleteService } from '../common/services/soft-delete.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
-import { CreateQuestionOptionDto, UpdateQuestionOptionDto } from './dto/question-option.dto';
+import {
+  CreateQuestionOptionDto,
+  UpdateQuestionOptionDto,
+} from './dto/question-option.dto';
 
 @Injectable()
 export class QuestionsService {
@@ -26,10 +29,7 @@ export class QuestionsService {
               },
             },
           },
-          orderBy: [
-            { groupId: 'asc' },
-            { orderNumber: 'asc' },
-          ],
+          orderBy: [{ groupId: 'asc' }, { orderNumber: 'asc' }],
         },
         options: {
           where: { isActive: true },
@@ -50,9 +50,9 @@ export class QuestionsService {
 
   async getQuestionById(id: number) {
     const question = await this.prisma.question.findFirst({
-      where: { 
+      where: {
         id,
-        ...this.softDeleteService.getActiveRecordsWhere()
+        ...this.softDeleteService.getActiveRecordsWhere(),
       },
       include: {
         groupQuestions: {
@@ -65,10 +65,7 @@ export class QuestionsService {
               },
             },
           },
-          orderBy: [
-            { groupId: 'asc' },
-            { orderNumber: 'asc' },
-          ],
+          orderBy: [{ groupId: 'asc' }, { orderNumber: 'asc' }],
         },
         options: {
           where: { isActive: true },
@@ -93,15 +90,17 @@ export class QuestionsService {
     const question = await this.prisma.question.create({
       data: {
         ...questionData,
-        options: options ? {
-          create: options.map(option => ({
-            optionText: option.optionText,
-            optionValue: option.optionValue,
-            orderNumber: option.orderNumber,
-            isMultipleChoice: option.isMultipleChoice,
-            isCheckBox: option.isCheckBox,
-          })),
-        } : undefined,
+        options: options
+          ? {
+              create: options.map((option) => ({
+                optionText: option.optionText,
+                optionValue: option.optionValue,
+                orderNumber: option.orderNumber,
+                isMultipleChoice: option.isMultipleChoice,
+                isCheckBox: option.isCheckBox,
+              })),
+            }
+          : undefined,
       },
       include: {
         groupQuestions: {
@@ -131,9 +130,9 @@ export class QuestionsService {
   async updateQuestion(id: number, updateQuestionDto: UpdateQuestionDto) {
     // Check if question exists
     const existingQuestion = await this.prisma.question.findFirst({
-      where: { 
+      where: {
         id,
-        ...this.softDeleteService.getActiveRecordsWhere()
+        ...this.softDeleteService.getActiveRecordsWhere(),
       },
     });
 
@@ -152,21 +151,21 @@ export class QuestionsService {
     }
 
     const updatedQuestion = await this.prisma.question.update({
-      where: { 
+      where: {
         id,
-        ...this.softDeleteService.getActiveRecordsWhere()
+        ...this.softDeleteService.getActiveRecordsWhere(),
       },
       data: {
         ...questionData,
         updatedAt: new Date(),
         ...(options && {
           options: {
-            create: options.map(option => ({
+            create: options.map((option) => ({
               optionText: option.optionText!,
               optionValue: option.optionValue!,
               orderNumber: option.orderNumber!,
               isMultipleChoice: option.isMultipleChoice,
-            isCheckBox: option.isCheckBox,
+              isCheckBox: option.isCheckBox,
             })),
           },
         }),
@@ -182,10 +181,7 @@ export class QuestionsService {
               },
             },
           },
-          orderBy: [
-            { groupId: 'asc' },
-            { orderNumber: 'asc' },
-          ],
+          orderBy: [{ groupId: 'asc' }, { orderNumber: 'asc' }],
         },
         options: {
           where: { isActive: true },
@@ -203,9 +199,9 @@ export class QuestionsService {
   async deleteQuestion(id: number, deletedBy?: number) {
     // Check if question exists
     const existingQuestion = await this.prisma.question.findFirst({
-      where: { 
+      where: {
         id,
-        ...this.softDeleteService.getActiveRecordsWhere()
+        ...this.softDeleteService.getActiveRecordsWhere(),
       },
     });
 
@@ -242,10 +238,7 @@ export class QuestionsService {
               },
             },
           },
-          orderBy: [
-            { groupId: 'asc' },
-            { orderNumber: 'asc' },
-          ],
+          orderBy: [{ groupId: 'asc' }, { orderNumber: 'asc' }],
         },
         options: {
           where: { isActive: true },
@@ -266,9 +259,9 @@ export class QuestionsService {
 
   async getQuestionsByInputType(inputType: string) {
     const questions = await this.prisma.question.findMany({
-      where: { 
+      where: {
         inputType: inputType,
-        ...this.softDeleteService.getActiveRecordsWhere()
+        ...this.softDeleteService.getActiveRecordsWhere(),
       },
       include: {
         groupQuestions: {
@@ -281,10 +274,7 @@ export class QuestionsService {
               },
             },
           },
-          orderBy: [
-            { groupId: 'asc' },
-            { orderNumber: 'asc' },
-          ],
+          orderBy: [{ groupId: 'asc' }, { orderNumber: 'asc' }],
         },
         options: {
           where: { isActive: true },
@@ -307,7 +297,7 @@ export class QuestionsService {
     const totalQuestions = await this.prisma.question.count({
       where: this.softDeleteService.getActiveRecordsWhere(),
     });
-    
+
     const questionsByType = await this.prisma.question.groupBy({
       by: ['inputType'],
       where: this.softDeleteService.getActiveRecordsWhere(),
@@ -317,16 +307,16 @@ export class QuestionsService {
     });
 
     const requiredQuestionsCount = await this.prisma.question.count({
-      where: { 
+      where: {
         isRequired: true,
-        ...this.softDeleteService.getActiveRecordsWhere()
+        ...this.softDeleteService.getActiveRecordsWhere(),
       },
     });
 
     const optionalQuestionsCount = await this.prisma.question.count({
-      where: { 
+      where: {
         isRequired: false,
-        ...this.softDeleteService.getActiveRecordsWhere()
+        ...this.softDeleteService.getActiveRecordsWhere(),
       },
     });
 
@@ -336,7 +326,7 @@ export class QuestionsService {
         totalQuestions,
         requiredQuestions: requiredQuestionsCount,
         optionalQuestions: optionalQuestionsCount,
-        questionsByType: questionsByType.map(type => ({
+        questionsByType: questionsByType.map((type) => ({
           inputType: type.inputType,
           count: type._count.inputType,
         })),
@@ -347,7 +337,7 @@ export class QuestionsService {
   // Soft Delete Management Methods
   async getSoftDeletedQuestions() {
     const questions = await this.softDeleteService.getSoftDeletedQuestions();
-    
+
     return {
       message: 'Soft deleted questions retrieved successfully',
       questions,
@@ -357,8 +347,11 @@ export class QuestionsService {
 
   async restoreQuestion(id: number, restoredBy?: number) {
     try {
-      const restoredQuestion = await this.softDeleteService.restoreQuestion(id, { restoredBy });
-      
+      const restoredQuestion = await this.softDeleteService.restoreQuestion(
+        id,
+        { restoredBy },
+      );
+
       return {
         message: 'Question restored successfully',
         question: restoredQuestion,
@@ -371,7 +364,7 @@ export class QuestionsService {
   async permanentlyDeleteQuestion(id: number) {
     try {
       await this.softDeleteService.permanentlyDeleteQuestion(id);
-      
+
       return {
         message: 'Question permanently deleted successfully',
       };
@@ -384,9 +377,9 @@ export class QuestionsService {
   async createQuestionOption(createQuestionOptionDto: CreateQuestionOptionDto) {
     // Check if the question exists
     const question = await this.prisma.question.findFirst({
-      where: { 
+      where: {
         id: createQuestionOptionDto.questionId,
-        ...this.softDeleteService.getActiveRecordsWhere()
+        ...this.softDeleteService.getActiveRecordsWhere(),
       },
     });
 
@@ -411,12 +404,15 @@ export class QuestionsService {
     };
   }
 
-  async updateQuestionOption(id: number, updateQuestionOptionDto: UpdateQuestionOptionDto) {
+  async updateQuestionOption(
+    id: number,
+    updateQuestionOptionDto: UpdateQuestionOptionDto,
+  ) {
     // Check if question option exists
     const existingOption = await this.prisma.questionOption.findFirst({
-      where: { 
+      where: {
         id,
-        isActive: true
+        isActive: true,
       },
     });
 
@@ -441,9 +437,9 @@ export class QuestionsService {
   async deleteQuestionOption(id: number) {
     // Check if question option exists
     const existingOption = await this.prisma.questionOption.findFirst({
-      where: { 
+      where: {
         id,
-        isActive: true
+        isActive: true,
       },
     });
 
@@ -454,7 +450,7 @@ export class QuestionsService {
     // Soft delete by setting isActive to false
     await this.prisma.questionOption.update({
       where: { id },
-      data: { 
+      data: {
         isActive: false,
         updatedAt: new Date(),
       },

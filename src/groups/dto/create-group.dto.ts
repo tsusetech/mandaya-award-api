@@ -7,7 +7,11 @@ export class CreateGroupDto {
   @IsNotEmpty()
   groupName: string;
 
-  @ApiProperty({ example: 'Quiz tentang pengetahuan umum Indonesia', description: 'Group description', required: false })
+  @ApiProperty({
+    example: 'Quiz tentang pengetahuan umum Indonesia',
+    description: 'Group description',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   description?: string;

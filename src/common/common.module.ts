@@ -11,4 +11,4 @@ import { PrismaModule } from '../prisma/prisma.module';
   providers: [ResponseService, SoftDeleteService, StatusProgressService],
   exports: [ResponseService, SoftDeleteService, StatusProgressService],
 })
-export class CommonModule {} 
+export class CommonModule {}
