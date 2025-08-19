@@ -66,6 +66,20 @@ export class AuthService {
         roleName: signupDto.roleName
       });
 
+      // Check if user already exists (excluding soft-deleted users)
+      const existingUser = await this.prisma.user.findFirst({
+        where: {
+          OR: [{ email: signupDto.email }, { username: signupDto.username }],
+          deletedAt: null,
+        },
+      });
+
+      if (existingUser) {
+        throw new ConflictException(
+          'User with this email or username already exists',
+        );
+      }
+
       // Validate group if provided
       if (signupDto.groupId) {
         const group = await this.prisma.group.findFirst({
@@ -109,12 +123,22 @@ export class AuthService {
           throw new BadRequestException(`Role '${roleNameToAssign}' not found in database`);
         }
 
-        await prisma.userRole.create({
-          data: {
+        // Check if UserRole already exists to avoid duplicate
+        const existingUserRole = await prisma.userRole.findFirst({
+          where: {
             userId: user.id,
             roleId: selectedRole.id,
           },
         });
+
+        if (!existingUserRole) {
+          await prisma.userRole.create({
+            data: {
+              userId: user.id,
+              roleId: selectedRole.id,
+            },
+          });
+        }
 
         // Assign user to group if provided
         if (signupDto.groupId) {
@@ -190,6 +214,11 @@ export class AuthService {
       if (error.code === 'P2002') {
         // Prisma unique constraint violation
         console.error('Unique constraint violation details:', error.meta);
+        
+        if (error.meta?.modelName === 'UserRole') {
+          // This is a UserRole sequence issue, not a user duplication issue
+          throw new BadRequestException('Failed to assign role to user. Please try again.');
+        }
         
         if (error.meta?.target?.includes('email')) {
           throw new ConflictException('User with this email already exists');
@@ -485,23 +514,23 @@ export class AuthService {
     try {
       console.log(`Processing user: ${userData.email} (${userData.username})`);
 
-      // Remove the validation check - let database handle uniqueness
-      // const existingUser = await this.prisma.user.findFirst({
-      //   where: {
-      //     OR: [{ email: userData.email }, { username: userData.username }],
-      //     deletedAt: null,
-      //   },
-      // });
+      // Check if user already exists (excluding soft-deleted users)
+      const existingUser = await this.prisma.user.findFirst({
+        where: {
+          OR: [{ email: userData.email }, { username: userData.username }],
+          deletedAt: null,
+        },
+      });
 
-      // if (existingUser) {
-      //   console.log(`User already exists: ${userData.email}`);
-      //   return {
-      //     email: userData.email,
-      //     username: userData.username,
-      //     success: false,
-      //     error: 'User with this email or username already exists',
-      //   };
-      // }
+      if (existingUser) {
+        console.log(`User already exists: ${userData.email}`);
+        return {
+          email: userData.email,
+          username: userData.username,
+          success: false,
+          error: 'User with this email or username already exists',
+        };
+      }
 
       // Validate group if provided
       if (userData.groupId) {
@@ -553,13 +582,24 @@ export class AuthService {
 
         if (role) {
           console.log(`Role found: ${role.name} (ID: ${role.id})`);
-          await prisma.userRole.create({
-            data: {
+          
+          // Check if UserRole already exists to avoid duplicate
+          const existingUserRole = await prisma.userRole.findFirst({
+            where: {
               userId: newUser.id,
               roleId: role.id,
             },
           });
-          console.log(`Role assigned to user: ${newUser.id}`);
+
+          if (!existingUserRole) {
+            await prisma.userRole.create({
+              data: {
+                userId: newUser.id,
+                roleId: role.id,
+              },
+            });
+            console.log(`Role assigned to user: ${newUser.id}`);
+          }
         } else {
           console.warn(
             `Role "${roleName}" not found for user ${userData.email}. User created without role assignment.`,
