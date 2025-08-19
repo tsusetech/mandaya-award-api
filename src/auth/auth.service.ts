@@ -63,6 +63,7 @@ export class AuthService {
       const existingUser = await this.prisma.user.findFirst({
         where: {
           OR: [{ email: signupDto.email }, { username: signupDto.username }],
+          deletedAt: null, // Add this line
         },
       });
 
@@ -499,6 +500,7 @@ export class AuthService {
       const existingUser = await this.prisma.user.findFirst({
         where: {
           OR: [{ email: userData.email }, { username: userData.username }],
+          deletedAt: null, // Add this line
         },
       });
 
