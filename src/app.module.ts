@@ -13,6 +13,7 @@ import { ResponsesModule } from './responses/responses.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { AssessmentsModule } from './assessments/assessments.module';
 import { CategoriesModule } from './categories/categories.module';
+import { QuestionCategoriesModule } from './question-categories/question-categories.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { CategoriesModule } from './categories/categories.module';
     ReviewsModule,
     AssessmentsModule,
     CategoriesModule,
+    QuestionCategoriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
