@@ -42,6 +42,7 @@ export class GroupsService {
                 options: true,
               },
             },
+            category: true,
           },
           orderBy: [{ groupId: 'asc' }, { orderNumber: 'asc' }],
         },
@@ -84,6 +85,7 @@ export class GroupsService {
                 options: true,
               },
             },
+            category: true,
           },
           orderBy: [{ groupId: 'asc' }, { orderNumber: 'asc' }],
         },
@@ -562,6 +564,7 @@ export class GroupsService {
                     options: true,
                   },
                 },
+                category: true,
               },
               orderBy: {
                 orderNumber: 'asc',
@@ -613,6 +616,7 @@ export class GroupsService {
                     options: true,
                   },
                 },
+                category: true,
               },
               orderBy: {
                 orderNumber: 'asc',
@@ -1101,6 +1105,7 @@ export class GroupsService {
             options: true,
           },
         },
+        category: true,
       },
       orderBy: {
         orderNumber: 'asc',
