@@ -59,19 +59,19 @@ export class AuthService {
 
   async signup(signupDto: SignupDto & { roleName: string }) {
     try {
-      // Check if user already exists
-      const existingUser = await this.prisma.user.findFirst({
-        where: {
-          OR: [{ email: signupDto.email }, { username: signupDto.username }],
-          deletedAt: null, // Add this line
-        },
-      });
+      // Remove the validation check - let database handle uniqueness
+      // const existingUser = await this.prisma.user.findFirst({
+      //   where: {
+      //     OR: [{ email: signupDto.email }, { username: signupDto.username }],
+      //     deletedAt: null,
+      //   },
+      // });
 
-      if (existingUser) {
-        throw new ConflictException(
-          'User with this email or username already exists',
-        );
-      }
+      // if (existingUser) {
+      //   throw new ConflictException(
+      //     'User with this email or username already exists',
+      //   );
+      // }
 
       // Validate group if provided
       if (signupDto.groupId) {
@@ -496,23 +496,23 @@ export class AuthService {
     try {
       console.log(`Processing user: ${userData.email} (${userData.username})`);
 
-      // Check if user already exists
-      const existingUser = await this.prisma.user.findFirst({
-        where: {
-          OR: [{ email: userData.email }, { username: userData.username }],
-          deletedAt: null, // Add this line
-        },
-      });
+      // Remove the validation check - let database handle uniqueness
+      // const existingUser = await this.prisma.user.findFirst({
+      //   where: {
+      //     OR: [{ email: userData.email }, { username: userData.username }],
+      //     deletedAt: null,
+      //   },
+      // });
 
-      if (existingUser) {
-        console.log(`User already exists: ${userData.email}`);
-        return {
-          email: userData.email,
-          username: userData.username,
-          success: false,
-          error: 'User with this email or username already exists',
-        };
-      }
+      // if (existingUser) {
+      //   console.log(`User already exists: ${userData.email}`);
+      //   return {
+      //     email: userData.email,
+      //     username: userData.username,
+      //     success: false,
+      //     error: 'User with this email or username already exists',
+      //   };
+      // }
 
       // Validate group if provided
       if (userData.groupId) {
