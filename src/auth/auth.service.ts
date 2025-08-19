@@ -59,19 +59,12 @@ export class AuthService {
 
   async signup(signupDto: SignupDto & { roleName: string }) {
     try {
-      // Remove the validation check - let database handle uniqueness
-      // const existingUser = await this.prisma.user.findFirst({
-      //   where: {
-      //     OR: [{ email: signupDto.email }, { username: signupDto.username }],
-      //     deletedAt: null,
-      //   },
-      // });
-
-      // if (existingUser) {
-      //   throw new ConflictException(
-      //     'User with this email or username already exists',
-      //   );
-      // }
+      // Add debugging to see what's being checked
+      console.log('Attempting to create user with:', {
+        email: signupDto.email,
+        username: signupDto.username,
+        roleName: signupDto.roleName
+      });
 
       // Validate group if provided
       if (signupDto.groupId) {
@@ -189,19 +182,15 @@ export class AuthService {
         user: userResponse,
       };
     } catch (error) {
-      if (
-        error instanceof ConflictException ||
-        error instanceof BadRequestException
-      ) {
-        throw error;
-      }
-      
-      // Log the actual error for debugging
       console.error('Signup error:', error);
+      console.error('Error code:', error.code);
+      console.error('Error meta:', error.meta);
       
       // Check for specific database errors
       if (error.code === 'P2002') {
         // Prisma unique constraint violation
+        console.error('Unique constraint violation details:', error.meta);
+        
         if (error.meta?.target?.includes('email')) {
           throw new ConflictException('User with this email already exists');
         }
