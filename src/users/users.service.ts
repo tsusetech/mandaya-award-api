@@ -63,7 +63,7 @@ export class UsersService {
 
   async updateUser(
     id: number,
-    updateData: { name?: string; email?: string; username?: string },
+    updateData: { name?: string; email?: string; username?: string; roleName?: string },
   ) {
     // Check if user exists
     const existingUser = await this.prisma.user.findFirst({
@@ -99,15 +99,53 @@ export class UsersService {
       }
     }
 
-    const updatedUser = await this.prisma.user.update({
-      where: {
-        id,
-        ...this.softDeleteService.getActiveRecordsWhere(),
-      },
-      data: {
-        ...updateData,
-        updatedAt: new Date(),
-      },
+    // Update user with role assignment in a transaction
+    const updatedUser = await this.prisma.$transaction(async (prisma) => {
+      // Update basic user data
+      const user = await prisma.user.update({
+        where: {
+          id,
+          ...this.softDeleteService.getActiveRecordsWhere(),
+        },
+        data: {
+          name: updateData.name,
+          email: updateData.email,
+          username: updateData.username,
+          updatedAt: new Date(),
+        },
+      });
+
+      // Handle role update if provided
+      if (updateData.roleName) {
+        const roleName = updateData.roleName.toUpperCase();
+        const role = await prisma.role.findUnique({
+          where: { name: roleName },
+        });
+
+        if (!role) {
+          throw new BadRequestException(`Role '${roleName}' not found`);
+        }
+
+        // Remove existing roles
+        await prisma.userRole.deleteMany({
+          where: { userId: id },
+        });
+
+        // Assign new role
+        await prisma.userRole.create({
+          data: {
+            userId: id,
+            roleId: role.id,
+          },
+        });
+      }
+
+      return user;
+    });
+
+    // Fetch updated user with roles
+    const userWithRoles = await this.prisma.user.findUnique({
+      where: { id },
       include: {
         userRoles: {
           include: {
@@ -117,7 +155,7 @@ export class UsersService {
       },
     });
 
-    const { password, ...userWithoutPassword } = updatedUser;
+    const { password, ...userWithoutPassword } = userWithRoles;
     return {
       message: 'User updated successfully',
       user: userWithoutPassword,

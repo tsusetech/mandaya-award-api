@@ -17,4 +17,11 @@ export class UpdateUserDto {
 
   @ApiProperty({ example: 'johndoe', description: 'Username', required: false })
   username?: string;
+
+  @ApiProperty({
+    example: 'ADMIN',
+    description: 'Role name to assign to user',
+    required: false,
+  })
+  roleName?: string;
 }
