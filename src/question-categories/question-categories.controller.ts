@@ -25,6 +25,12 @@ import { QuestionCategoryResponseDto } from './dto/question-category-response.dt
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ScoreType } from './dto/create-question-category.dto';
+import {
+  AssignQuestionsToCategory,
+  AssignSingleQuestionToCategory,
+  BulkAssignQuestionsDto,
+  QuestionCategoryAssignmentResponseDto,
+} from './dto/assign-questions.dto';
 
 @ApiTags('Question Categories')
 @Controller('question-categories')
@@ -115,5 +121,86 @@ export class QuestionCategoriesController {
   @UseGuards(RolesGuard)
   remove(@Param('id') id: string) {
     return this.questionCategoriesService.remove(+id);
+  }
+
+  // Assignment endpoints
+  @Post(':id/assign-questions')
+  @ApiOperation({ summary: 'Assign multiple questions to a category' })
+  @ApiParam({ name: 'id', description: 'Question category ID' })
+  @ApiResponse({
+    status: 201,
+    description: 'Questions assigned to category successfully',
+    type: [QuestionCategoryAssignmentResponseDto],
+  })
+  @ApiResponse({ status: 404, description: 'Question category or questions not found' })
+  @Roles('ADMIN', 'SUPERADMIN')
+  @UseGuards(RolesGuard)
+  assignQuestions(
+    @Param('id') id: string,
+    @Body() assignDto: AssignQuestionsToCategory,
+  ) {
+    return this.questionCategoriesService.assignQuestionsToCategory(+id, assignDto);
+  }
+
+  @Post(':id/assign-question')
+  @ApiOperation({ summary: 'Assign a single question to a category' })
+  @ApiParam({ name: 'id', description: 'Question category ID' })
+  @ApiResponse({
+    status: 201,
+    description: 'Question assigned to category successfully',
+    type: QuestionCategoryAssignmentResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Question category or question not found' })
+  @Roles('ADMIN', 'SUPERADMIN')
+  @UseGuards(RolesGuard)
+  assignSingleQuestion(
+    @Param('id') id: string,
+    @Body() assignDto: AssignSingleQuestionToCategory,
+  ) {
+    return this.questionCategoriesService.assignSingleQuestionToCategory(+id, assignDto);
+  }
+
+  @Delete(':categoryId/questions/:groupQuestionId')
+  @ApiOperation({ summary: 'Remove a question from a category' })
+  @ApiParam({ name: 'categoryId', description: 'Question category ID' })
+  @ApiParam({ name: 'groupQuestionId', description: 'Group question ID' })
+  @ApiResponse({ status: 200, description: 'Question removed from category successfully' })
+  @ApiResponse({ status: 404, description: 'Assignment not found' })
+  @Roles('ADMIN', 'SUPERADMIN')
+  @UseGuards(RolesGuard)
+  removeQuestionFromCategory(
+    @Param('categoryId') categoryId: string,
+    @Param('groupQuestionId') groupQuestionId: string,
+  ) {
+    return this.questionCategoriesService.removeQuestionFromCategory(
+      +categoryId,
+      +groupQuestionId,
+    );
+  }
+
+  @Get(':id/questions')
+  @ApiOperation({ summary: 'Get all questions assigned to a category' })
+  @ApiParam({ name: 'id', description: 'Question category ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Questions retrieved successfully',
+    type: [QuestionCategoryAssignmentResponseDto],
+  })
+  @ApiResponse({ status: 404, description: 'Question category not found' })
+  getQuestionsByCategory(@Param('id') id: string) {
+    return this.questionCategoriesService.getQuestionsByCategory(+id);
+  }
+
+  @Post('bulk-assign')
+  @ApiOperation({ summary: 'Bulk assign/remove questions to/from categories' })
+  @ApiResponse({
+    status: 201,
+    description: 'Bulk assignment completed',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid input data' })
+  @Roles('ADMIN', 'SUPERADMIN')
+  @UseGuards(RolesGuard)
+  bulkAssignQuestions(@Body() bulkDto: BulkAssignQuestionsDto) {
+    return this.questionCategoriesService.bulkAssignQuestions(bulkDto);
   }
 }

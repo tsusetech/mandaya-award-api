@@ -698,6 +698,7 @@ export class GroupsService {
         orderNumber: bindQuestionDto.orderNumber,
         sectionTitle: bindQuestionDto.sectionTitle,
         subsection: bindQuestionDto.subsection,
+        categoryId: bindQuestionDto.categoryId,
       },
       include: {
         question: {
@@ -804,6 +805,8 @@ export class GroupsService {
           bindMultipleQuestionsDto.defaultGroupIdentifier,
         isGrouped:
           questionDto.isGrouped ?? bindMultipleQuestionsDto.defaultIsGrouped,
+        categoryId:
+          questionDto.categoryId || bindMultipleQuestionsDto.defaultCategoryId,
       }),
     );
 
@@ -904,12 +907,76 @@ export class GroupsService {
             description: true,
           },
         },
+        category: true, // Include category in response
       },
     });
 
     return {
       message: 'Group question updated successfully',
       groupQuestion: updatedGroupQuestion,
+    };
+  }
+
+  // Category assignment methods for Groups
+  async assignCategoryToGroupQuestion(
+    groupQuestionId: number,
+    categoryId: number,
+  ): Promise<{ message: string; groupQuestion: any }> {
+    // Verify group question exists
+    const groupQuestion = await this.prisma.groupQuestion.findUnique({
+      where: { id: groupQuestionId },
+    });
+
+    if (!groupQuestion) {
+      throw new NotFoundException(`Group question with ID ${groupQuestionId} not found`);
+    }
+
+    // Verify category exists
+    const category = await this.prisma.questionCategory.findFirst({
+      where: { id: categoryId, deletedAt: null },
+    });
+
+    if (!category) {
+      throw new NotFoundException(`Question category with ID ${categoryId} not found`);
+    }
+
+    // Update the group question with category
+    const updatedGroupQuestion = await this.prisma.groupQuestion.update({
+      where: { id: groupQuestionId },
+      data: { categoryId },
+      include: {
+        question: true,
+        group: { select: { id: true, groupName: true } },
+        category: true,
+      },
+    });
+
+    return {
+      message: 'Category assigned to group question successfully',
+      groupQuestion: updatedGroupQuestion,
+    };
+  }
+
+  async removeCategoryFromGroupQuestion(
+    groupQuestionId: number,
+  ): Promise<{ message: string }> {
+    // Verify group question exists
+    const groupQuestion = await this.prisma.groupQuestion.findUnique({
+      where: { id: groupQuestionId },
+    });
+
+    if (!groupQuestion) {
+      throw new NotFoundException(`Group question with ID ${groupQuestionId} not found`);
+    }
+
+    // Remove category assignment
+    await this.prisma.groupQuestion.update({
+      where: { id: groupQuestionId },
+      data: { categoryId: null },
+    });
+
+    return {
+      message: 'Category removed from group question successfully',
     };
   }
 

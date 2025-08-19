@@ -155,6 +155,10 @@ export class UsersService {
       },
     });
 
+    if (!userWithRoles) {
+      throw new NotFoundException('User not found');
+    }
+
     const { password, ...userWithoutPassword } = userWithRoles;
     return {
       message: 'User updated successfully',

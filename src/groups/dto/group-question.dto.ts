@@ -90,6 +90,15 @@ export class BindQuestionToGroupDto {
   @IsBoolean()
   @IsOptional()
   isGrouped?: boolean;
+
+  @ApiProperty({
+    example: 1,
+    description: 'Question category ID to assign to this group question',
+    required: false,
+  })
+  @IsInt()
+  @IsOptional()
+  categoryId?: number;
 }
 
 export class BindMultipleQuestionsToGroupDto {
@@ -169,6 +178,15 @@ export class BindMultipleQuestionsToGroupDto {
   @IsBoolean()
   @IsOptional()
   defaultIsGrouped?: boolean;
+
+  @ApiProperty({
+    example: 1,
+    description: 'Default question category ID for all questions (optional)',
+    required: false,
+  })
+  @IsInt()
+  @IsOptional()
+  defaultCategoryId?: number;
 }
 
 export class UpdateGroupQuestionDto {
@@ -236,6 +254,15 @@ export class UpdateGroupQuestionDto {
   @IsBoolean()
   @IsOptional()
   isGrouped?: boolean;
+
+  @ApiProperty({
+    example: 1,
+    description: 'Updated question category ID',
+    required: false,
+  })
+  @IsInt()
+  @IsOptional()
+  categoryId?: number;
 }
 
 export class ReorderQuestionsDto {
@@ -284,6 +311,9 @@ export class GroupQuestionResponseDto {
 
   @ApiProperty({ example: true, required: false })
   isGrouped?: boolean;
+
+  @ApiProperty({ example: 1, required: false })
+  categoryId?: number;
 
   @ApiProperty({ example: '2024-01-01T00:00:00.000Z' })
   createdAt: Date;

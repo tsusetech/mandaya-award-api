@@ -21,6 +21,8 @@ All endpoints require JWT authentication. Admin operations require ADMIN or SUPE
 
 ### Available Endpoints
 
+#### Question Category CRUD
+
 #### 1. Create Question Category
 - **POST** `/question-categories`
 - **Auth**: ADMIN, SUPERADMIN
@@ -50,6 +52,48 @@ All endpoints require JWT authentication. Admin operations require ADMIN or SUPE
 - **Auth**: ADMIN, SUPERADMIN
 - **Response**: Success message
 - **Note**: Cannot delete if used in group questions
+
+#### Question Assignment Endpoints
+
+#### 6. Assign Multiple Questions to Category
+- **POST** `/question-categories/:id/assign-questions`
+- **Auth**: ADMIN, SUPERADMIN
+- **Body**: `AssignQuestionsToCategory`
+- **Response**: List of assignments
+
+#### 7. Assign Single Question to Category
+- **POST** `/question-categories/:id/assign-question`
+- **Auth**: ADMIN, SUPERADMIN
+- **Body**: `AssignSingleQuestionToCategory`
+- **Response**: Assignment details
+
+#### 8. Remove Question from Category
+- **DELETE** `/question-categories/:categoryId/questions/:groupQuestionId`
+- **Auth**: ADMIN, SUPERADMIN
+- **Response**: Success message
+
+#### 9. Get Questions by Category
+- **GET** `/question-categories/:id/questions`
+- **Auth**: Any authenticated user
+- **Response**: List of questions in category
+
+#### 10. Bulk Assign Questions
+- **POST** `/question-categories/bulk-assign`
+- **Auth**: ADMIN, SUPERADMIN
+- **Body**: `BulkAssignQuestionsDto`
+- **Response**: Assignment results
+
+#### Groups Integration Endpoints
+
+#### 11. Assign Category to Group Question
+- **POST** `/groups/questions/:groupQuestionId/assign-category/:categoryId`
+- **Auth**: ADMIN, SUPERADMIN
+- **Response**: Updated group question
+
+#### 12. Remove Category from Group Question
+- **DELETE** `/groups/questions/:groupQuestionId/category`
+- **Auth**: ADMIN, SUPERADMIN
+- **Response**: Success message
 
 ## Data Models
 
@@ -116,6 +160,43 @@ curl -X GET /question-categories \
 ```bash
 curl -X GET "/question-categories?scoreType=percentage" \
   -H "Authorization: Bearer <token>"
+```
+
+### Assign questions to a category
+```bash
+curl -X POST /question-categories/1/assign-questions \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "groupQuestionIds": [1, 2, 3]
+  }'
+```
+
+### Assign category when binding question to group
+```bash
+curl -X POST /groups/1/questions \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "questionId": 1,
+    "orderNumber": 1,
+    "sectionTitle": "Section 1",
+    "categoryId": 1
+  }'
+```
+
+### Bulk assign categories
+```bash
+curl -X POST /question-categories/bulk-assign \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "assignments": [
+      { "groupQuestionId": 1, "categoryId": 1 },
+      { "groupQuestionId": 2, "categoryId": 2 },
+      { "groupQuestionId": 3, "categoryId": null }
+    ]
+  }'
 ```
 
 ## Error Handling

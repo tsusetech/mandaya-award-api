@@ -19,6 +19,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiQuery,
+  ApiParam,
 } from '@nestjs/swagger';
 import { GroupsService } from './groups.service';
 import { CreateGroupDto } from './dto/create-group.dto';
@@ -576,5 +577,40 @@ export class GroupsController {
   @UseGuards(RolesGuard)
   getCrossSubsectionGroups(@Param('id', ParseIntPipe) groupId: number) {
     return this.groupsService.getCrossSubsectionGroups(groupId);
+  }
+
+  // Category assignment endpoints
+  @Post('questions/:groupQuestionId/assign-category/:categoryId')
+  @ApiOperation({ summary: 'Assign a category to a group question' })
+  @ApiParam({ name: 'groupQuestionId', description: 'Group question ID' })
+  @ApiParam({ name: 'categoryId', description: 'Question category ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Category assigned to group question successfully',
+  })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Group question or category not found' })
+  @Roles('ADMIN', 'SUPERADMIN')
+  @UseGuards(RolesGuard)
+  assignCategoryToGroupQuestion(
+    @Param('groupQuestionId', ParseIntPipe) groupQuestionId: number,
+    @Param('categoryId', ParseIntPipe) categoryId: number,
+  ) {
+    return this.groupsService.assignCategoryToGroupQuestion(groupQuestionId, categoryId);
+  }
+
+  @Delete('questions/:groupQuestionId/category')
+  @ApiOperation({ summary: 'Remove category assignment from a group question' })
+  @ApiParam({ name: 'groupQuestionId', description: 'Group question ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Category removed from group question successfully',
+  })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Group question not found' })
+  @Roles('ADMIN', 'SUPERADMIN')
+  @UseGuards(RolesGuard)
+  removeCategoryFromGroupQuestion(
+    @Param('groupQuestionId', ParseIntPipe) groupQuestionId: number,
+  ) {
+    return this.groupsService.removeCategoryFromGroupQuestion(groupQuestionId);
   }
 }
