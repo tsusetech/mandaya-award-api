@@ -59,10 +59,10 @@ The jury endpoints provide comprehensive functionality for jury members to revie
 
 ### Statistics Categories
 
-- **totalAssigned**: All submissions that are submitted or beyond (submitted, pending_review, under_review, passed_to_jury, jury_scoring, jury_deliberation, final_decision, completed) OR have been approved by admin (decision: approve)
+- **totalAssigned**: Submissions that have been approved by admin (decision: approve) or are in jury stages (passed_to_jury, jury_scoring, jury_deliberation, final_decision, completed)
 - **reviewed**: Completed submissions (completed, final_decision)
 - **inProgress**: Currently being reviewed (jury_scoring, jury_deliberation, under_review)
-- **pending**: Waiting for jury review - includes sessions with admin approval (decision: approve) or status (submitted, pending_review, passed_to_jury)
+- **pending**: Waiting for jury review - only sessions with admin approval (decision: approve)
 
 ### Usage Examples
 
@@ -156,8 +156,8 @@ This endpoint is designed to support the jury dashboard interface shown in the i
 
 #### Filter Categories
 
-- **all**: All submissions available for jury review
-- **pending**: Sessions with admin approval (decision: approve) or status (submitted, pending_review, passed_to_jury)
+- **all**: All submissions available for jury review (approved by admin or in jury stages)
+- **pending**: Sessions with admin approval (decision: approve) only
 - **in_progress**: Currently being reviewed (jury_scoring, jury_deliberation, under_review)
 - **completed**: Completed submissions (completed, final_decision)
 
@@ -200,6 +200,8 @@ These endpoints are designed to support the jury interface shown in the images, 
 
 - The endpoints use existing database schema and don't require any new tables
 - All data is filtered based on assessment session statuses and decisions
+- Jury only sees submissions that have been approved by admin (decision: approve) or are in jury stages
+- Submissions with status like 'resubmitted', 'submitted', 'pending_review' are excluded (admin stage only)
 - Search is case-insensitive and supports partial matches
 - Results are ordered by last activity date (most recent first)
 - Filter counts are provided for UI tab indicators

@@ -1793,9 +1793,9 @@ export class AssessmentsService {
     // Calculate statistics based on both status and decision
     const statistics = {
       totalAssigned: sessionsWithStatus.filter(s => {
-        // Include sessions that are submitted or have been approved by admin
-        return ['submitted', 'pending_review', 'under_review', 'passed_to_jury', 'jury_scoring', 'jury_deliberation', 'final_decision', 'completed'].includes(s.status) ||
-               s.session.decision === 'approve';
+        // Only include sessions that have been approved by admin (decision: approve) or are in jury stages
+        return s.session.decision === 'approve' ||
+               ['passed_to_jury', 'jury_scoring', 'jury_deliberation', 'final_decision', 'completed'].includes(s.status);
       }).length,
       reviewed: sessionsWithStatus.filter(s => 
         ['completed', 'final_decision'].includes(s.status)
@@ -1805,15 +1805,14 @@ export class AssessmentsService {
       ).length,
       pending: sessionsWithStatus.filter(s => {
         // Sessions with 'approve' decision are pending for jury review
-        return s.session.decision === 'approve' || 
-               ['submitted', 'pending_review', 'passed_to_jury'].includes(s.status);
+        return s.session.decision === 'approve';
       }).length,
     };
 
-    // Filter sessions for recent reviews (include approved sessions)
+    // Filter sessions for recent reviews (only approved and jury stages)
     const reviewableSessions = sessionsWithStatus.filter(s =>
-      ['submitted', 'pending_review', 'under_review', 'passed_to_jury', 'jury_scoring', 'jury_deliberation', 'final_decision', 'completed'].includes(s.status) ||
-      s.session.decision === 'approve'
+      s.session.decision === 'approve' ||
+      ['passed_to_jury', 'jury_scoring', 'jury_deliberation', 'final_decision', 'completed'].includes(s.status)
     );
 
     // Apply pagination to recent reviews
@@ -1940,34 +1939,38 @@ export class AssessmentsService {
     );
 
     // Filter sessions based on the selected filter
-    let filteredSessions = sessionsWithStatus;
-    
-    if (filter !== 'all') {
-      filteredSessions = sessionsWithStatus.filter((s) => {
-        switch (filter) {
-          case 'pending':
-            // Sessions with 'approve' decision or specific statuses
-            return s.session.decision === 'approve' || 
-                   ['submitted', 'pending_review', 'passed_to_jury'].includes(s.status);
-          case 'in_progress':
-            return ['jury_scoring', 'jury_deliberation', 'under_review'].includes(s.status);
-          case 'completed':
-            return ['completed', 'final_decision'].includes(s.status);
-          default:
-            return true;
-        }
-      });
-    }
+    let filteredSessions = sessionsWithStatus.filter((s) => {
+      // Base filtering: only include sessions that are approved by admin or in jury stages
+      const isJuryEligible = s.session.decision === 'approve' ||
+        ['passed_to_jury', 'jury_scoring', 'jury_deliberation', 'final_decision', 'completed'].includes(s.status);
+      
+      if (!isJuryEligible) {
+        return false;
+      }
+      
+      // Apply specific filter
+      switch (filter) {
+        case 'pending':
+          // Only sessions with 'approve' decision
+          return s.session.decision === 'approve';
+        case 'in_progress':
+          return ['jury_scoring', 'jury_deliberation', 'under_review'].includes(s.status);
+        case 'completed':
+          return ['completed', 'final_decision'].includes(s.status);
+        case 'all':
+        default:
+          return true;
+      }
+    });
 
     // Calculate filter counts for the UI tabs
     const filterCounts = {
       all: sessionsWithStatus.filter(s => 
-        ['submitted', 'pending_review', 'under_review', 'passed_to_jury', 'jury_scoring', 'jury_deliberation', 'final_decision', 'completed'].includes(s.status) ||
-        s.session.decision === 'approve'
+        s.session.decision === 'approve' ||
+        ['passed_to_jury', 'jury_scoring', 'jury_deliberation', 'final_decision', 'completed'].includes(s.status)
       ).length,
       pending: sessionsWithStatus.filter(s => 
-        s.session.decision === 'approve' || 
-        ['submitted', 'pending_review', 'passed_to_jury'].includes(s.status)
+        s.session.decision === 'approve'
       ).length,
       inProgress: sessionsWithStatus.filter(s => 
         ['jury_scoring', 'jury_deliberation', 'under_review'].includes(s.status)
