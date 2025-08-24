@@ -1703,4 +1703,152 @@ export class AssessmentsService {
       resolvedCount: unresolvedComments.length,
     };
   }
+
+  async getJuryDashboard(
+    userId: number,
+    options: {
+      search?: string;
+      page?: number;
+      limit?: number;
+    },
+  ) {
+    const { search, page = 1, limit = 10 } = options;
+    const skip = (page - 1) * limit;
+
+    // Build search conditions
+    const searchConditions = search
+      ? {
+          OR: [
+            {
+              group: {
+                groupName: {
+                  contains: search,
+                  mode: 'insensitive' as const,
+                },
+              },
+            },
+            {
+              user: {
+                name: {
+                  contains: search,
+                  mode: 'insensitive' as const,
+                },
+              },
+            },
+            {
+              user: {
+                email: {
+                  contains: search,
+                  mode: 'insensitive' as const,
+                },
+              },
+            },
+          ],
+        }
+      : {};
+
+    // Get all sessions for jury review (submitted and passed to jury)
+    const allSessions = await this.prisma.responseSession.findMany({
+      where: {
+        deletedAt: null,
+        ...searchConditions,
+      },
+      include: {
+        user: {
+          select: {
+            email: true,
+            name: true,
+          },
+        },
+        group: {
+          select: {
+            groupName: true,
+          },
+        },
+        reviewer: {
+          select: {
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        lastActivityAt: 'desc',
+      },
+    });
+
+    // Get status for each session and categorize them
+    const sessionsWithStatus = await Promise.all(
+      allSessions.map(async (session) => {
+        const latestStatus =
+          (await this.statusProgressService.getLatestStatus(session.id)) ||
+          'draft';
+
+        return {
+          session,
+          status: latestStatus,
+        };
+      }),
+    );
+
+    // Calculate statistics based on both status and decision
+    const statistics = {
+      totalAssigned: sessionsWithStatus.filter(s => {
+        // Include sessions that are submitted or have been approved by admin
+        return ['submitted', 'pending_review', 'under_review', 'passed_to_jury', 'jury_scoring', 'jury_deliberation', 'final_decision', 'completed'].includes(s.status) ||
+               s.session.decision === 'approve';
+      }).length,
+      reviewed: sessionsWithStatus.filter(s => 
+        ['completed', 'final_decision'].includes(s.status)
+      ).length,
+      inProgress: sessionsWithStatus.filter(s => 
+        ['jury_scoring', 'jury_deliberation', 'under_review'].includes(s.status)
+      ).length,
+      pending: sessionsWithStatus.filter(s => {
+        // Sessions with 'approve' decision are pending for jury review
+        return s.session.decision === 'approve' || 
+               ['submitted', 'pending_review', 'passed_to_jury'].includes(s.status);
+      }).length,
+    };
+
+    // Filter sessions for recent reviews (include approved sessions)
+    const reviewableSessions = sessionsWithStatus.filter(s =>
+      ['submitted', 'pending_review', 'under_review', 'passed_to_jury', 'jury_scoring', 'jury_deliberation', 'final_decision', 'completed'].includes(s.status) ||
+      s.session.decision === 'approve'
+    );
+
+    // Apply pagination to recent reviews
+    const paginatedSessions = reviewableSessions.slice(skip, skip + limit);
+
+    // Map to DTO format
+    const recentReviews = paginatedSessions.map((item) => {
+      const session = item.session;
+      return {
+        id: session.id,
+        sessionId: session.id,
+        groupName: session.group.groupName,
+        userName: session.user.name || 'Unknown User',
+        userEmail: session.user.email,
+        submittedAt: session.submittedAt?.toISOString() || session.lastActivityAt.toISOString(),
+        status: item.status,
+        progressPercentage: session.progressPercentage,
+      };
+    });
+
+    const totalPages = Math.ceil(reviewableSessions.length / limit);
+    const hasNext = page < totalPages;
+    const hasPrev = page > 1;
+
+    return {
+      statistics,
+      recentReviews,
+      pagination: {
+        total: reviewableSessions.length,
+        page,
+        limit,
+        totalPages,
+        hasNext,
+        hasPrev,
+      },
+    };
+  }
 }

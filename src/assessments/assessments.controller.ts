@@ -578,4 +578,101 @@ export class AssessmentsController {
     );
     return this.responseService.success(result, result.message);
   }
+
+  @Get('jury/dashboard')
+  @Roles('JURI')
+  @ApiOperation({
+    summary: 'Get jury dashboard data',
+    description: 'Retrieves dashboard statistics and recent reviews for jury members. Provides overview of assigned, reviewed, in-progress, and pending submissions.',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: 'string',
+    description: 'Search by group name, participant name, or email',
+    example: 'Sample Organization',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: 'number',
+    description: 'Page number for recent reviews (starts from 1)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: 'number',
+    description: 'Number of recent reviews per page',
+    example: 10,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Jury dashboard data retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'Jury dashboard data retrieved successfully' },
+        data: {
+          type: 'object',
+          properties: {
+            statistics: {
+              type: 'object',
+              properties: {
+                totalAssigned: { type: 'number', example: 1 },
+                reviewed: { type: 'number', example: 0 },
+                inProgress: { type: 'number', example: 1 },
+                pending: { type: 'number', example: 0 },
+              },
+            },
+            recentReviews: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number', example: 1 },
+                  sessionId: { type: 'number', example: 1 },
+                  groupName: { type: 'string', example: 'Sample Organization A' },
+                  userName: { type: 'string', example: 'John Doe' },
+                  userEmail: { type: 'string', example: 'john@example.com' },
+                  submittedAt: { type: 'string', example: '2025-08-22T00:00:00Z' },
+                  status: { type: 'string', example: 'submitted' },
+                  progressPercentage: { type: 'number', example: 100 },
+                },
+              },
+            },
+            pagination: {
+              type: 'object',
+              properties: {
+                total: { type: 'number', example: 1 },
+                page: { type: 'number', example: 1 },
+                limit: { type: 'number', example: 10 },
+                totalPages: { type: 'number', example: 1 },
+                hasNext: { type: 'boolean', example: false },
+                hasPrev: { type: 'boolean', example: false },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - JURI role required' })
+  async getJuryDashboard(
+    @Request() req,
+    @Query('search') search?: string,
+    @Query('page', new ParseIntPipe({ optional: true })) page?: number,
+    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
+  ) {
+    const dashboardData = await this.assessmentsService.getJuryDashboard(
+      req.user.userId,
+      { search, page: page || 1, limit: limit || 10 },
+    );
+    return this.responseService.success(
+      dashboardData,
+      'Jury dashboard data retrieved successfully',
+    );
+  }
 }
