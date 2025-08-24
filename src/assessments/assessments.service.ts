@@ -1851,4 +1851,167 @@ export class AssessmentsService {
       },
     };
   }
+
+  async getJuryReviews(
+    userId: number,
+    options: {
+      search?: string;
+      filter?: 'all' | 'pending' | 'in_progress' | 'completed';
+      page?: number;
+      limit?: number;
+    },
+  ) {
+    const { search, filter = 'all', page = 1, limit = 10 } = options;
+    const skip = (page - 1) * limit;
+
+    // Build search conditions
+    const searchConditions = search
+      ? {
+          OR: [
+            {
+              group: {
+                groupName: {
+                  contains: search,
+                  mode: 'insensitive' as const,
+                },
+              },
+            },
+            {
+              user: {
+                name: {
+                  contains: search,
+                  mode: 'insensitive' as const,
+                },
+              },
+            },
+            {
+              user: {
+                email: {
+                  contains: search,
+                  mode: 'insensitive' as const,
+                },
+              },
+            },
+          ],
+        }
+      : {};
+
+    // Get all sessions for jury review
+    const allSessions = await this.prisma.responseSession.findMany({
+      where: {
+        deletedAt: null,
+        ...searchConditions,
+      },
+      include: {
+        user: {
+          select: {
+            email: true,
+            name: true,
+          },
+        },
+        group: {
+          select: {
+            groupName: true,
+          },
+        },
+        reviewer: {
+          select: {
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        lastActivityAt: 'desc',
+      },
+    });
+
+    // Get status for each session and categorize them
+    const sessionsWithStatus = await Promise.all(
+      allSessions.map(async (session) => {
+        const latestStatus =
+          (await this.statusProgressService.getLatestStatus(session.id)) ||
+          'draft';
+
+        return {
+          session,
+          status: latestStatus,
+        };
+      }),
+    );
+
+    // Filter sessions based on the selected filter
+    let filteredSessions = sessionsWithStatus;
+    
+    if (filter !== 'all') {
+      filteredSessions = sessionsWithStatus.filter((s) => {
+        switch (filter) {
+          case 'pending':
+            // Sessions with 'approve' decision or specific statuses
+            return s.session.decision === 'approve' || 
+                   ['submitted', 'pending_review', 'passed_to_jury'].includes(s.status);
+          case 'in_progress':
+            return ['jury_scoring', 'jury_deliberation', 'under_review'].includes(s.status);
+          case 'completed':
+            return ['completed', 'final_decision'].includes(s.status);
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Calculate filter counts for the UI tabs
+    const filterCounts = {
+      all: sessionsWithStatus.filter(s => 
+        ['submitted', 'pending_review', 'under_review', 'passed_to_jury', 'jury_scoring', 'jury_deliberation', 'final_decision', 'completed'].includes(s.status) ||
+        s.session.decision === 'approve'
+      ).length,
+      pending: sessionsWithStatus.filter(s => 
+        s.session.decision === 'approve' || 
+        ['submitted', 'pending_review', 'passed_to_jury'].includes(s.status)
+      ).length,
+      inProgress: sessionsWithStatus.filter(s => 
+        ['jury_scoring', 'jury_deliberation', 'under_review'].includes(s.status)
+      ).length,
+      completed: sessionsWithStatus.filter(s => 
+        ['completed', 'final_decision'].includes(s.status)
+      ).length,
+    };
+
+    // Apply pagination
+    const paginatedSessions = filteredSessions.slice(skip, skip + limit);
+
+    // Map to DTO format
+    const submissions = paginatedSessions.map((item) => {
+      const session = item.session;
+      return {
+        id: session.id,
+        sessionId: session.id,
+        groupName: session.group.groupName,
+        userName: session.user.name || 'Unknown User',
+        userEmail: session.user.email,
+        submittedAt: session.submittedAt?.toISOString() || session.lastActivityAt.toISOString(),
+        status: item.status,
+        progressPercentage: session.progressPercentage,
+        decision: session.decision || null,
+        stage: session.stage || null,
+      };
+    });
+
+    const totalPages = Math.ceil(filteredSessions.length / limit);
+    const hasNext = page < totalPages;
+    const hasPrev = page > 1;
+
+    return {
+      submissions,
+      pagination: {
+        total: filteredSessions.length,
+        page,
+        limit,
+        totalPages,
+        hasNext,
+        hasPrev,
+      },
+      filters: filterCounts,
+    };
+  }
 }

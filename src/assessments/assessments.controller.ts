@@ -675,4 +675,112 @@ export class AssessmentsController {
       'Jury dashboard data retrieved successfully',
     );
   }
+
+  @Get('jury/reviews')
+  @Roles('JURI')
+  @ApiOperation({
+    summary: 'Get jury review submissions list',
+    description: 'Retrieves a list of submissions for jury review with filtering and search capabilities. Supports filtering by status (All, Pending, In Progress, Completed).',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: 'string',
+    description: 'Search by group name, participant name, or email',
+    example: 'Sample Organization',
+  })
+  @ApiQuery({
+    name: 'filter',
+    required: false,
+    type: 'string',
+    description: 'Filter by status',
+    enum: ['all', 'pending', 'in_progress', 'completed'],
+    example: 'all',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: 'number',
+    description: 'Page number (starts from 1)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: 'number',
+    description: 'Number of items per page',
+    example: 10,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Jury review submissions retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'Jury review submissions retrieved successfully' },
+        data: {
+          type: 'object',
+          properties: {
+            submissions: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number', example: 1 },
+                  sessionId: { type: 'number', example: 1 },
+                  groupName: { type: 'string', example: 'Sample Organization A' },
+                  userName: { type: 'string', example: 'John Doe' },
+                  userEmail: { type: 'string', example: 'john@example.com' },
+                  submittedAt: { type: 'string', example: '2025-08-22T00:00:00Z' },
+                  status: { type: 'string', example: 'in_progress' },
+                  progressPercentage: { type: 'number', example: 50 },
+                  decision: { type: 'string', example: 'approve' },
+                  stage: { type: 'string', example: 'admin_validation' },
+                },
+              },
+            },
+            pagination: {
+              type: 'object',
+              properties: {
+                total: { type: 'number', example: 1 },
+                page: { type: 'number', example: 1 },
+                limit: { type: 'number', example: 10 },
+                totalPages: { type: 'number', example: 1 },
+                hasNext: { type: 'boolean', example: false },
+                hasPrev: { type: 'boolean', example: false },
+              },
+            },
+            filters: {
+              type: 'object',
+              properties: {
+                all: { type: 'number', example: 1 },
+                pending: { type: 'number', example: 1 },
+                inProgress: { type: 'number', example: 0 },
+                completed: { type: 'number', example: 0 },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - JURI role required' })
+  async getJuryReviews(
+    @Request() req,
+    @Query('search') search?: string,
+    @Query('filter') filter?: 'all' | 'pending' | 'in_progress' | 'completed',
+    @Query('page', new ParseIntPipe({ optional: true })) page?: number,
+    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
+  ) {
+    const reviewsData = await this.assessmentsService.getJuryReviews(
+      req.user.userId,
+      { search, filter: filter || 'all', page: page || 1, limit: limit || 10 },
+    );
+    return this.responseService.success(
+      reviewsData,
+      'Jury review submissions retrieved successfully',
+    );
+  }
 }
