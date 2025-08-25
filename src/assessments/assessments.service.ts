@@ -22,6 +22,7 @@ import {
   BatchAssessmentReviewResponseDto,
   ReviewStage,
   ReviewDecision,
+  JuryReviewDto,
 } from './dto/user-assessment-sessions.dto';
 
 @Injectable()
@@ -2015,6 +2016,61 @@ export class AssessmentsService {
         hasPrev,
       },
       filters: filterCounts,
+    };
+  }
+
+  async submitJuryReview(
+    juryId: number,
+    sessionId: number,
+    juryReviewDto: JuryReviewDto,
+  ): Promise<{ sessionId: number; totalScoresAdded: number; message: string }> {
+    const {
+      juryScores,
+    } = juryReviewDto;
+
+    // Check if session exists
+    const session = await this.prisma.responseSession.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Assessment session not found');
+    }
+
+    let totalScoresAdded = 0;
+
+    // Only insert jury scores if provided
+    if (juryScores && juryScores.length > 0) {
+      // Use upsert to handle both insert and update cases
+      const scorePromises = juryScores.map(async (score) => {
+        return this.prisma.juryScore.upsert({
+          where: {
+            sessionId_questionId: {
+              sessionId,
+              questionId: score.questionId,
+            },
+          },
+          update: {
+            score: score.score,
+            comments: score.comments,
+          },
+          create: {
+            sessionId,
+            questionId: score.questionId,
+            score: score.score,
+            comments: score.comments,
+          },
+        });
+      });
+
+      await Promise.all(scorePromises);
+      totalScoresAdded = juryScores.length;
+    }
+
+    return {
+      sessionId,
+      totalScoresAdded,
+      message: 'Jury scores saved successfully',
     };
   }
 }

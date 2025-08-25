@@ -206,6 +206,7 @@ model ResponseSession {
   id                    Int      @id @default(autoincrement())
   userId                Int
   groupId               Int
+  juryId                Int?     // Jury member ID
   currentQuestionId     Int?
   progressPercentage    Int      @default(0)
   autoSaveEnabled       Boolean  @default(true)
@@ -243,6 +244,7 @@ model ResponseSession {
   
   @@unique([userId, groupId])
   @@index([userId])
+  @@index([juryId])
   @@index([lastActivityAt])
   @@index([reviewerId])
   @@index([stage])
@@ -260,6 +262,9 @@ model QuestionResponse {
   numericValue          Decimal?
   booleanValue          Boolean?
   arrayValue            Json?    // for multiple choice, file uploads, etc.
+  
+  // Scoring
+  score                 Decimal? // Score for this response
   
   // Auto-save State Management
   isDraft               Boolean  @default(true)

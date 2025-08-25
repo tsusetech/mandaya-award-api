@@ -447,3 +447,71 @@ export class BatchAssessmentReviewResponseDto {
   @IsNumber()
   totalScoresAdded: number;
 }
+
+export class JuryReviewDto {
+  @ApiProperty({ description: 'Review decision', enum: ReviewDecision })
+  @IsEnum(ReviewDecision)
+  decision: ReviewDecision;
+
+  @ApiProperty({ description: 'Deliberation notes from jury' })
+  @IsString()
+  @IsOptional()
+  deliberationNotes?: string;
+
+  @ApiProperty({ description: 'Internal notes (not visible to user)' })
+  @IsString()
+  @IsOptional()
+  internalNotes?: string;
+
+  @ApiProperty({ description: 'Jury comments' })
+  @IsString()
+  @IsOptional()
+  juryComments?: string;
+
+  @ApiProperty({
+    description: 'Jury scores for questions',
+    type: [AssessmentJuryScoreDto],
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AssessmentJuryScoreDto)
+  @IsOptional()
+  juryScores?: AssessmentJuryScoreDto[];
+
+  @ApiProperty({ description: 'Overall review comments' })
+  @IsString()
+  @IsOptional()
+  overallComments?: string;
+
+  @ApiProperty({
+    description: 'Specific comments for questions',
+    type: [AssessmentReviewCommentDto],
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AssessmentReviewCommentDto)
+  @IsOptional()
+  questionComments?: AssessmentReviewCommentDto[];
+
+  @ApiProperty({ description: 'Current review stage', enum: ReviewStage })
+  @IsEnum(ReviewStage)
+  stage: ReviewStage;
+
+  @ApiProperty({ description: 'Total jury score (0-100)' })
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  @IsOptional()
+  totalScore?: number;
+
+  @ApiProperty({ description: 'Whether to update existing review or create new one' })
+  @IsBoolean()
+  @IsOptional()
+  updateExisting?: boolean;
+
+  @ApiProperty({ description: 'Validation checklist items', type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  validationChecklist?: string[];
+}

@@ -38,6 +38,7 @@ import { AssessmentSessionDetailDto } from './dto/assessment-session.dto';
 import {
   CreateAssessmentReviewDto,
   AssessmentReviewResponseDto,
+  JuryReviewDto,
 } from './dto/user-assessment-sessions.dto';
 import {
   BatchAssessmentReviewDto,
@@ -781,6 +782,57 @@ export class AssessmentsController {
     return this.responseService.success(
       reviewsData,
       'Jury review submissions retrieved successfully',
+    );
+  }
+
+  @Post('jury/:sessionId/review')
+  @Roles('JURI')
+  @ApiOperation({
+    summary: 'Submit jury review for a session',
+    description: 'Submit jury review with scores and comments for a specific assessment session. Only inserts into JuryScore table.',
+  })
+  @ApiParam({
+    name: 'sessionId',
+    description: 'Assessment session ID',
+    type: 'number',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Jury review submitted successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'Jury review submitted successfully' },
+        data: {
+          type: 'object',
+          properties: {
+            sessionId: { type: 'number', example: 1 },
+            totalScoresAdded: { type: 'number', example: 3 },
+            message: { type: 'string', example: 'Jury scores saved successfully' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request - Invalid session or data' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - JURI role required' })
+  @ApiResponse({ status: 404, description: 'Session not found' })
+  async submitJuryReview(
+    @Request() req,
+    @Param('sessionId', ParseIntPipe) sessionId: number,
+    @Body() juryReviewDto: JuryReviewDto,
+  ) {
+    const result = await this.assessmentsService.submitJuryReview(
+      req.user.userId,
+      sessionId,
+      juryReviewDto,
+    );
+    return this.responseService.success(
+      result,
+      'Jury review submitted successfully',
     );
   }
 }
