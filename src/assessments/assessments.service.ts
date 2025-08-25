@@ -7,7 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StatusProgressService } from '../common/services/status-progress.service';
 import { PaginationQueryDto } from './dto/pagination.dto';
 import { AssessmentAnswerDto, SubmitAssessmentDto } from './dto/assessment-answer.dto';
-import { AssessmentQuestionDto } from './dto/assessment-question.dto';
+import { AssessmentQuestionDto, JuryScoreDto } from './dto/assessment-question.dto';
 import { AssessmentSessionDto } from './dto/assessment-session.dto';
 import {
   ReviewCommentDto,
@@ -930,6 +930,14 @@ export class AssessmentsService {
       },
     });
 
+    // Get jury scores for this session
+    const juryScores = await this.prisma.juryScore.findMany({
+      where: { sessionId: session.id },
+      include: {
+        question: true,
+      },
+    });
+
     // Group review comments by question ID for easy lookup
     const reviewCommentsByQuestion = reviewComments.reduce(
       (acc, comment) => {
@@ -951,6 +959,24 @@ export class AssessmentsService {
         return acc;
       },
       {} as Record<number, ReviewCommentDto[]>,
+    );
+
+    // Group jury scores by question ID for easy lookup
+    const juryScoresByQuestion = juryScores.reduce(
+      (acc, score) => {
+        if (!acc[score.questionId]) {
+          acc[score.questionId] = [];
+        }
+        acc[score.questionId].push({
+          id: score.id,
+          questionId: score.questionId,
+          score: Number(score.score),
+          comments: score.comments || undefined,
+          createdAt: score.createdAt.toISOString(),
+        });
+        return acc;
+      },
+      {} as Record<number, JuryScoreDto[]>,
     );
 
     // Get group questions for this group
@@ -977,6 +1003,8 @@ export class AssessmentsService {
       );
       const questionReviewComments =
         reviewCommentsByQuestion[gq.question.id] || [];
+      const questionJuryScores =
+        juryScoresByQuestion[gq.question.id] || [];
 
       return {
         id: gq.question.id,
@@ -1017,6 +1045,7 @@ export class AssessmentsService {
         isAnswered: response ? response.isComplete : false,
         isSkipped: response ? response.isSkipped : false,
         reviewComments: questionReviewComments,
+        juryScores: questionJuryScores,
       };
     });
 

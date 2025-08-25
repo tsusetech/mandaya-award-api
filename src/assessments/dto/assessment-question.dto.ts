@@ -75,6 +75,29 @@ export class QuestionOptionDto {
   isCheckBox?: boolean;
 }
 
+export class JuryScoreDto {
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  id: number;
+
+  @ApiProperty({ example: 9 })
+  @IsNumber()
+  questionId: number;
+
+  @ApiProperty({ example: 10 })
+  @IsNumber()
+  score: number;
+
+  @ApiProperty({ example: 'Good response', required: false })
+  @IsOptional()
+  @IsString()
+  comments?: string;
+
+  @ApiProperty({ example: '2024-01-01T00:00:00Z' })
+  @IsString()
+  createdAt: string;
+}
+
 export class AssessmentQuestionDto {
   @ApiProperty({ example: 1 })
   @IsNumber()
@@ -144,4 +167,10 @@ export class AssessmentQuestionDto {
   @IsOptional()
   @IsArray()
   reviewComments?: ReviewCommentDto[];
+
+  // Jury scores for this question
+  @ApiProperty({ type: [JuryScoreDto], required: false })
+  @IsOptional()
+  @IsArray()
+  juryScores?: JuryScoreDto[];
 }
