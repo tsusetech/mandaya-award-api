@@ -2148,7 +2148,7 @@ export class AssessmentsService {
           deliberationNotes: juryComments || null,
           internalNotes: juryComments || null,
           overallComments: overallComments || null,
-          validationChecklist: validationChecklist || null,
+          validationChecklist: validationChecklist || undefined,
           reviewedAt: new Date(),
         },
       });
