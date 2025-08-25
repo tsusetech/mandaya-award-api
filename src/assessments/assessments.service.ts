@@ -1948,6 +1948,7 @@ export class AssessmentsService {
             name: true,
           },
         },
+        juryScores: true, // Include jury scores to count them
       },
       orderBy: {
         lastActivityAt: 'desc',
@@ -1964,27 +1965,28 @@ export class AssessmentsService {
         return {
           session,
           status: latestStatus,
+          juryScoresCount: session.juryScores.length,
         };
       }),
     );
 
     // Filter sessions based on the selected filter
     let filteredSessions = sessionsWithStatus.filter((s) => {
-      // Base filtering: only include sessions that are approved by admin or in jury stages
-      const isJuryEligible = s.session.decision === 'approve' ||
-        ['passed_to_jury', 'jury_scoring', 'jury_deliberation', 'final_decision', 'completed'].includes(s.status);
+      // Base filtering: only include sessions that are approved by admin
+      const isJuryEligible = s.session.decision === 'approve';
       
       if (!isJuryEligible) {
         return false;
       }
       
-      // Apply specific filter
+      // Apply specific filter based on jury scores count
       switch (filter) {
         case 'pending':
-          // Only sessions with 'approve' decision
-          return s.session.decision === 'approve';
+          // Sessions with 'approve' decision but no jury scores yet
+          return s.session.decision === 'approve' && s.juryScoresCount === 0;
         case 'in_progress':
-          return ['jury_scoring', 'jury_deliberation', 'under_review'].includes(s.status);
+          // Sessions with 'approve' decision and have jury scores
+          return s.session.decision === 'approve' && s.juryScoresCount > 0;
         case 'completed':
           return ['completed', 'final_decision'].includes(s.status);
         case 'all':
@@ -1996,14 +1998,13 @@ export class AssessmentsService {
     // Calculate filter counts for the UI tabs
     const filterCounts = {
       all: sessionsWithStatus.filter(s => 
-        s.session.decision === 'approve' ||
-        ['passed_to_jury', 'jury_scoring', 'jury_deliberation', 'final_decision', 'completed'].includes(s.status)
-      ).length,
-      pending: sessionsWithStatus.filter(s => 
         s.session.decision === 'approve'
       ).length,
+      pending: sessionsWithStatus.filter(s => 
+        s.session.decision === 'approve' && s.juryScoresCount === 0
+      ).length,
       inProgress: sessionsWithStatus.filter(s => 
-        ['jury_scoring', 'jury_deliberation', 'under_review'].includes(s.status)
+        s.session.decision === 'approve' && s.juryScoresCount > 0
       ).length,
       completed: sessionsWithStatus.filter(s => 
         ['completed', 'final_decision'].includes(s.status)
