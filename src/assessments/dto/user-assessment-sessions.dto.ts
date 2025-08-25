@@ -515,3 +515,90 @@ export class JuryReviewDto {
   @IsOptional()
   validationChecklist?: string[];
 }
+
+export class CompleteJuryReviewDto {
+  @ApiProperty({ description: 'Current review stage', enum: ReviewStage })
+  @IsEnum(ReviewStage)
+  stage: ReviewStage;
+
+  @ApiProperty({ description: 'Review decision', enum: ReviewDecision })
+  @IsEnum(ReviewDecision)
+  decision: ReviewDecision;
+
+  @ApiProperty({ description: 'Session ID' })
+  @IsNumber()
+  sessionId: number;
+
+  @ApiProperty({ description: 'Jury member ID' })
+  @IsNumber()
+  juryId: number;
+
+  @ApiProperty({ description: 'Overall review comments' })
+  @IsString()
+  @IsOptional()
+  overallComments?: string;
+
+  @ApiProperty({ description: 'Jury comments' })
+  @IsString()
+  @IsOptional()
+  juryComments?: string;
+
+  @ApiProperty({
+    description: 'Question scores with weights and calculated results',
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        questionId: { type: 'number', example: 9 },
+        comment: { type: 'string', example: 'good' },
+        score: { type: 'number', example: 10 },
+        weight: { type: 'number', example: 1.75 },
+        scoreResult: { type: 'number', example: 17.5 }
+      }
+    }
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QuestionScoreDto)
+  questionScores: QuestionScoreDto[];
+
+  @ApiProperty({ description: 'Total jury score' })
+  @IsNumber()
+  totalScore: number;
+
+  @ApiProperty({ description: 'Validation checklist items', type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  validationChecklist?: string[];
+
+  @ApiProperty({ description: 'Whether to update existing review or create new one' })
+  @IsBoolean()
+  @IsOptional()
+  updateExisting?: boolean;
+}
+
+export class QuestionScoreDto {
+  @ApiProperty({ description: 'Question ID' })
+  @IsNumber()
+  questionId: number;
+
+  @ApiProperty({ description: 'Comment for the question' })
+  @IsString()
+  @IsOptional()
+  comment?: string;
+
+  @ApiProperty({ description: 'Score for the question (0-10)' })
+  @IsNumber()
+  @Min(0)
+  @Max(10)
+  score: number;
+
+  @ApiProperty({ description: 'Weight multiplier for the question' })
+  @IsNumber()
+  weight: number;
+
+  @ApiProperty({ description: 'Calculated score result (score * weight)' })
+  @IsNumber()
+  scoreResult: number;
+}

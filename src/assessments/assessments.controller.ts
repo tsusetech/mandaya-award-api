@@ -39,6 +39,7 @@ import {
   CreateAssessmentReviewDto,
   AssessmentReviewResponseDto,
   JuryReviewDto,
+  CompleteJuryReviewDto,
 } from './dto/user-assessment-sessions.dto';
 import {
   BatchAssessmentReviewDto,
@@ -833,6 +834,59 @@ export class AssessmentsController {
     return this.responseService.success(
       result,
       'Jury review submitted successfully',
+    );
+  }
+
+  @Post('jury/:sessionId/complete')
+  @Roles('JURI')
+  @ApiOperation({
+    summary: 'Complete jury review for a session',
+    description: 'Complete jury review by updating ResponseSession and inserting StatusProgress. This finalizes the jury review process.',
+  })
+  @ApiParam({
+    name: 'sessionId',
+    description: 'Assessment session ID',
+    type: 'number',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Jury review completed successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'Jury review completed successfully' },
+        data: {
+          type: 'object',
+          properties: {
+            sessionId: { type: 'number', example: 1 },
+            totalScore: { type: 'number', example: 1499 },
+            stage: { type: 'string', example: 'jury_scoring' },
+            decision: { type: 'string', example: 'completed' },
+            message: { type: 'string', example: 'Jury review completed and session updated' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request - Invalid session or data' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - JURI role required' })
+  @ApiResponse({ status: 404, description: 'Session not found' })
+  async completeJuryReview(
+    @Request() req,
+    @Param('sessionId', ParseIntPipe) sessionId: number,
+    @Body() completeJuryReviewDto: CompleteJuryReviewDto,
+  ) {
+    const result = await this.assessmentsService.completeJuryReview(
+      req.user.userId,
+      sessionId,
+      completeJuryReviewDto,
+    );
+    return this.responseService.success(
+      result,
+      'Jury review completed successfully',
     );
   }
 }

@@ -23,6 +23,7 @@ import {
   ReviewStage,
   ReviewDecision,
   JuryReviewDto,
+  CompleteJuryReviewDto,
 } from './dto/user-assessment-sessions.dto';
 
 @Injectable()
@@ -2101,6 +2102,103 @@ export class AssessmentsService {
       sessionId,
       totalScoresAdded,
       message: 'Jury scores saved successfully',
+    };
+  }
+
+  async completeJuryReview(
+    juryId: number,
+    sessionId: number,
+    completeJuryReviewDto: CompleteJuryReviewDto,
+  ): Promise<{
+    sessionId: number;
+    totalScore: number;
+    stage: string;
+    decision: string;
+    message: string;
+  }> {
+    const {
+      stage,
+      decision,
+      overallComments,
+      juryComments,
+      questionScores,
+      totalScore,
+      validationChecklist,
+    } = completeJuryReviewDto;
+
+    // Check if session exists
+    const session = await this.prisma.responseSession.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Assessment session not found');
+    }
+
+    // Use transaction to ensure data consistency
+    const result = await this.prisma.$transaction(async (prisma) => {
+      // Update ResponseSession table
+      const updatedSession = await prisma.responseSession.update({
+        where: { id: sessionId },
+        data: {
+          totalScore: totalScore,
+          stage: stage,
+          decision: decision,
+          juryId: juryId,
+          deliberationNotes: juryComments || null,
+          internalNotes: juryComments || null,
+          overallComments: overallComments || null,
+          validationChecklist: validationChecklist || null,
+          reviewedAt: new Date(),
+        },
+      });
+
+      // Insert into StatusProgress table
+      await prisma.statusProgress.create({
+        data: {
+          sessionId: sessionId,
+          status: decision, // Use decision as the status
+          previousStatus: session.decision || 'submitted',
+          changedBy: juryId,
+          changedAt: new Date(),
+        },
+      });
+
+      // Insert/update jury scores from questionScores
+      if (questionScores && questionScores.length > 0) {
+        const scorePromises = questionScores.map(async (score) => {
+          return prisma.juryScore.upsert({
+            where: {
+              sessionId_questionId: {
+                sessionId,
+                questionId: score.questionId,
+              },
+            },
+            update: {
+              score: score.score,
+              comments: score.comment || null,
+            },
+            create: {
+              sessionId,
+              questionId: score.questionId,
+              score: score.score,
+              comments: score.comment || null,
+            },
+          });
+        });
+
+        await Promise.all(scorePromises);
+      }
+
+      return updatedSession;
+    });
+
+    return {
+      sessionId,
+      totalScore,
+      stage,
+      decision,
+      message: 'Jury review completed and session updated',
     };
   }
 }
