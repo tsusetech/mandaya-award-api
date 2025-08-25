@@ -144,6 +144,7 @@ export enum ReviewDecision {
   NEEDS_REVISION = 'needs_revision',
   PASS_TO_JURY = 'pass_to_jury',
   NEEDS_DELIBERATION = 'needs_deliberation',
+  COMPLETED = 'completed',
 }
 
 export class AssessmentReviewCommentDto {
