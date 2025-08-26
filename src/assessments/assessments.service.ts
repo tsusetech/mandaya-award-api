@@ -25,6 +25,7 @@ import {
   JuryReviewDto,
   CompleteJuryReviewDto,
 } from './dto/user-assessment-sessions.dto';
+import { JuryRankingsResponseDto, JuryRankingsQueryDto } from './dto/jury-rankings.dto';
 
 @Injectable()
 export class AssessmentsService {
@@ -2213,6 +2214,128 @@ export class AssessmentsService {
       stage,
       decision,
       message: 'Jury review completed and session updated',
+    };
+  }
+
+  async getJuryRankings(query: JuryRankingsQueryDto): Promise<JuryRankingsResponseDto> {
+    const { search, category } = query;
+
+    // Build where clause for filtering
+    const whereClause: any = {
+      AND: [
+        {
+          // Only include sessions that have been reviewed and have scores
+          totalScore: { not: null },
+          stage: { in: ['jury_scoring', 'jury_deliberation'] },
+          decision: { in: ['completed', 'approve'] },
+        },
+        {
+          // Filter by search term if provided
+          ...(search && {
+            OR: [
+              { group: { groupName: { contains: search, mode: 'insensitive' } } },
+              { user: { name: { contains: search, mode: 'insensitive' } } },
+              { user: { email: { contains: search, mode: 'insensitive' } } },
+            ],
+          }),
+        },
+      ],
+    };
+
+    // Get all sessions with scores
+    const sessions = await this.prisma.responseSession.findMany({
+      where: whereClause,
+      include: {
+        group: {
+          include: {
+            categoryGroups: {
+              include: {
+                category: true,
+              },
+            },
+          },
+        },
+        user: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+        juryScores: {
+          include: {
+            question: true,
+          },
+        },
+      },
+      orderBy: {
+        totalScore: 'desc',
+      },
+    });
+
+    // Group sessions by category
+    const categoryMap = new Map<string, any[]>();
+
+    sessions.forEach((session) => {
+      const categoryGroups = session.group.categoryGroups;
+      if (categoryGroups.length > 0) {
+        const primaryCategory = categoryGroups[0].category;
+        const categoryName = primaryCategory.name;
+        
+        // Filter by category if specified
+        if (category && category !== 'All Categories' && categoryName !== category) {
+          return;
+        }
+
+        if (!categoryMap.has(categoryName)) {
+          categoryMap.set(categoryName, []);
+        }
+        categoryMap.get(categoryName)!.push(session);
+      }
+    });
+
+    // Convert to response format
+    const categories: any[] = [];
+    let totalNominations = 0;
+
+    categoryMap.forEach((sessions, categoryName) => {
+      // Sort sessions by score within each category
+      const sortedSessions = sessions.sort((a, b) => 
+        Number(b.totalScore) - Number(a.totalScore)
+      );
+
+      // Create ranking items
+      const rankings = sortedSessions.map((session, index) => {
+        const rank = index + 1;
+        const trophyType = rank === 1 ? 'gold' : rank === 2 ? 'silver' : 'bronze';
+        
+        return {
+          id: session.id,
+          sessionId: session.id,
+          groupName: session.group.groupName,
+          participantInfo: `${session.user.name} • ${session.user.email}`,
+          score: Number(session.totalScore),
+          submittedAt: session.submittedAt?.toISOString() || session.startedAt.toISOString(),
+          lastReviewedAt: session.reviewedAt?.toISOString() || session.submittedAt?.toISOString() || session.startedAt.toISOString(),
+          rank,
+          trophyType,
+        };
+      });
+
+      // Get subcategory from the first session's category groups
+      const subCategory = sessions[0].group.categoryGroups[0]?.category?.description || 'General';
+
+      categories.push({
+        categoryName,
+        subCategory,
+        rankings,
+      });
+
+      totalNominations += sessions.length;
+    });
+
+    return {
+      totalNominations,
+      categories,
     };
   }
 }

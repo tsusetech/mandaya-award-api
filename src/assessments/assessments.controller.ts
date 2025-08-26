@@ -48,6 +48,7 @@ import {
 import { ResolveReviewCommentDto } from './dto/review-comment.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { ResponseService } from '../common/services/response.service';
+import { JuryRankingsResponseDto, JuryRankingsQueryDto } from './dto/jury-rankings.dto';
 
 @ApiTags('Assessments API')
 @ApiBearerAuth()
@@ -887,6 +888,29 @@ export class AssessmentsController {
     return this.responseService.success(
       result,
       'Jury review completed successfully',
+    );
+  }
+
+  @Get('jury/rankings')
+  @Roles('JURI', 'ADMIN', 'SUPERADMIN')
+  @ApiOperation({
+    summary: 'Get jury rankings',
+    description: 'Retrieves jury rankings organized by categories with scores and participant information.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Jury rankings retrieved successfully',
+    type: JuryRankingsResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - JURI, ADMIN, or SUPERADMIN role required' })
+  async getJuryRankings(
+    @Query() query: JuryRankingsQueryDto,
+  ) {
+    const rankingsData = await this.assessmentsService.getJuryRankings(query);
+    return this.responseService.success(
+      rankingsData,
+      'Jury rankings retrieved successfully',
     );
   }
 }
