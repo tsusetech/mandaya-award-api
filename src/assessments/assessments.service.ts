@@ -1971,9 +1971,19 @@ export class AssessmentsService {
       }),
     );
 
+
+
     // Filter sessions based on the selected filter
     let filteredSessions = sessionsWithStatus.filter((s) => {
-      // Base filtering: only include sessions that are approved by admin
+      // For completed sessions, we need to be more flexible with the decision check
+      // as completed sessions might have different decision values
+      if (filter === 'completed') {
+        // For completed filter, check if the session has a completed status
+        // regardless of the decision value
+        return ['completed', 'final_decision', 'approved', 'finalized'].includes(s.status);
+      }
+      
+      // For other filters, only include sessions that are approved by admin
       const isJuryEligible = s.session.decision === 'approve';
       
       if (!isJuryEligible) {
@@ -1984,12 +1994,10 @@ export class AssessmentsService {
       switch (filter) {
         case 'pending':
           // Sessions with 'approve' decision but no jury scores yet
-          return s.session.decision === 'approve' && s.juryScoresCount === 0;
+          return s.juryScoresCount === 0;
         case 'in_progress':
           // Sessions with 'approve' decision and have jury scores
-          return s.session.decision === 'approve' && s.juryScoresCount > 0;
-        case 'completed':
-          return ['completed', 'final_decision'].includes(s.status);
+          return s.juryScoresCount > 0;
         case 'all':
         default:
           return true;
@@ -2008,9 +2016,11 @@ export class AssessmentsService {
         s.session.decision === 'approve' && s.juryScoresCount > 0
       ).length,
       completed: sessionsWithStatus.filter(s => 
-        ['completed', 'final_decision'].includes(s.status)
+        ['completed', 'final_decision', 'approved', 'finalized'].includes(s.status)
       ).length,
     };
+
+
 
     // Apply pagination
     const paginatedSessions = filteredSessions.slice(skip, skip + limit);
