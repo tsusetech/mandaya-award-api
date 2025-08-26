@@ -1983,6 +1983,11 @@ export class AssessmentsService {
         return ['completed', 'final_decision', 'approved', 'finalized'].includes(s.status);
       }
       
+      // For 'all' filter, include all sessions that are either approved or completed
+      if (filter === 'all') {
+        return s.session.decision === 'approve' || ['completed', 'final_decision', 'approved', 'finalized'].includes(s.status);
+      }
+      
       // For other filters, only include sessions that are approved by admin
       const isJuryEligible = s.session.decision === 'approve';
       
@@ -1998,7 +2003,6 @@ export class AssessmentsService {
         case 'in_progress':
           // Sessions with 'approve' decision and have jury scores
           return s.juryScoresCount > 0;
-        case 'all':
         default:
           return true;
       }
@@ -2007,7 +2011,7 @@ export class AssessmentsService {
     // Calculate filter counts for the UI tabs
     const filterCounts = {
       all: sessionsWithStatus.filter(s => 
-        s.session.decision === 'approve'
+        s.session.decision === 'approve' || ['completed', 'final_decision', 'approved', 'finalized'].includes(s.status)
       ).length,
       pending: sessionsWithStatus.filter(s => 
         s.session.decision === 'approve' && s.juryScoresCount === 0
