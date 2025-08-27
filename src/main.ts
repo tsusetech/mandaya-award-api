@@ -11,7 +11,8 @@ async function bootstrap() {
     origin: [
       'http://localhost:3000',
       'http://localhost:3001',
-      'https://mandaya-award.vercel.app', // Add your production frontend URL
+      'https://mandaya-award.vercel.app',
+      'https://mandaya-award-v2.vercel.app', // Add your production frontend URL
     ],
     credentials: true,
   });
