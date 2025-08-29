@@ -13,6 +13,7 @@ async function bootstrap() {
       'http://localhost:3001',
       'https://mandaya-award.vercel.app',
       'https://mandaya-award-v2.vercel.app', // Add your production frontend URL
+      'https://www.mandayaawards2025.com',
     ],
     credentials: true,
   });
