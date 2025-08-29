@@ -66,17 +66,56 @@ export class AuthService {
         roleName: signupDto.roleName
       });
 
+      // Validate input data
+      if (!signupDto.email || !signupDto.username) {
+        throw new BadRequestException('Email and username are required');
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(signupDto.email)) {
+        throw new BadRequestException('Invalid email format');
+      }
+
+      // Validate username format (alphanumeric and underscore only)
+      const usernameRegex = /^[a-zA-Z0-9_]+$/;
+      if (!usernameRegex.test(signupDto.username)) {
+        throw new BadRequestException('Username can only contain letters, numbers, and underscores');
+      }
+
+      // Normalize email and username (trim whitespace and convert to lowercase for comparison)
+      const normalizedEmail = signupDto.email.trim().toLowerCase();
+      const normalizedUsername = signupDto.username.trim().toLowerCase();
+
       // Check if user already exists (excluding soft-deleted users)
+      // Use case-insensitive comparison to avoid false positives
       const existingUser = await this.prisma.user.findFirst({
         where: {
-          OR: [{ email: signupDto.email }, { username: signupDto.username }],
+          OR: [
+            { 
+              email: {
+                equals: normalizedEmail,
+                mode: 'insensitive'
+              }
+            }, 
+            { 
+              username: {
+                equals: normalizedUsername,
+                mode: 'insensitive'
+              }
+            }
+          ],
           deletedAt: null,
         },
       });
 
       if (existingUser) {
+        // Provide more specific error message
+        const conflictField = existingUser.email.toLowerCase() === signupDto.email.toLowerCase() 
+          ? 'email' 
+          : 'username';
         throw new ConflictException(
-          'User with this email or username already exists',
+          `User with this ${conflictField} already exists`,
         );
       }
 
@@ -101,12 +140,13 @@ export class AuthService {
 
       // Create user with group assignment in a transaction
       const result = await this.prisma.$transaction(async (prisma) => {
+        try {
         // Create user
         const user = await prisma.user.create({
           data: {
-            email: signupDto.email,
-            username: signupDto.username,
-            name: signupDto.name,
+            email: signupDto.email.trim(), // Store original email but trimmed
+            username: signupDto.username.trim(), // Store original username but trimmed
+            name: signupDto.name?.trim(),
             password: hashedPassword,
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -151,6 +191,15 @@ export class AuthService {
         }
 
         return user;
+        } catch (transactionError) {
+          console.error('Transaction error:', transactionError);
+          // Check if it's a unique constraint violation
+          if (transactionError.code === 'P2002') {
+            const field = transactionError.meta?.target?.[0] || 'unknown';
+            throw new ConflictException(`User with this ${field} already exists`);
+          }
+          throw transactionError;
+        }
       });
 
       // Fetch user with roles and groups (excluding password)
