@@ -900,12 +900,7 @@ export class AuthService {
    * Change user password (requires current password verification)
    */
   async changePassword(userId: number, changePasswordDto: ChangePasswordDto): Promise<{ message: string }> {
-    const { currentPassword, newPassword, confirmPassword } = changePasswordDto;
-
-    // Validate password confirmation
-    if (newPassword !== confirmPassword) {
-      throw new BadRequestException('New password and confirmation password do not match');
-    }
+    const { currentPassword, newPassword } = changePasswordDto;
 
     // Get user with password
     const user = await this.prisma.user.findUnique({
@@ -997,12 +992,7 @@ export class AuthService {
    * Reset password using reset token
    */
   async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<{ message: string }> {
-    const { resetToken, newPassword, confirmPassword } = resetPasswordDto;
-
-    // Validate password confirmation
-    if (newPassword !== confirmPassword) {
-      throw new BadRequestException('New password and confirmation password do not match');
-    }
+    const { resetToken, newPassword } = resetPasswordDto;
 
     try {
       // Verify and decode reset token

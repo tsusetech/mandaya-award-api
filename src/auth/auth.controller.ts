@@ -273,7 +273,7 @@ export class AuthController {
     @Req() req,
     @Body() changePasswordDto: ChangePasswordDto
   ): Promise<PasswordResponseDto> {
-    const result = await this.authService.changePassword(req.user.sub, changePasswordDto);
+    const result = await this.authService.changePassword(req.user.userId, changePasswordDto);
     return {
       message: result.message,
       success: true,
