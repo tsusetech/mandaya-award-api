@@ -29,7 +29,7 @@ The API now includes comprehensive password management features:
 **Response**:
 ```json
 {
-  "message": "Password changed successfully",
+  "message": "Kata sandi berhasil diubah",
   "success": true,
   "timestamp": "2024-01-15T10:30:00.000Z"
 }
@@ -57,7 +57,7 @@ The API now includes comprehensive password management features:
 **Response**:
 ```json
 {
-  "message": "If an account with that email exists, a password reset link has been sent",
+  "message": "Jika akun dengan email tersebut ada, link reset kata sandi telah dikirim",
   "success": true,
   "timestamp": "2024-01-15T10:30:00.000Z"
 }
@@ -87,7 +87,7 @@ The API now includes comprehensive password management features:
 **Response**:
 ```json
 {
-  "message": "Password reset successfully",
+  "message": "Kata sandi berhasil direset",
   "success": true,
   "timestamp": "2024-01-15T10:30:00.000Z"
 }

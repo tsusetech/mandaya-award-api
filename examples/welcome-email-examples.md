@@ -139,28 +139,28 @@ The welcome email includes:
 ## Email Content Example
 
 ```
-Subject: Welcome to Mandaya Awards Platform - Your Account Details
+Subject: Selamat Datang di Platform Mandaya Awards - Detail Akun Anda
 
-Hello john_doe,
+Halo john_doe,
 
-Thank you for joining the Mandaya Awards platform! We're excited to have you on board.
+Terima kasih telah bergabung dengan platform Mandaya Awards! Kami sangat senang Anda bergabung dengan kami.
 
-Here are your account details:
+Berikut adalah detail akun Anda:
 
-Username: john_doe
+Nama Pengguna: john_doe
 Email: user@example.com
-Password: securepassword123
+Kata Sandi: securepassword123
 
-Click the button below to access your account:
-[Login to Your Account]
+Klik tombol di bawah untuk mengakses akun Anda:
+[Masuk ke Akun Anda]
 
-Or copy and paste this link into your browser:
+Atau salin dan tempel link ini ke browser Anda:
 https://your-frontend-domain.com/login
 
-Security Notice: Please keep your login credentials secure and consider changing your password after your first login.
+Pemberitahuan Keamanan: Harap jaga kerahasiaan kredensial login Anda dan pertimbangkan untuk mengubah kata sandi setelah login pertama.
 
-Best regards,
-The Mandaya Awards Team
+Salam hormat,
+Tim Mandaya Awards
 ```
 
 ## Error Handling

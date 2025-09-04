@@ -909,17 +909,17 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new BadRequestException('User not found');
+      throw new BadRequestException('Pengguna tidak ditemukan');
     }
 
     if (!user.password) {
-      throw new BadRequestException('User does not have a password set (OAuth user)');
+      throw new BadRequestException('Pengguna tidak memiliki kata sandi yang diatur (pengguna OAuth)');
     }
 
     // Verify current password
     const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
     if (!isCurrentPasswordValid) {
-      throw new BadRequestException('Current password is incorrect');
+      throw new BadRequestException('Kata sandi saat ini tidak benar');
     }
 
     // Hash new password
@@ -935,7 +935,7 @@ export class AuthService {
       }
     });
 
-    return { message: 'Password changed successfully' };
+    return { message: 'Kata sandi berhasil diubah' };
   }
 
   /**
@@ -951,12 +951,12 @@ export class AuthService {
 
     if (!user) {
       // Don't reveal if user exists or not for security
-      return { message: 'If an account with that email exists, a password reset link has been sent' };
+      return { message: 'Jika akun dengan email tersebut ada, link reset kata sandi telah dikirim' };
     }
 
     if (!user.password) {
       // OAuth users don't have passwords
-      return { message: 'If an account with that email exists, a password reset link has been sent' };
+      return { message: 'Jika akun dengan email tersebut ada, link reset kata sandi telah dikirim' };
     }
 
     // Generate reset token (JWT with short expiration)
@@ -985,7 +985,7 @@ export class AuthService {
       // Don't fail the request if email fails
     }
 
-    return { message: 'If an account with that email exists, a password reset link has been sent' };
+    return { message: 'Jika akun dengan email tersebut ada, link reset kata sandi telah dikirim' };
   }
 
   /**
@@ -999,7 +999,7 @@ export class AuthService {
       const payload = this.jwtService.verify(resetToken);
       
       if (payload.type !== 'password_reset') {
-        throw new BadRequestException('Invalid reset token');
+        throw new BadRequestException('Token reset tidak valid');
       }
 
       // Find user by reset token
@@ -1011,7 +1011,7 @@ export class AuthService {
       });
 
       if (!user) {
-        throw new BadRequestException('Invalid or expired reset token');
+        throw new BadRequestException('Token reset tidak valid atau telah kedaluwarsa');
       }
 
       // Hash new password
@@ -1029,10 +1029,10 @@ export class AuthService {
         }
       });
 
-      return { message: 'Password reset successfully' };
+      return { message: 'Kata sandi berhasil direset' };
     } catch (error) {
       if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
-        throw new BadRequestException('Invalid or expired reset token');
+        throw new BadRequestException('Token reset tidak valid atau telah kedaluwarsa');
       }
       throw error;
     }

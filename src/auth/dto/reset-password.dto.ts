@@ -9,7 +9,7 @@ export class PasswordMatchConstraint implements ValidatorConstraintInterface {
   }
 
   defaultMessage(args: ValidationArguments) {
-    return 'New password and confirmation password do not match';
+    return 'Kata sandi baru dan konfirmasi kata sandi tidak cocok';
   }
 }
 
@@ -26,10 +26,10 @@ export class ResetPasswordDto {
     description: 'New password (minimum 8 characters, must contain letters and numbers)',
   })
   @IsString()
-  @MinLength(8, { message: 'Password must be at least 8 characters long' })
-  @MaxLength(128, { message: 'Password cannot exceed 128 characters' })
+  @MinLength(8, { message: 'Kata sandi harus minimal 8 karakter' })
+  @MaxLength(128, { message: 'Kata sandi tidak boleh lebih dari 128 karakter' })
   @Matches(/^(?=.*[A-Za-z])(?=.*\d)/, {
-    message: 'Password must contain at least one letter and one number',
+    message: 'Kata sandi harus mengandung minimal satu huruf dan satu angka',
   })
   newPassword: string;
 

@@ -54,34 +54,34 @@ export class NotificationsService {
   ): Promise<NotificationResponseDto> {
     const emailDto: SendEmailDto = {
       to: userEmail,
-      subject: 'Welcome to Mandaya Awards Platform',
+      subject: 'Selamat Datang di Platform Mandaya Awards',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #2c3e50; margin-bottom: 10px;">Welcome to Mandaya Awards!</h1>
+            <h1 style="color: #2c3e50; margin-bottom: 10px;">Selamat Datang di Mandaya Awards!</h1>
           </div>
           
           <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
             <p style="font-size: 16px; line-height: 1.6; margin-bottom: 15px;">
-              Hello ${userName || 'there'},
+              Halo ${userName || 'Saudara/i'},
             </p>
             <p style="font-size: 16px; line-height: 1.6; margin-bottom: 15px;">
-              Thank you for joining the Mandaya Awards platform! We're excited to have you on board.
+              Terima kasih telah bergabung dengan platform Mandaya Awards! Kami sangat senang Anda bergabung dengan kami.
             </p>
             <p style="font-size: 16px; line-height: 1.6; margin-bottom: 0;">
-              You can now access all the features and participate in awards and competitions.
+              Sekarang Anda dapat mengakses semua fitur dan berpartisipasi dalam penghargaan dan kompetisi.
             </p>
           </div>
           
           <div style="text-align: center; margin-top: 30px;">
             <p style="color: #666; font-size: 14px;">
-              Best regards,<br>
-              <strong>The Mandaya Awards Team</strong>
+              Salam hormat,<br>
+              <strong>Tim Mandaya Awards</strong>
             </p>
           </div>
         </div>
       `,
-      text: `Welcome to Mandaya Awards! Hello ${userName || 'there'}, thank you for joining our platform. You can now access all the features and participate in awards and competitions. Best regards, The Mandaya Awards Team`,
+      text: `Selamat Datang di Mandaya Awards! Halo ${userName || 'Saudara/i'}, terima kasih telah bergabung dengan platform kami. Sekarang Anda dapat mengakses semua fitur dan berpartisipasi dalam penghargaan dan kompetisi. Salam hormat, Tim Mandaya Awards`,
     };
 
     return this.sendEmailNotification(emailDto);
@@ -100,27 +100,27 @@ export class NotificationsService {
 
     const emailDto: SendEmailDto = {
       to: welcomeEmailDto.to,
-      subject: 'Welcome to Mandaya Awards Platform - Your Account Details',
+      subject: 'Selamat Datang di Platform Mandaya Awards - Detail Akun Anda',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #2c3e50; margin-bottom: 10px;">Welcome to Mandaya Awards!</h1>
+            <h1 style="color: #2c3e50; margin-bottom: 10px;">Selamat Datang di Mandaya Awards!</h1>
           </div>
           
           <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
             <p style="font-size: 16px; line-height: 1.6; margin-bottom: 15px;">
-              Hello ${welcomeEmailDto.username},
+              Halo ${welcomeEmailDto.username},
             </p>
             <p style="font-size: 16px; line-height: 1.6; margin-bottom: 15px;">
-              Thank you for joining the Mandaya Awards platform! We're excited to have you on board.
+              Terima kasih telah bergabung dengan platform Mandaya Awards! Kami sangat senang Anda bergabung dengan kami.
             </p>
             <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
-              Here are your account details:
+              Berikut adalah detail akun Anda:
             </p>
             
             <div style="background: #ffffff; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
               <div style="margin-bottom: 10px;">
-                <strong style="color: #495057;">Username:</strong> 
+                <strong style="color: #495057;">Nama Pengguna:</strong> 
                 <span style="color: #6c757d; margin-left: 10px;">${welcomeEmailDto.username}</span>
               </div>
               <div style="margin-bottom: 10px;">
@@ -128,24 +128,24 @@ export class NotificationsService {
                 <span style="color: #6c757d; margin-left: 10px;">${welcomeEmailDto.email}</span>
               </div>
               <div>
-                <strong style="color: #495057;">Password:</strong> 
+                <strong style="color: #495057;">Kata Sandi:</strong> 
                 <span style="color: #6c757d; margin-left: 10px;">${welcomeEmailDto.password}</span>
               </div>
             </div>
             
             <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
-              Click the button below to access your account:
+              Klik tombol di bawah untuk mengakses akun Anda:
             </p>
             
             <div style="text-align: center; margin: 30px 0;">
               <a href="${loginUrl}/login" 
                  style="background: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: 600; display: inline-block;">
-                Login to Your Account
+                Masuk ke Akun Anda
               </a>
             </div>
             
             <p style="font-size: 14px; color: #666; margin-bottom: 10px;">
-              Or copy and paste this link into your browser:
+              Atau salin dan tempel link ini ke browser Anda:
             </p>
             <p style="font-size: 14px; color: #007bff; word-break: break-all;">
               ${loginUrl}/login
@@ -154,19 +154,19 @@ export class NotificationsService {
           
           <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
             <p style="font-size: 14px; color: #856404; margin: 0;">
-              <strong>Security Notice:</strong> Please keep your login credentials secure and consider changing your password after your first login.
+              <strong>Pemberitahuan Keamanan:</strong> Harap jaga kerahasiaan kredensial login Anda dan pertimbangkan untuk mengubah kata sandi setelah login pertama.
             </p>
           </div>
           
           <div style="text-align: center; margin-top: 30px;">
             <p style="color: #666; font-size: 14px;">
-              Best regards,<br>
-              <strong>The Mandaya Awards Team</strong>
+              Salam hormat,<br>
+              <strong>Tim Mandaya Awards</strong>
             </p>
           </div>
         </div>
       `,
-      text: `Welcome to Mandaya Awards! Hello ${welcomeEmailDto.username}, thank you for joining our platform. Your account details: Username: ${welcomeEmailDto.username}, Email: ${welcomeEmailDto.email}, Password: ${welcomeEmailDto.password}. Login at: ${loginUrl}/login. Please keep your credentials secure and consider changing your password after first login. Best regards, The Mandaya Awards Team`,
+      text: `Selamat Datang di Mandaya Awards! Halo ${welcomeEmailDto.username}, terima kasih telah bergabung dengan platform kami. Detail akun Anda: Nama Pengguna: ${welcomeEmailDto.username}, Email: ${welcomeEmailDto.email}, Kata Sandi: ${welcomeEmailDto.password}. Masuk di: ${loginUrl}/login. Harap jaga kerahasiaan kredensial Anda dan pertimbangkan untuk mengubah kata sandi setelah login pertama. Salam hormat, Tim Mandaya Awards`,
     };
 
     return this.sendEmailNotification(emailDto);
@@ -183,28 +183,28 @@ export class NotificationsService {
 
     const emailDto: SendEmailDto = {
       to: userEmail,
-      subject: 'Password Reset Request - Mandaya Awards',
+      subject: 'Permintaan Reset Kata Sandi - Mandaya Awards',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #e74c3c; margin-bottom: 10px;">Password Reset Request</h1>
+            <h1 style="color: #e74c3c; margin-bottom: 10px;">Permintaan Reset Kata Sandi</h1>
           </div>
           
           <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
             <p style="font-size: 16px; line-height: 1.6; margin-bottom: 15px;">
-              You requested a password reset for your Mandaya Awards account.
+              Anda meminta reset kata sandi untuk akun Mandaya Awards Anda.
             </p>
             <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
-              Click the button below to reset your password:
+              Klik tombol di bawah untuk mereset kata sandi Anda:
             </p>
             <div style="text-align: center; margin: 30px 0;">
               <a href="${resetUrl}" 
                  style="background: #e74c3c; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: 600; display: inline-block;">
-                Reset Password
+                Reset Kata Sandi
               </a>
             </div>
             <p style="font-size: 14px; color: #666; margin-bottom: 10px;">
-              If the button doesn't work, copy and paste this link into your browser:
+              Jika tombol tidak berfungsi, salin dan tempel link ini ke browser Anda:
             </p>
             <p style="font-size: 14px; color: #007bff; word-break: break-all;">
               ${resetUrl}
@@ -213,19 +213,19 @@ export class NotificationsService {
           
           <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
             <p style="font-size: 14px; color: #856404; margin: 0;">
-              <strong>Security Notice:</strong> If you didn't request this password reset, please ignore this email. This link will expire in 1 hour.
+              <strong>Pemberitahuan Keamanan:</strong> Jika Anda tidak meminta reset kata sandi ini, harap abaikan email ini. Link ini akan kedaluwarsa dalam 1 jam.
             </p>
           </div>
           
           <div style="text-align: center; margin-top: 30px;">
             <p style="color: #666; font-size: 14px;">
-              Best regards,<br>
-              <strong>The Mandaya Awards Team</strong>
+              Salam hormat,<br>
+              <strong>Tim Mandaya Awards</strong>
             </p>
           </div>
         </div>
       `,
-      text: `Password reset requested for your Mandaya Awards account. Visit: ${resetUrl} - This link will expire in 1 hour. If you didn't request this, please ignore this email.`,
+      text: `Permintaan reset kata sandi untuk akun Mandaya Awards Anda. Kunjungi: ${resetUrl} - Link ini akan kedaluwarsa dalam 1 jam. Jika Anda tidak meminta ini, harap abaikan email ini.`,
     };
 
     return this.sendEmailNotification(emailDto);
