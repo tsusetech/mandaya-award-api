@@ -9,6 +9,9 @@ import * as bcrypt from 'bcrypt';
 import { SignupDto } from './dto/signup.dto';
 import { BulkUserDto, UserCreationResult } from './dto/bulk-signup.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -891,5 +894,157 @@ export class AuthService {
   private isValidEmail(email: string): boolean {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
+  }
+
+  /**
+   * Change user password (requires current password verification)
+   */
+  async changePassword(userId: number, changePasswordDto: ChangePasswordDto): Promise<{ message: string }> {
+    const { currentPassword, newPassword, confirmPassword } = changePasswordDto;
+
+    // Validate password confirmation
+    if (newPassword !== confirmPassword) {
+      throw new BadRequestException('New password and confirmation password do not match');
+    }
+
+    // Get user with password
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, password: true }
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    if (!user.password) {
+      throw new BadRequestException('User does not have a password set (OAuth user)');
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isCurrentPasswordValid) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt();
+    const hashedNewPassword = await bcrypt.hash(newPassword, salt);
+
+    // Update password
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { 
+        password: hashedNewPassword,
+        updatedAt: new Date()
+      }
+    });
+
+    return { message: 'Password changed successfully' };
+  }
+
+  /**
+   * Request password reset (forgot password)
+   */
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<{ message: string }> {
+    const { email } = forgotPasswordDto;
+
+    // Find user by email
+    const user = await this.prisma.user.findUnique({
+      where: { email: email.toLowerCase() }
+    });
+
+    if (!user) {
+      // Don't reveal if user exists or not for security
+      return { message: 'If an account with that email exists, a password reset link has been sent' };
+    }
+
+    if (!user.password) {
+      // OAuth users don't have passwords
+      return { message: 'If an account with that email exists, a password reset link has been sent' };
+    }
+
+    // Generate reset token (JWT with short expiration)
+    const resetToken = this.jwtService.sign(
+      { sub: user.id, email: user.email, type: 'password_reset' },
+      { expiresIn: '1h' }
+    );
+
+    // Store reset token and expiration in database
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetToken,
+        resetTokenExpires: new Date(Date.now() + 60 * 60 * 1000) // 1 hour
+      }
+    });
+
+    // Send password reset email
+    try {
+      await this.notificationsService.sendPasswordResetEmail(
+        user.email,
+        resetToken
+      );
+    } catch (emailError) {
+      console.error('Failed to send password reset email:', emailError);
+      // Don't fail the request if email fails
+    }
+
+    return { message: 'If an account with that email exists, a password reset link has been sent' };
+  }
+
+  /**
+   * Reset password using reset token
+   */
+  async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<{ message: string }> {
+    const { resetToken, newPassword, confirmPassword } = resetPasswordDto;
+
+    // Validate password confirmation
+    if (newPassword !== confirmPassword) {
+      throw new BadRequestException('New password and confirmation password do not match');
+    }
+
+    try {
+      // Verify and decode reset token
+      const payload = this.jwtService.verify(resetToken);
+      
+      if (payload.type !== 'password_reset') {
+        throw new BadRequestException('Invalid reset token');
+      }
+
+      // Find user by reset token
+      const user = await this.prisma.user.findFirst({
+        where: {
+          resetToken,
+          resetTokenExpires: { gt: new Date() }
+        }
+      });
+
+      if (!user) {
+        throw new BadRequestException('Invalid or expired reset token');
+      }
+
+      // Hash new password
+      const salt = await bcrypt.genSalt();
+      const hashedNewPassword = await bcrypt.hash(newPassword, salt);
+
+      // Update password and clear reset token
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          password: hashedNewPassword,
+          resetToken: null,
+          resetTokenExpires: null,
+          updatedAt: new Date()
+        }
+      });
+
+      return { message: 'Password reset successfully' };
+    } catch (error) {
+      if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+        throw new BadRequestException('Invalid or expired reset token');
+      }
+      throw error;
+    }
   }
 }

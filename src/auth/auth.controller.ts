@@ -33,6 +33,10 @@ import {
   BulkSignupDto,
   BulkSignupResponseDto,
 } from './dto/bulk-signup.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { PasswordResponseDto } from './dto/password-response.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -241,5 +245,87 @@ export class AuthController {
         `Failed to process Excel file: ${error.message}`,
       );
     }
+  }
+
+  // --- Password Management ---
+  @Post('change-password')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ 
+    summary: 'Change user password',
+    description: 'Change password for authenticated user (requires current password verification)'
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Password changed successfully',
+    type: PasswordResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid password data or current password incorrect',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'User not authenticated',
+  })
+  @ApiBody({ type: ChangePasswordDto })
+  async changePassword(
+    @Req() req,
+    @Body() changePasswordDto: ChangePasswordDto
+  ): Promise<PasswordResponseDto> {
+    const result = await this.authService.changePassword(req.user.sub, changePasswordDto);
+    return {
+      message: result.message,
+      success: true,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  @Post('forgot-password')
+  @ApiOperation({ 
+    summary: 'Request password reset',
+    description: 'Send password reset email to user (does not reveal if email exists)'
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Password reset email sent if account exists',
+    type: PasswordResponseDto,
+  })
+  @ApiBody({ type: ForgotPasswordDto })
+  async forgotPassword(
+    @Body() forgotPasswordDto: ForgotPasswordDto
+  ): Promise<PasswordResponseDto> {
+    const result = await this.authService.forgotPassword(forgotPasswordDto);
+    return {
+      message: result.message,
+      success: true,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  @Post('reset-password')
+  @ApiOperation({ 
+    summary: 'Reset password using reset token',
+    description: 'Reset password using token received via email'
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Password reset successfully',
+    type: PasswordResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid or expired reset token',
+  })
+  @ApiBody({ type: ResetPasswordDto })
+  async resetPassword(
+    @Body() resetPasswordDto: ResetPasswordDto
+  ): Promise<PasswordResponseDto> {
+    const result = await this.authService.resetPassword(resetPasswordDto);
+    return {
+      message: result.message,
+      success: true,
+      timestamp: new Date().toISOString()
+    };
   }
 }

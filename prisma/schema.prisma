@@ -34,6 +34,9 @@ model User {
   username        String            @unique
   deletedAt       DateTime?
   deletedBy       Int?
+  // Password reset fields
+  resetToken      String?
+  resetTokenExpires DateTime?
   userRoles       UserRole[]
   userGroups      UserGroup[]
   responseSessions ResponseSession[]
