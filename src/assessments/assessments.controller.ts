@@ -495,7 +495,7 @@ export class AssessmentsController {
   })
   @ApiResponse({
     status: 400,
-    description: 'Bad request - Session not submitted or resubmitted',
+    description: 'Bad request - Session not submitted, resubmitted, or needs revision',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({
