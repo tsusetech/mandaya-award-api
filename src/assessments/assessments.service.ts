@@ -1112,9 +1112,9 @@ export class AssessmentsService {
     // Check if session is submitted using StatusProgress
     const sessionStatus =
       await this.statusProgressService.getResponseSessionStatus(sessionId);
-    if (sessionStatus !== 'submitted' && sessionStatus !== 'resubmitted') {
+    if (sessionStatus !== 'submitted' && sessionStatus !== 'resubmitted' && sessionStatus !== 'needs_revision') {
       throw new BadRequestException(
-        'Session must be submitted or resubmitted before it can be reviewed',
+        'Session must be submitted, resubmitted, or needs revision before it can be reviewed',
       );
     }
 
@@ -1274,9 +1274,9 @@ export class AssessmentsService {
     // Check if session is submitted using StatusProgress
     const sessionStatus =
       await this.statusProgressService.getResponseSessionStatus(sessionId);
-    if (sessionStatus !== 'submitted' && sessionStatus !== 'resubmitted') {
+    if (sessionStatus !== 'submitted' && sessionStatus !== 'resubmitted' && sessionStatus !== 'needs_revision') {
       throw new BadRequestException(
-        'Session must be submitted or resubmitted before it can be reviewed',
+        'Session must be submitted, resubmitted, or needs revision before it can be reviewed',
       );
     }
 
