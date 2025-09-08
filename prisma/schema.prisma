@@ -235,15 +235,15 @@ model ResponseSession {
   validationChecklist   Json?     // Array of validation checklist items
   
   // Relations
-  user                  User @relation(fields: [userId], references: [id])
+  user                  User @relation(fields: [userId], references: [id], onDelete: Cascade)
   group                 Group @relation(fields: [groupId], references: [id])
   currentQuestion       Question? @relation("CurrentQuestion", fields: [currentQuestionId], references: [id])
   responses             QuestionResponse[]
-  reviewer              User? @relation("Reviewer", fields: [reviewerId], references: [id])
+  reviewer              User? @relation("Reviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
   comments              ReviewComment[]
   juryScores            JuryScore[]
   statusProgress        StatusProgress[] // Add this relation
-  deletedByUser         User? @relation("ResponseSessionDeletedBy", fields: [deletedBy], references: [id])
+  deletedByUser         User? @relation("ResponseSessionDeletedBy", fields: [deletedBy], references: [id], onDelete: SetNull)
   
   @@unique([userId, groupId])
   @@index([userId])
