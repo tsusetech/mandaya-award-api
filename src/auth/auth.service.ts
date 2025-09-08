@@ -80,11 +80,7 @@ export class AuthService {
         throw new BadRequestException('Invalid email format');
       }
 
-      // Validate username format (alphanumeric and underscore only)
-      const usernameRegex = /^[a-zA-Z0-9_]+$/;
-      if (!usernameRegex.test(signupDto.username)) {
-        throw new BadRequestException('Username can only contain letters, numbers, and underscores');
-      }
+      // Username validation removed - allow any characters
 
       // Normalize email and username (trim whitespace and convert to lowercase for comparison)
       const normalizedEmail = signupDto.email.trim().toLowerCase();
