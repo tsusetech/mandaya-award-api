@@ -82,31 +82,8 @@ export class AuthService {
 
       // Username validation removed - allow any characters
 
-      // Normalize email and username (trim whitespace and convert to lowercase for comparison)
-      const normalizedEmail = signupDto.email.trim().toLowerCase();
-      const normalizedUsername = signupDto.username.trim().toLowerCase();
-
       // Check if user already exists (excluding soft-deleted users)
-      // Use case-insensitive comparison to avoid false positives
-      const existingUser = await this.prisma.user.findFirst({
-        where: {
-          OR: [
-            { 
-              email: {
-                equals: normalizedEmail,
-                mode: 'insensitive'
-              }
-            }, 
-            { 
-              username: {
-                equals: normalizedUsername,
-                mode: 'insensitive'
-              }
-            }
-          ],
-          deletedAt: null,
-        },
-      });
+      const existingUser = await this.checkUserExists(signupDto.email, signupDto.username);
 
       if (existingUser) {
         // Provide more specific error message
@@ -315,8 +292,11 @@ export class AuthService {
   }
 
   async findOrCreateGoogleUser(googleUser: any) {
-    let user = await this.prisma.user.findUnique({
-      where: { email: googleUser.email },
+    let user = await this.prisma.user.findFirst({
+      where: { 
+        email: googleUser.email,
+        deletedAt: null, // Exclude soft-deleted users
+      },
       select: {
         id: true,
         email: true,
@@ -556,6 +536,35 @@ export class AuthService {
     };
   }
 
+  /**
+   * Helper function to check if a user already exists (excluding soft-deleted users)
+   * Uses case-insensitive comparison for email and username
+   */
+  private async checkUserExists(email: string, username: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedUsername = username.trim().toLowerCase();
+
+    return await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { 
+            email: {
+              equals: normalizedEmail,
+              mode: 'insensitive'
+            }
+          }, 
+          { 
+            username: {
+              equals: normalizedUsername,
+              mode: 'insensitive'
+            }
+          }
+        ],
+        deletedAt: null,
+      },
+    });
+  }
+
   private async createSingleUserForBulk(
     userData: BulkUserDto,
   ): Promise<UserCreationResult> {
@@ -563,20 +572,19 @@ export class AuthService {
       console.log(`Processing user: ${userData.email} (${userData.username})`);
 
       // Check if user already exists (excluding soft-deleted users)
-      const existingUser = await this.prisma.user.findFirst({
-        where: {
-          OR: [{ email: userData.email }, { username: userData.username }],
-          deletedAt: null,
-        },
-      });
+      const existingUser = await this.checkUserExists(userData.email, userData.username);
 
       if (existingUser) {
         console.log(`User already exists: ${userData.email}`);
+        // Provide more specific error message
+        const conflictField = existingUser.email.toLowerCase() === userData.email.toLowerCase() 
+          ? 'email' 
+          : 'username';
         return {
           email: userData.email,
           username: userData.username,
           success: false,
-          error: 'User with this email or username already exists',
+          error: `User with this ${conflictField} already exists`,
         };
       }
 
@@ -610,9 +618,9 @@ export class AuthService {
         // Create user
         const newUser = await prisma.user.create({
           data: {
-            email: userData.email,
-            username: userData.username,
-            name: userData.name,
+            email: userData.email.trim(), // Store original email but trimmed
+            username: userData.username.trim(), // Store original username but trimmed
+            name: userData.name?.trim(),
             password: hashedPassword,
             createdAt: new Date(),
             updatedAt: new Date(),

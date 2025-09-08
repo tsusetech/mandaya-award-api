@@ -79,23 +79,42 @@ export class UsersService {
 
     // Check if email or username is already taken by another user
     if (updateData.email || updateData.username) {
+      const conflictConditions = [];
+      
+      if (updateData.email) {
+        conflictConditions.push({
+          email: {
+            equals: updateData.email.trim().toLowerCase(),
+            mode: 'insensitive'
+          }
+        });
+      }
+      
+      if (updateData.username) {
+        conflictConditions.push({
+          username: {
+            equals: updateData.username.trim().toLowerCase(),
+            mode: 'insensitive'
+          }
+        });
+      }
+
       const conflictUser = await this.prisma.user.findFirst({
         where: {
           AND: [
             { id: { not: id } }, // Exclude current user
             this.softDeleteService.getActiveRecordsWhere(), // Only active users
-            {
-              OR: [
-                updateData.email ? { email: updateData.email } : {},
-                updateData.username ? { username: updateData.username } : {},
-              ].filter((condition) => Object.keys(condition).length > 0),
-            },
+            { OR: conflictConditions },
           ],
         },
       });
 
       if (conflictUser) {
-        throw new BadRequestException('Email or username already exists');
+        // Provide more specific error message
+        const conflictField = conflictUser.email.toLowerCase() === updateData.email?.toLowerCase() 
+          ? 'email' 
+          : 'username';
+        throw new BadRequestException(`User with this ${conflictField} already exists`);
       }
     }
 
