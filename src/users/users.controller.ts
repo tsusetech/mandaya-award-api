@@ -121,7 +121,7 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Soft delete user (SuperAdmin only)' })
+  @ApiOperation({ summary: 'Hard delete user (SuperAdmin only) - Completely removes user and all related data' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'User deleted successfully',
@@ -194,4 +194,5 @@ export class UsersController {
   permanentlyDeleteUser(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.permanentlyDeleteUser(id);
   }
+
 }

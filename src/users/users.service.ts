@@ -186,20 +186,20 @@ export class UsersService {
   }
 
   async deleteUser(id: number, deletedBy?: number) {
-    // Check if user exists
-    const existingUser = await this.prisma.user.findFirst({
-      where: {
-        id,
-        ...this.softDeleteService.getActiveRecordsWhere(),
-      },
+    // Check if user exists (including soft deleted ones)
+    const existingUser = await this.prisma.user.findUnique({
+      where: { id },
     });
 
     if (!existingUser) {
       throw new NotFoundException('User not found');
     }
 
-    // Soft delete user
-    await this.softDeleteService.softDeleteUser(id, { deletedBy });
+    // Hard delete user - this will cascade delete related records
+    // based on the onDelete: Cascade constraints in the schema
+    await this.prisma.user.delete({
+      where: { id },
+    });
 
     return {
       message: 'User deleted successfully',
@@ -384,4 +384,5 @@ export class UsersService {
       throw new NotFoundException('Soft deleted user not found');
     }
   }
+
 }
