@@ -79,7 +79,7 @@ export class UsersService {
 
     // Check if email or username is already taken by another user
     if (updateData.email || updateData.username) {
-      const conflictConditions = [];
+      const conflictConditions: any[] = [];
       
       if (updateData.email) {
         conflictConditions.push({
