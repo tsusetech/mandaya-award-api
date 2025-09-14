@@ -759,28 +759,9 @@ export class AssessmentsService {
   }
 
   async getAllAssessmentSessions(
-    paginationQuery?: PaginationQueryDto,
     finalStatus?: string,
-  ): Promise<{
-    data: UserAssessmentSessionDto[];
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-    hasNext: boolean;
-    hasPrev: boolean;
-  }> {
-    const { page = 1, limit = 10 } = paginationQuery || {};
-    const skip = (page - 1) * limit;
-
-    // Get total count
-    const total = await this.prisma.responseSession.count({
-      where: {
-        deletedAt: null,
-      },
-    });
-
-    // Get sessions with review data
+  ): Promise<UserAssessmentSessionDto[]> {
+    // Get all sessions with review data
     const sessions = await this.prisma.responseSession.findMany({
       where: {
         deletedAt: null,
@@ -803,8 +784,6 @@ export class AssessmentsService {
           },
         },
       },
-      skip,
-      take: limit,
       orderBy: {
         lastActivityAt: 'desc',
       },
@@ -830,8 +809,8 @@ export class AssessmentsService {
       filteredSessions = filteredSessions.filter((item) => item.matches);
     }
 
-    // Map to DTO
-    const data: UserAssessmentSessionDto[] = filteredSessions.map((item) => {
+    // Map to DTO and return all results
+    return filteredSessions.map((item) => {
       const session = item.session;
 
       return {
@@ -857,20 +836,6 @@ export class AssessmentsService {
         reviewComments: session.overallComments || null,
       };
     });
-
-    const totalPages = Math.ceil(total / limit);
-    const hasNext = page < totalPages;
-    const hasPrev = page > 1;
-
-    return {
-      data,
-      total: filteredSessions.length,
-      page,
-      limit,
-      totalPages,
-      hasNext,
-      hasPrev,
-    };
   }
 
   async getAssessmentSessionDetail(

@@ -87,20 +87,6 @@ export class AssessmentsController {
       'Retrieves all assessment sessions across all users. Admin and Superadmin access only.',
   })
   @ApiQuery({
-    name: 'page',
-    required: false,
-    type: 'number',
-    description: 'Page number (starts from 1)',
-    example: 1,
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    type: 'number',
-    description: 'Number of items per page',
-    example: 10,
-  })
-  @ApiQuery({
     name: 'finalStatus',
     required: false,
     type: 'string',
@@ -136,7 +122,6 @@ export class AssessmentsController {
     @Query() query: UserAssessmentSessionsQueryDto,
   ) {
     const sessions = await this.assessmentsService.getAllAssessmentSessions(
-      query,
       query.finalStatus,
     );
     return this.responseService.success(

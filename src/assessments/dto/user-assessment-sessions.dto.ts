@@ -119,7 +119,7 @@ export class UserAssessmentSessionDto {
   reviewComments?: string | null;
 }
 
-export class UserAssessmentSessionsQueryDto extends PaginationQueryDto {
+export class UserAssessmentSessionsQueryDto {
   @ApiProperty({
     example: 'submitted',
     required: false,
@@ -128,7 +128,7 @@ export class UserAssessmentSessionsQueryDto extends PaginationQueryDto {
   })
   @IsOptional()
   @IsEnum(CombinedStatus)
-  declare finalStatus?: CombinedStatus;
+  finalStatus?: CombinedStatus;
 }
 
 export enum ReviewStage {
