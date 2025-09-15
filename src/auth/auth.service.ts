@@ -537,32 +537,19 @@ export class AuthService {
   }
 
   /**
-   * Helper function to check if a user already exists (excluding soft-deleted users)
-   * Uses case-insensitive comparison for email and username
+   * Check if a user already exists (treating soft-deleted users as non-existent)
    */
-  private async checkUserExists(email: string, username: string) {
-    const normalizedEmail = email.trim().toLowerCase();
-    const normalizedUsername = username.trim().toLowerCase();
-
-    return await this.prisma.user.findFirst({
+  private async checkUserExists(email: string, username: string): Promise<any> {
+    const user = await this.prisma.user.findFirst({
       where: {
         OR: [
-          { 
-            email: {
-              equals: normalizedEmail,
-              mode: 'insensitive'
-            }
-          }, 
-          { 
-            username: {
-              equals: normalizedUsername,
-              mode: 'insensitive'
-            }
-          }
+          { email: email.toLowerCase() },
+          { username: username.toLowerCase() }
         ],
-        deletedAt: null,
+        deletedAt: null, // Ignore soft-deleted users - treat them as non-existent
       },
     });
+    return user;
   }
 
   private async createSingleUserForBulk(
