@@ -335,11 +335,6 @@ export class AssessmentsService {
   ): Promise<{ success: boolean; message: string }> {
     const session = await this.prisma.responseSession.findUnique({
       where: { id: sessionId },
-      include: {
-        responses: {
-          where: { questionId: answerDto.questionId },
-        },
-      },
     });
 
     if (!session) {
@@ -364,38 +359,34 @@ export class AssessmentsService {
       answerDto.inputType || 'text-open',
     );
 
-    // Check if response already exists
-    const existingResponse = session.responses[0];
-
-    if (existingResponse) {
-      // Update existing response
-      await this.prisma.questionResponse.update({
-        where: { id: existingResponse.id },
-        data: {
-          ...mappedValue,
-          isDraft: answerDto.isDraft,
-          isComplete: answerDto.isComplete ?? !answerDto.isDraft,
-          isSkipped: answerDto.isSkipped ?? false,
-          timeSpentSeconds: answerDto.timeSpent || 0,
-          lastModifiedAt: new Date(),
-        },
-      });
-    } else {
-      // Create new response
-      await this.prisma.questionResponse.create({
-        data: {
+    // Use upsert to handle both create and update cases
+    await this.prisma.questionResponse.upsert({
+      where: {
+        sessionId_questionId: {
           sessionId,
           questionId: answerDto.questionId,
-          groupQuestionId: groupQuestion.id,
-          ...mappedValue,
-          isDraft: answerDto.isDraft,
-          isComplete: answerDto.isComplete ?? !answerDto.isDraft,
-          isSkipped: answerDto.isSkipped ?? false,
-          timeSpentSeconds: answerDto.timeSpent || 0,
-          lastModifiedAt: new Date(),
         },
-      });
-    }
+      },
+      update: {
+        ...mappedValue,
+        isDraft: answerDto.isDraft,
+        isComplete: answerDto.isComplete ?? !answerDto.isDraft,
+        isSkipped: answerDto.isSkipped ?? false,
+        timeSpentSeconds: answerDto.timeSpent || 0,
+        lastModifiedAt: new Date(),
+      },
+      create: {
+        sessionId,
+        questionId: answerDto.questionId,
+        groupQuestionId: groupQuestion.id,
+        ...mappedValue,
+        isDraft: answerDto.isDraft,
+        isComplete: answerDto.isComplete ?? !answerDto.isDraft,
+        isSkipped: answerDto.isSkipped ?? false,
+        timeSpentSeconds: answerDto.timeSpent || 0,
+        lastModifiedAt: new Date(),
+      },
+    });
 
     // Update progress percentage - use frontend value if provided, otherwise calculate
     if (answerDto.progressPercentage !== undefined) {
