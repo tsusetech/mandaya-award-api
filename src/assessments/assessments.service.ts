@@ -1546,16 +1546,11 @@ export class AssessmentsService {
         if (typeof value === 'object' && value !== null) {
           const result: any = {};
 
-          // Store the entire object in arrayValue for backup
+          // Store the entire object in arrayValue to preserve the complete structure
           result.arrayValue = value;
 
-          // If there's an answer array, store it
-          if (value.answer && Array.isArray(value.answer)) {
-            result.arrayValue = value.answer;
-          }
-
-          // If there's a url, store it in textValue
-          if (value.url !== undefined) {
+          // If there's a url, also store it in textValue for easy access
+          if (value.url !== undefined && value.url !== '') {
             result.textValue = value.url.toString();
           }
 
@@ -1600,10 +1595,14 @@ export class AssessmentsService {
     // For checkbox type with complex objects, reconstruct the object
     if (response.arrayValue !== null && typeof response.arrayValue === 'object') {
       // Check if this looks like a checkbox response with answer and url
-      if (
-        response.arrayValue.answer !== undefined &&
-        response.arrayValue.url !== undefined
-      ) {
+      if (response.arrayValue.answer !== undefined) {
+        // If we have a textValue (URL) but the arrayValue doesn't have it, merge them
+        if (response.textValue && !response.arrayValue.url) {
+          return {
+            ...response.arrayValue,
+            url: response.textValue
+          };
+        }
         return response.arrayValue;
       }
       // Check if this is a simple array of checkbox values
