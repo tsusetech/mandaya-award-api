@@ -1542,7 +1542,26 @@ export class AssessmentsService {
         // Fallback for simple numeric values
         return { numericValue: value ? parseFloat(value) : null };
       case 'checkbox':
-        // Handle complex checkbox values (arrays with objects)
+        // Handle complex checkbox values with answer array and url
+        if (typeof value === 'object' && value !== null) {
+          const result: any = {};
+
+          // Store the entire object in arrayValue for backup
+          result.arrayValue = value;
+
+          // If there's an answer array, store it
+          if (value.answer && Array.isArray(value.answer)) {
+            result.arrayValue = value.answer;
+          }
+
+          // If there's a url, store it in textValue
+          if (value.url !== undefined) {
+            result.textValue = value.url.toString();
+          }
+
+          return result;
+        }
+        // Handle simple array values
         if (Array.isArray(value)) {
           return { arrayValue: value };
         }
@@ -1578,9 +1597,19 @@ export class AssessmentsService {
       }
     }
 
-    // For checkbox type with array values, return the array
-    if (response.arrayValue !== null && Array.isArray(response.arrayValue)) {
-      return response.arrayValue;
+    // For checkbox type with complex objects, reconstruct the object
+    if (response.arrayValue !== null && typeof response.arrayValue === 'object') {
+      // Check if this looks like a checkbox response with answer and url
+      if (
+        response.arrayValue.answer !== undefined &&
+        response.arrayValue.url !== undefined
+      ) {
+        return response.arrayValue;
+      }
+      // Check if this is a simple array of checkbox values
+      if (Array.isArray(response.arrayValue)) {
+        return response.arrayValue;
+      }
     }
 
     // For other types, return the first non-null value
