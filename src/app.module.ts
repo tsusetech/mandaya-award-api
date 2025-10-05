@@ -14,6 +14,7 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { AssessmentsModule } from './assessments/assessments.module';
 import { CategoriesModule } from './categories/categories.module';
 import { QuestionCategoriesModule } from './question-categories/question-categories.module';
+import { AwardRankingsModule } from './award-rankings/award-rankings.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { QuestionCategoriesModule } from './question-categories/question-categor
     AssessmentsModule,
     CategoriesModule,
     QuestionCategoriesModule,
+    AwardRankingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
