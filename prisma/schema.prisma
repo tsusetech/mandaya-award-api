@@ -52,6 +52,7 @@ model User {
   deletedQuestionCategories QuestionCategory[] @relation("QuestionCategoryDeletedBy")
   statusProgressChanges StatusProgress[] @relation("StatusProgressChangedBy")
   resolvedReviewComments ReviewComment[] @relation("ReviewCommentResolvedBy")
+  awardRankingScorings AwardRankingScoring[] @relation("AwardRankingScoringJury")
 }
 
 model Role {
@@ -244,7 +245,7 @@ model ResponseSession {
   comments              ReviewComment[]
   juryScores            JuryScore[]
   statusProgress        StatusProgress[] // Add this relation
-  awardRanking          AwardRanking?
+  awardRankings         AwardRanking[]
   deletedByUser         User? @relation("ResponseSessionDeletedBy", fields: [deletedBy], references: [id], onDelete: SetNull)
   
   @@unique([userId, groupId])
@@ -394,18 +395,35 @@ model CategoryGroup {
 model AwardRanking {
   id                        Int      @id @default(autoincrement())
   sessionId                 Int
-  relevansiProgram          Int      // Score for program relevance
-  dampakCapaianNyata        Int      // Score for actual achievement impact
-  inklusivitas              Int      // Score for inclusiveness
-  keberlanjutan             Int      // Score for sustainability
-  inovasiPotensiReplikasi   Int      // Score for innovation and replication potential
-  kualitasPresentasi        Int      // Score for presentation quality
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
 
   // Relations
   session ResponseSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  scoringDetails AwardRankingScoring[]
 
-  @@unique([sessionId])
+  @@unique([sessionId])  // One ranking per session
   @@index([sessionId])
+}
+
+model AwardRankingScoring {
+  id                        Int      @id @default(autoincrement())
+  awardRankingId            Int
+  juryId                    Int
+  relevansiProgram          Int      // Score for program relevance (1-5)
+  dampakCapaianNyata        Int      // Score for actual achievement impact (1-5)
+  inklusivitas              Int      // Score for inclusiveness (1-5)
+  keberlanjutan             Int      // Score for sustainability (1-5)
+  inovasiPotensiReplikasi   Int      // Score for innovation and replication potential (1-5)
+  kualitasPresentasi        Int      // Score for presentation quality (1-5)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  // Relations
+  awardRanking AwardRanking @relation(fields: [awardRankingId], references: [id], onDelete: Cascade)
+  jury         User         @relation("AwardRankingScoringJury", fields: [juryId], references: [id], onDelete: Cascade)
+
+  @@unique([awardRankingId, juryId])  // One jury can only score a ranking once
+  @@index([awardRankingId])
+  @@index([juryId])
 }
