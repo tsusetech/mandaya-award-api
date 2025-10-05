@@ -49,6 +49,7 @@ import { ResolveReviewCommentDto } from './dto/review-comment.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { ResponseService } from '../common/services/response.service';
 import { JuryRankingsResponseDto, JuryRankingsQueryDto } from './dto/jury-rankings.dto';
+import { JudgmentQuestionsResponseDto } from './dto/judgment-questions.dto';
 
 @ApiTags('Assessments API')
 @ApiBearerAuth()
@@ -896,6 +897,31 @@ export class AssessmentsController {
     return this.responseService.success(
       rankingsData,
       'Jury rankings retrieved successfully',
+    );
+  }
+
+  @Get('judgment/questions/:groupId')
+  @Roles('ADMIN', 'SUPERADMIN', 'JURI')
+  @ApiOperation({
+    summary: 'Get judgment questions with tahap-group assignments for a group',
+    description: 'Retrieves all assessment sessions for a group that contain questions with tahap-group assignments, including their responses, review comments, and jury scores.',
+  })
+  @ApiParam({ name: 'groupId', description: 'Group ID', type: 'number' })
+  @ApiResponse({
+    status: 200,
+    description: 'Judgment questions retrieved successfully',
+    type: JudgmentQuestionsResponseDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - ADMIN, SUPERADMIN, or JURI role required' })
+  @ApiResponse({ status: 404, description: 'Group not found' })
+  async getJudgmentQuestions(
+    @Param('groupId', ParseIntPipe) groupId: number,
+  ) {
+    const judgmentData = await this.assessmentsService.getJudgmentQuestions(groupId);
+    return this.responseService.success(
+      judgmentData,
+      'Judgment questions retrieved successfully',
     );
   }
 }

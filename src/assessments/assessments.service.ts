@@ -26,6 +26,7 @@ import {
   CompleteJuryReviewDto,
 } from './dto/user-assessment-sessions.dto';
 import { JuryRankingsResponseDto, JuryRankingsQueryDto } from './dto/jury-rankings.dto';
+import { JudgmentQuestionsResponseDto, JudgmentSessionDto, JudgmentQuestionDto, TahapGroupInfoDto } from './dto/judgment-questions.dto';
 
 @Injectable()
 export class AssessmentsService {
@@ -2321,5 +2322,145 @@ export class AssessmentsService {
       totalNominations,
       categories,
     };
+  }
+
+  async getJudgmentQuestions(groupId: number): Promise<{ data: JudgmentSessionDto[] }> {
+    // First, check if the group exists
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
+    });
+
+    if (!group) {
+      throw new NotFoundException('Group not found');
+    }
+
+    // Get all sessions for this group that have questions with tahap-group assignments
+    const sessions = await this.prisma.responseSession.findMany({
+      where: {
+        groupId: groupId,
+        deletedAt: null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        group: {
+          select: {
+            id: true,
+            groupName: true,
+          },
+        },
+        responses: {
+          include: {
+            question: {
+              include: {
+                options: {
+                  where: { isActive: true },
+                  orderBy: { orderNumber: 'asc' },
+                },
+              },
+            },
+            groupQuestion: {
+              include: {
+                questionTahapGroups: {
+                  include: {
+                    tahapGroup: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Filter sessions that have questions with tahap-group assignments
+    const sessionsWithTahapGroups = sessions.filter(session => {
+      return session.responses.some(response => 
+        response.groupQuestion.questionTahapGroups.length > 0
+      );
+    });
+
+    // Get the latest status for each session
+    const sessionStatuses = await Promise.all(
+      sessionsWithTahapGroups.map(async (session) => {
+        const latestStatus = await this.statusProgressService.getLatestStatus(session.id);
+        return { sessionId: session.id, status: latestStatus || 'draft' };
+      })
+    );
+
+    const statusMap = sessionStatuses.reduce((acc, item) => {
+      acc[item.sessionId] = item.status;
+      return acc;
+    }, {} as Record<number, string>);
+
+    // Transform the data to match the expected format
+    const judgmentData: JudgmentSessionDto[] = sessionsWithTahapGroups.map(session => {
+      // Filter questions that have tahap-group assignments
+      const tahapGroupQuestions = session.responses.filter(response =>
+        response.groupQuestion.questionTahapGroups.length > 0
+      );
+
+      const questions: JudgmentQuestionDto[] = tahapGroupQuestions.map(response => {
+        // Get tahap group information for this question
+        const tahapGroups: TahapGroupInfoDto[] = response.groupQuestion.questionTahapGroups.map(qtg => ({
+          tahapGroup: qtg.tahapGroup.tahapGroup,
+          groupIdentifier: qtg.tahapGroup.groupIdentifier,
+          description: qtg.tahapGroup.description || '',
+          calculationType: qtg.tahapGroup.calculationType,
+        }));
+
+        // Determine response value based on input type
+        let responseValue = '';
+        if (response.textValue) {
+          responseValue = response.textValue;
+        } else if (response.numericValue !== null) {
+          responseValue = response.numericValue.toString();
+        } else if (response.booleanValue !== null) {
+          responseValue = response.booleanValue.toString();
+        } else if (response.arrayValue) {
+          responseValue = JSON.stringify(response.arrayValue);
+        }
+
+        return {
+          id: response.question.id,
+          questionText: response.question.questionText,
+          description: response.question.description || undefined,
+          inputType: response.question.inputType as any,
+          isRequired: response.question.isRequired,
+          orderNumber: response.groupQuestion.orderNumber,
+          sectionTitle: response.groupQuestion.sectionTitle || undefined,
+          subsection: response.groupQuestion.subsection || undefined,
+          isGrouped: response.groupQuestion.isGrouped,
+          options: response.question.options.map(option => ({
+            id: option.id,
+            optionText: option.optionText,
+            optionValue: option.optionValue,
+            orderNumber: option.orderNumber,
+            isMultipleChoice: option.isMultipleChoice,
+            isCheckBox: option.isCheckBox,
+          })),
+          response: responseValue,
+          tahapGroups,
+        };
+      });
+
+      return {
+        id: session.id,
+        userId: session.userId,
+        groupId: session.groupId,
+        groupName: session.group.groupName,
+        status: statusMap[session.id] || 'draft',
+        progressPercentage: session.progressPercentage,
+        autoSaveEnabled: session.autoSaveEnabled,
+        questions,
+      };
+    });
+
+    return { data: judgmentData };
   }
 }
