@@ -15,6 +15,8 @@ export class AwardRankingSummaryDto {
     keberlanjutan: number;
     inovasiPotensiReplikasi: number;
     kualitasPresentasi: number;
+    socialEnvironmentEngagement: number;
+    biokulturalEngagement: number;
     overall: number;
   };
   juryRankings: AwardRankingScoringResponseDto[];

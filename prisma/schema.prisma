@@ -416,6 +416,8 @@ model AwardRankingScoring {
   keberlanjutan             Int      // Score for sustainability (1-5)
   inovasiPotensiReplikasi   Int      // Score for innovation and replication potential (1-5)
   kualitasPresentasi        Int      // Score for presentation quality (1-5)
+  socialEnvironmentEngagement Int    // Score for social environment engagement (1-5)
+  biokulturalEngagement     Int      // Score for biokultural engagement (1-5)
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
 

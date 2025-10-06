@@ -89,4 +89,28 @@ export class CreateAwardRankingScoringDto {
   @Min(1)
   @Max(5)
   kualitasPresentasi: number;
+
+  @ApiProperty({
+    description: 'Social Environment Engagement score (1-5)',
+    example: 4,
+    minimum: 1,
+    maximum: 5,
+    type: 'integer'
+  })
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  socialEnvironmentEngagement: number;
+
+  @ApiProperty({
+    description: 'Biokultural Engagement score (1-5)',
+    example: 3,
+    minimum: 1,
+    maximum: 5,
+    type: 'integer'
+  })
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  biokulturalEngagement: number;
 }

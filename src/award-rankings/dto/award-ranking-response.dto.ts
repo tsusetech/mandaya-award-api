@@ -34,6 +34,8 @@ export class AwardRankingResponseDto {
       keberlanjutan: 4.33,
       inovasiPotensiReplikasi: 4.67,
       kualitasPresentasi: 4.33,
+      socialEnvironmentEngagement: 4.0,
+      biokulturalEngagement: 3.5,
       overall: 4.33
     },
     description: 'Average scores across all juries'
@@ -45,6 +47,8 @@ export class AwardRankingResponseDto {
     keberlanjutan: number;
     inovasiPotensiReplikasi: number;
     kualitasPresentasi: number;
+    socialEnvironmentEngagement: number;
+    biokulturalEngagement: number;
     overall: number;
   };
 

@@ -34,6 +34,12 @@ export class AwardRankingScoringResponseDto {
   @ApiProperty({ example: 4, description: 'Presentation quality score (1-5)', minimum: 1, maximum: 5 })
   kualitasPresentasi: number;
 
+  @ApiProperty({ example: 4, description: 'Social Environment Engagement score (1-5)', minimum: 1, maximum: 5 })
+  socialEnvironmentEngagement: number;
+
+  @ApiProperty({ example: 3, description: 'Biokultural Engagement score (1-5)', minimum: 1, maximum: 5 })
+  biokulturalEngagement: number;
+
   @ApiProperty({ example: '2024-01-15T10:30:00.000Z', description: 'Creation timestamp' })
   createdAt: Date;
 

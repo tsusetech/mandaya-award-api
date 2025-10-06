@@ -25,6 +25,8 @@ export class AwardRankingsService {
         keberlanjutan: acc.keberlanjutan + scoring.keberlanjutan,
         inovasiPotensiReplikasi: acc.inovasiPotensiReplikasi + scoring.inovasiPotensiReplikasi,
         kualitasPresentasi: acc.kualitasPresentasi + scoring.kualitasPresentasi,
+        socialEnvironmentEngagement: acc.socialEnvironmentEngagement + scoring.socialEnvironmentEngagement,
+        biokulturalEngagement: acc.biokulturalEngagement + scoring.biokulturalEngagement,
       }),
       {
         relevansiProgram: 0,
@@ -33,6 +35,8 @@ export class AwardRankingsService {
         keberlanjutan: 0,
         inovasiPotensiReplikasi: 0,
         kualitasPresentasi: 0,
+        socialEnvironmentEngagement: 0,
+        biokulturalEngagement: 0,
       }
     );
 
@@ -43,6 +47,8 @@ export class AwardRankingsService {
       keberlanjutan: Math.round((totalScores.keberlanjutan / juryCount) * 100) / 100,
       inovasiPotensiReplikasi: Math.round((totalScores.inovasiPotensiReplikasi / juryCount) * 100) / 100,
       kualitasPresentasi: Math.round((totalScores.kualitasPresentasi / juryCount) * 100) / 100,
+      socialEnvironmentEngagement: Math.round((totalScores.socialEnvironmentEngagement / juryCount) * 100) / 100,
+      biokulturalEngagement: Math.round((totalScores.biokulturalEngagement / juryCount) * 100) / 100,
     } : {
       relevansiProgram: 0,
       dampakCapaianNyata: 0,
@@ -50,12 +56,15 @@ export class AwardRankingsService {
       keberlanjutan: 0,
       inovasiPotensiReplikasi: 0,
       kualitasPresentasi: 0,
+      socialEnvironmentEngagement: 0,
+      biokulturalEngagement: 0,
     };
 
     const overall = Math.round(
       ((averageScores.relevansiProgram + averageScores.dampakCapaianNyata + 
         averageScores.inklusivitas + averageScores.keberlanjutan + 
-        averageScores.inovasiPotensiReplikasi + averageScores.kualitasPresentasi) / 6) * 100
+        averageScores.inovasiPotensiReplikasi + averageScores.kualitasPresentasi +
+        averageScores.socialEnvironmentEngagement + averageScores.biokulturalEngagement) / 8) * 100
     ) / 100;
 
     const scoringDetails = ranking.scoringDetails.map((scoring: any) => ({
@@ -70,6 +79,8 @@ export class AwardRankingsService {
       keberlanjutan: scoring.keberlanjutan,
       inovasiPotensiReplikasi: scoring.inovasiPotensiReplikasi,
       kualitasPresentasi: scoring.kualitasPresentasi,
+      socialEnvironmentEngagement: scoring.socialEnvironmentEngagement,
+      biokulturalEngagement: scoring.biokulturalEngagement,
       createdAt: scoring.createdAt,
       updatedAt: scoring.updatedAt,
     }));
@@ -261,6 +272,8 @@ export class AwardRankingsService {
       keberlanjutan: scoring.keberlanjutan,
       inovasiPotensiReplikasi: scoring.inovasiPotensiReplikasi,
       kualitasPresentasi: scoring.kualitasPresentasi,
+      socialEnvironmentEngagement: scoring.socialEnvironmentEngagement,
+      biokulturalEngagement: scoring.biokulturalEngagement,
       createdAt: scoring.createdAt,
       updatedAt: scoring.updatedAt,
     };
@@ -295,6 +308,8 @@ export class AwardRankingsService {
       keberlanjutan: updatedScoring.keberlanjutan,
       inovasiPotensiReplikasi: updatedScoring.inovasiPotensiReplikasi,
       kualitasPresentasi: updatedScoring.kualitasPresentasi,
+      socialEnvironmentEngagement: updatedScoring.socialEnvironmentEngagement,
+      biokulturalEngagement: updatedScoring.biokulturalEngagement,
       createdAt: updatedScoring.createdAt,
       updatedAt: updatedScoring.updatedAt,
     };
