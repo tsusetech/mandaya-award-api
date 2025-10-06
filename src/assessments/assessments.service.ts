@@ -1764,12 +1764,43 @@ export class AssessmentsService {
         }
       : {};
 
-    // Get all sessions for jury review (submitted and passed to jury)
-    const allSessions = await this.prisma.responseSession.findMany({
-      where: {
-        deletedAt: null,
-        ...searchConditions,
-      },
+    // Build filter conditions for jury reviewable sessions
+    const juryReviewableConditions = {
+      AND: [
+        { deletedAt: null },
+        { ...searchConditions },
+        {
+          OR: [
+            // Sessions approved by admin
+            { decision: 'approve' },
+            // Sessions in jury stages (we'll check status later for these)
+            {
+              AND: [
+                { decision: { not: null } },
+                { 
+                  statusProgress: {
+                    some: {
+                      status: {
+                        in: ['passed_to_jury', 'jury_scoring', 'jury_deliberation', 'final_decision', 'completed']
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+
+    // Get total count for statistics (all jury reviewable sessions)
+    const totalCount = await this.prisma.responseSession.count({
+      where: juryReviewableConditions,
+    });
+
+    // Get paginated sessions for recent reviews
+    const paginatedSessions = await this.prisma.responseSession.findMany({
+      where: juryReviewableConditions,
       include: {
         user: {
           select: {
@@ -1787,56 +1818,72 @@ export class AssessmentsService {
             name: true,
           },
         },
+        statusProgress: {
+          orderBy: {
+            changedAt: 'desc',
+          },
+          take: 1,
+        },
       },
       orderBy: {
         lastActivityAt: 'desc',
       },
+      skip,
+      take: limit,
     });
 
-    // Get status for each session and categorize them
-    const sessionsWithStatus = await Promise.all(
-      allSessions.map(async (session) => {
-        const latestStatus =
-          (await this.statusProgressService.getLatestStatus(session.id)) ||
-          'draft';
+    // Get status for each paginated session using the included statusProgress
+    const sessionsWithStatus = paginatedSessions.map((session) => {
+      const latestStatus = session.statusProgress[0]?.status || 'draft';
+      return {
+        session,
+        status: latestStatus,
+      };
+    });
 
-        return {
-          session,
-          status: latestStatus,
-        };
-      }),
-    );
+    // Calculate statistics - we need to get all reviewable sessions for accurate counts
+    const allReviewableSessions = await this.prisma.responseSession.findMany({
+      where: juryReviewableConditions,
+      include: {
+        statusProgress: {
+          orderBy: {
+            changedAt: 'desc',
+          },
+          take: 1,
+        },
+      },
+    });
+
+    // Get status for all sessions using the included statusProgress
+    const allSessionsWithStatus = allReviewableSessions.map((session) => {
+      const latestStatus = session.statusProgress[0]?.status || 'draft';
+      return {
+        session,
+        status: latestStatus,
+      };
+    });
 
     // Calculate statistics based on both status and decision
     const statistics = {
-      totalAssigned: sessionsWithStatus.filter(s => {
+      totalAssigned: allSessionsWithStatus.filter(s => {
         // Only include sessions that have been approved by admin (decision: approve) or are in jury stages
         return s.session.decision === 'approve' ||
                ['passed_to_jury', 'jury_scoring', 'jury_deliberation', 'final_decision', 'completed'].includes(s.status);
       }).length,
-      reviewed: sessionsWithStatus.filter(s => 
+      reviewed: allSessionsWithStatus.filter(s => 
         ['completed', 'final_decision'].includes(s.status)
       ).length,
-      inProgress: sessionsWithStatus.filter(s => 
+      inProgress: allSessionsWithStatus.filter(s => 
         ['jury_scoring', 'jury_deliberation', 'under_review'].includes(s.status)
       ).length,
-      pending: sessionsWithStatus.filter(s => {
+      pending: allSessionsWithStatus.filter(s => {
         // Sessions with 'approve' decision are pending for jury review
         return s.session.decision === 'approve';
       }).length,
     };
 
-    // Filter sessions for recent reviews (only approved and jury stages)
-    const reviewableSessions = sessionsWithStatus.filter(s =>
-      s.session.decision === 'approve' ||
-      ['passed_to_jury', 'jury_scoring', 'jury_deliberation', 'final_decision', 'completed'].includes(s.status)
-    );
-
-    // Apply pagination to recent reviews
-    const paginatedSessions = reviewableSessions.slice(skip, skip + limit);
-
     // Map to DTO format
-    const recentReviews = paginatedSessions.map((item) => {
+    const recentReviews = sessionsWithStatus.map((item) => {
       const session = item.session;
       return {
         id: session.id,
@@ -1850,7 +1897,7 @@ export class AssessmentsService {
       };
     });
 
-    const totalPages = Math.ceil(reviewableSessions.length / limit);
+    const totalPages = Math.ceil(totalCount / limit);
     const hasNext = page < totalPages;
     const hasPrev = page > 1;
 
@@ -1858,7 +1905,7 @@ export class AssessmentsService {
       statistics,
       recentReviews,
       pagination: {
-        total: reviewableSessions.length,
+        total: totalCount,
         page,
         limit,
         totalPages,
